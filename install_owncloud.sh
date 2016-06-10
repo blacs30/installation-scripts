@@ -404,6 +404,9 @@ openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:4096  \
     -keyout $SSLPATH/$DOMAIN.key \
     -out $SSLPATH/$DOMAIN.crt
 
+# Set secure permissions to certificate key 
+chmod 600 $SSLPATH/$DOMAIN.key    
+
 # install and create ssl script with lets encrypt
 echo "Download and create certificates from letsencrypt"
 apt-get install -y git
