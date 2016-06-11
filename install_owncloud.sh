@@ -8,14 +8,6 @@ else
         exit 1
 fi
 
-# Check if root
-        if [ "$(whoami)" != "root" ]; then
-        echo
-        echo -e "\e[31mSorry, you are not root.\n\e[0mYou must type: \e[36msu root -c 'bash $SCRIPTS/owncloud_install.sh'"
-        echo
-        exit 1
-fi
-
 export SHUF=$(shuf -i 13-15 -n 1)
 export MYSQL_ROOT_PASS=$(cat /dev/urandom | tr -dc "a-zA-Z0-9@#*=" | fold -w $SHUF | head -n 1)
 export WEBMASTER_MAIL=webmaster@cloud.example.com
@@ -34,6 +26,14 @@ export WWWLOGDIR=$WWWPATH/log
 export OCZIPFILEPATH=https://download.owncloud.org/community/owncloud-9.0.2.tar.bz2
 export OCZIPFILE=owncloud-9.0.2.tar.bz2
 export SSL_CONF="" # assigned later /etc/apache2/sites-available/XXX-$DOMAIN.conf"
+
+# Check if root
+        if [ "$(whoami)" != "root" ]; then
+        echo
+        echo -e "\e[31mSorry, you are not root.\n\e[0mYou must type: \e[36msu root -c 'bash $SCRIPTS/install_owncloud.sh'"
+        echo
+        exit 1
+fi
 
 # Check if a redis config file exists and read the password from it
 if [ ! -f /etc/redis/redis.conf ]; then
@@ -291,7 +291,7 @@ if grep -Fq "^unixsocket /var/run/redis/redis.sock" /etc/redis/redis.conf
     echo "add unixsocket /var/run/redis/redis.sock to redis.conf"
     echo 'unixsocket /var/run/redis/redis.sock' >> /etc/redis/redis.conf
 fi
-if grep -Fq "max_execution_time" /etc/redis/redis.conf
+if grep -Fq "^unixsocketperm 770" /etc/redis/redis.conf
   then
     echo "unixsocketperm 770 exists already in redis.conf"
   else
@@ -356,7 +356,12 @@ else
    # settings for letsencrypt certificates
    # SSLCertificateFile /etc/letsencrypt/live/$DOMAIN/fullchain.pem
    # SSLCertificateKeyFile /etc/letsencrypt/live/$DOMAIN/privkey.pem
+   # SSLCertificateChainFile /etc/letsencrypt/live/$DOMAIN/chain.pem
    # Include /etc/letsencrypt/options-ssl-apache.conf
+
+   # Protect against Logjam attacks. See: https://weakdh.org
+   # Not yet in Jessie 8.4 openssl 1.0.1t available
+   # SSLOpenSSLConfCmd DHParameters "$SSLPATH/dhparams.pem"
 
    ### YOUR SERVER ADDRESS ###
        ServerAdmin $WEBMASTER_MAIL
@@ -404,8 +409,12 @@ openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:4096  \
     -keyout $SSLPATH/$DOMAIN.key \
     -out $SSLPATH/$DOMAIN.crt
 
-# Set secure permissions to certificate key 
-chmod 600 $SSLPATH/$DOMAIN.key    
+# create diffie-helman group
+openssl dhparam -out $SSLPATH/dhparams.pem 2048
+
+# Set secure permissions to certificate key
+chmod 600 $SSLPATH/$DOMAIN.key
+chmod 600 $SSLPATH/dhparams.pem
 
 # install and create ssl script with lets encrypt
 echo "Download and create certificates from letsencrypt"
@@ -435,7 +444,7 @@ service mysql restart
 
 
 # Write mysql root password to file - keep it save
-echo "Write root password into file /var/scripts/m-r-pass.txt, keep it safe "
+echo "Write root password into file /var/scripts/m-r-pass.txt, keep it safe"
 echo $MYSQL_ROOT_PASS >> $SCRIPTS/m-r-pass.txt
 
 echo "Installation succeded...
