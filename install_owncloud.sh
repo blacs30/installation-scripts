@@ -28,7 +28,7 @@ export OCZIPFILE=owncloud-9.0.2.tar.bz2
 export SSL_CONF="" # assigned later /etc/apache2/sites-available/XXX-$DOMAIN.conf"
 
 # Check if root
-        if [ "$(whoami)" != "root" ]; then
+if [ "$(whoami)" != "root" ]; then
         echo
         echo -e "\e[31mSorry, you are not root.\n\e[0mYou must type: \e[36msu root -c 'bash $SCRIPTS/install_owncloud.sh'"
         echo
@@ -343,6 +343,7 @@ else
   ErrorLog $WWWLOGDIR/error-80.log
 </VirtualHost>
 
+<IfModule mod_ssl.c>
 <VirtualHost *:443>
 <IfModule mod_headers.c>
    Header always set Strict-Transport-Security "max-age=15768000; includeSubDomains; preload"
@@ -361,6 +362,7 @@ else
 
    # Protect against Logjam attacks. See: https://weakdh.org
    # Not yet in Jessie 8.4 openssl 1.0.1t available
+   # put into mods-enabled/ssl.conf
    # SSLOpenSSLConfCmd DHParameters "$SSLPATH/dhparams.pem"
 
    ### YOUR SERVER ADDRESS ###
@@ -382,6 +384,12 @@ else
    Dav off
    </IfModule>
 
+   # You will probably need to change this next Directory directive as well
+   # in order to match the earlier one.
+   <Directory "$WWWPATHHTML">
+     SSLOptions +StdEnvVars
+   </Directory>
+
    <Directory "$WWWPATHHTML/data">
    # just in case if .htaccess gets disabled
    Require all denied
@@ -390,9 +398,14 @@ else
    SetEnv HOME $WWWPATHHTML
    SetEnv HTTP_HOME $WWWPATHHTML
 
+   # Possible values include: debug, info, notice, warn, error, crit,
+   # alert, emerg.
+   LogLevel warn
+
    CustomLog $WWWLOGDIR/access.log combined
    ErrorLog $WWWLOGDIR/error.log
 </VirtualHost>
+</IfModule>
 SSL_CREATE
 echo "$SSL_CONF was successfully created"
 sleep 3
