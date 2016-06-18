@@ -296,8 +296,8 @@ else
 <VirtualHost *:80>
   ServerName $target_domain
   Redirect permanent / https://$target_domain
-  CustomLog $target_directory/../log/access-80.log combined
-  ErrorLog $target_directory/../log/error-80.log
+  CustomLog $target_directory/../log/access.log combined
+  ErrorLog $target_directory/../log/error.log
 </VirtualHost>
 
 <VirtualHost *:443>
@@ -339,8 +339,12 @@ else
     SetEnv HOME $target_directory
     SetEnv HTTP_HOME $target_directory
 
-    CustomLog $target_directory/../log/access.log combined
-    ErrorLog $target_directory/../log/error.log
+    # Possible values include: debug, info, notice, warn, error, crit,
+    # alert, emerg.
+    LogLevel warn
+
+    CustomLog $target_directory/../log/access-ssl.log combined
+    ErrorLog $target_directory/../log/error-ssl.log
  </VirtualHost>
 SSL_CREATE
 echo "$SSL_CONF was successfully created"

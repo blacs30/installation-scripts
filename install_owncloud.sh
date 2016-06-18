@@ -339,8 +339,8 @@ else
 <VirtualHost *:80>
   ServerName $DOMAIN
   Redirect permanent / https://$DOMAIN
-  CustomLog $WWWLOGDIR/access-80.log combined
-  ErrorLog $WWWLOGDIR/error-80.log
+  CustomLog $WWWLOGDIR/access.log combined
+  ErrorLog $WWWLOGDIR/error.log
 </VirtualHost>
 
 <IfModule mod_ssl.c>
@@ -402,8 +402,8 @@ else
    # alert, emerg.
    LogLevel warn
 
-   CustomLog $WWWLOGDIR/access.log combined
-   ErrorLog $WWWLOGDIR/error.log
+   CustomLog $WWWLOGDIR/access-ssl.log combined
+   ErrorLog $WWWLOGDIR/error-ssl.log
 </VirtualHost>
 </IfModule>
 SSL_CREATE

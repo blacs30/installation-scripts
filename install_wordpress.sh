@@ -170,8 +170,8 @@ else
 <VirtualHost *:80>
   ServerName $DOMAIN
   Redirect permanent / https://$DOMAIN
-  CustomLog $WWWLOGDIR/access-80.log combined
-  ErrorLog $WWWLOGDIR/error-80.log
+  CustomLog $WWWLOGDIR/access.log combined
+  ErrorLog $WWWLOGDIR/error.log
 </VirtualHost>
 
 <VirtualHost *:443>
@@ -213,8 +213,12 @@ else
     SetEnv HOME $WWWPATHHTML
     SetEnv HTTP_HOME $WWWPATHHTML
 
-    CustomLog $WWWLOGDIR/access.log combined
-    ErrorLog $WWWLOGDIR/error.log
+    # Possible values include: debug, info, notice, warn, error, crit,
+    # alert, emerg.
+    LogLevel warn
+
+    CustomLog $WWWLOGDIR/access-ssl.log combined
+    ErrorLog $WWWLOGDIR/error-ssl.log
  </VirtualHost>
 SSL_CREATE
 echo "$SSL_CONF was successfully created"
