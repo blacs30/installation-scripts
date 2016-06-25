@@ -77,7 +77,8 @@ aptitude install -y libapache2-mod-php7.0 \
                     php7.0-json \
                     php7.0-mcrypt \
                     php7.0-opcache \
-                    php7.0-sqlite3
+                    php7.0-sqlite3 \
+                    php7.0-xml
 
 # Disable default page
 echo "Disable apache default config"
