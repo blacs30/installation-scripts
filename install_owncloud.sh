@@ -256,6 +256,10 @@ echo -e "'filelocking.enabled' => 'true', \
 \n \
 \n);" >> $WWWPATHHTML/config/config.php
 
+# change owncloud timezone
+echo "Set Owncloud timezone for log"
+sed -i "s,UTC,Europe/Berlin,"  $WWWPATHHTML/config/config.php
+
 # change owncloud to cron background refresh
 echo "Change owncloud background refresh to cron"
 su www-data -s /bin/bash -c 'php $WWWPATHHTML/occ background:cron'
