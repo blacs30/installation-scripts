@@ -149,7 +149,8 @@ aptitude install -y \
         php7.0-curl \
         php7.0-xmlrpc \
         php7.0-redis \
-	libsm6 \
+        php7.0-zip \
+	      libsm6 \
         libsmbclient
 
 # Restart services
