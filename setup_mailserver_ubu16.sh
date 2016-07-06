@@ -1,6 +1,8 @@
 #!/bin/bash
 # mailserver
-# https://www.exratione.com/2016/05/a-mailserver-on-ubuntu-16-04-postfix-dovecot-mysql/
+# help for basic setup https://www.exratione.com/2016/05/a-mailserver-on-ubuntu-16-04-postfix-dovecot-mysql/
+# help for spf dkim and dmarc setup https://www.skelleton.net/2015/03/21/how-to-eliminate-spam-and-protect-your-name-with-dmarc/
+
 
 export HOSTNAME=mail.example.com
 export SHUF=$(shuf -i 13-15 -n 1)
@@ -13,6 +15,7 @@ export SSLPATH=$WWWPATH/ssl
 export WWWPATHHTML=$HTML/$DOMAIN/public_html
 export WWWLOGDIR=$WWWPATH/log
 export WEBMASTER_MAIL=admin@example.com
+export DMARC_MAIL=dmarc@example.com
 export PFA_DB_PASS=mailpass
 export PFA_DB_USER=mail
 export PFA_DB_NAME=mail
@@ -543,11 +546,42 @@ sed -i 's,#   \\%bypass_spam_checks,   \\%bypass_spam_checks,' $AMAVIS_CONF
 unset AMAVIS_CONF
 
 # adtivate amavis
-echo "activate amavis"
+echo "activate spamassassin"
 SAPMASSASSIN_CONF=/etc/default/spamassassin
 sed -i 's,ENABLED=0,ENABLED=1,' $SAPMASSASSIN_CONF
 sed -i 's,CRON=0,CRON=1,' $SAPMASSASSIN_CONF
 unset SAPMASSASSIN_CONF
+
+echo "configure spamassassin"
+echo "
+#Adjust scores for SPF FAIL
+score SPF_FAIL 4.0
+score SPF_HELO_FAIL 4.0
+score SPF_HELO_SOFTFAIL 3.0
+score SPF_SOFTFAIL 3.0
+
+#adjust DKIM scores
+score DKIM_ADSP_ALL 3.0
+score DKIM_ADSP_DISCARD  10.0
+score DKIM_ADSP_NXDOMAIN 3.0
+
+#dmarc fail
+header CUST_DMARC_FAIL Authentication-Results =~ /mail\.example\.com; dmarc=fail/
+score CUST_DMARC_FAIL 5.0
+
+#dmarc pass
+header CUST_DMARC_PASS Authentication-Results =~ /mail\.example\.com; dmarc=pass/
+score CUST_DMARC_PASS -1.0
+
+meta CUST_DKIM_SIGNED_INVALID DKIM_SIGNED && !(DKIM_VALID || DKIM_VALID_AU)
+score CUST_DKIM_SIGNED_INVALID 6.0
+" >> /etc/spamassassin/local.cf
+
+echo "adjust mailserver domain in /etc/spamassassin/local.cf"
+read
+
+
+
 
 # amavis database connection to check for new mails
 echo "amavis database connection to check for new mails"
@@ -726,9 +760,57 @@ apt-get install opendkim opendkim-tools
 # _dmarc.
 # v=DMARC1; p=quarantine; rua=mailto:$WEBMASTER_MAIL; ruf=mailto:$WEBMASTER_MAIL; fo=0; adkim=r; aspf=r; pct=100; rf=afrf; ri=86400
 
+# Install DMARC package
+echo "Install DMARC package"
+apt-get install opendmarc
+vi /etc/opendmarc.conf
+sed -i "s,# AuthservID.*,AuthservID $HOSTNAME," /etc/opendmarc.conf
+echo "HistoryFile /var/run/opendmarc/opendmarc.dat" >> /etc/opendmarc.conf
+echo "IgnoreHosts /etc/opendmarc/ignore.hosts" >> /etc/opendmarc.conf
+echo "
+# For testing
+SoftwareHeader true" >> /etc/opendmarc.conf
+mkdir /etc/opendmarc/
+echo "localhost" >> /etc/opendmarc/ignore.hosts
+echo "SOCKET=\"inet:8892@localhost\"" >> /etc/default/opendmarc
+sed -i '/smtpd_milters/s/$/,inet:localhost:8892/' /etc/postfix/main.cf
+
+cp /usr/share/doc/opendmarc/schema.mysql /tmp/
+vi /tmp/schema.mysql
+mysql -u root -p < /tmp/schema.mysql
+touch /etc/opendmarc/report_script
+echo "
+#!/bin/bash
+
+DB_SERVER='localhost'
+DB_USER='opendmarc'
+DB_PASS='changeme'
+DB_NAME='opendmarc'
+WORK_DIR='/var/run/opendmarc'
+REPORT_EMAIL='$DMARC_MAIL'
+REPORT_ORG='$HOSTNAME'
+
+mv \${WORK_DIR}/opendmarc.dat \${WORK_DIR}/opendmarc_import.dat -f
+cat /dev/null > \${WORK_DIR}/opendmarc.dat
+
+/usr/sbin/opendmarc-import --dbhost=\${DB_SERVER} --dbuser=\${DB_USER} --dbpasswd=\${DB_PASS} --dbname=\${DB_NAME} --verbose < \${WORK_DIR}/opendmarc_import.dat
+/usr/sbin/opendmarc-reports --dbhost=\${DB_SERVER} --dbuser=\${DB_USER} --dbpasswd=\${DB_PASS} --dbname=\${DB_NAME} --verbose --interval=86400 --report-email \$REPORT_EMAIL --report-org \$REPORT_ORG
+/usr/sbin/opendmarc-expire --dbhost=\${DB_SERVER} --dbuser=\${DB_USER} --dbpasswd=\${DB_PASS} --dbname=\${DB_NAME} --verbose
+" >> /etc/opendmarc/report_script
+chmod +x /etc/opendmarc/report_script
+echo "1 0 * * * opendmarc /etc/opendmarc/report-script" >> /etc/crontab
+
+echo "For outgoing dmarc reports add bcc to main.cf in postfix"
+echo "# Testing DMARC outgoing
+sender_bcc_maps = hash:/etc/postfix/bcc_map" >> /etc/postfix/main.cf
+echo "<a href=\"javascript:DeCryptX\('0d2o2c2t1d3C2g0x0a0m0p0l2g202e0o1n'\)\">$DMARC_MAIL</a> <a href=\"javascript:DeCryptX\('3p2c3l3o3e2q2z3i3r0r3e0c2e2B3h1y3d1n2r0l2g310c3r3p'\)\">$DMARC_MAIL</a>" >> /etc/postfix/bcc_map
+postmap /etc/postfix/bcc_map
+
+
 
 # restart all services
 echo "restart all serices again"
+/etc/init.d/opendmarc start
 postfix stop && postfix start
 service spamassassin restart
 service clamav-daemon restart
