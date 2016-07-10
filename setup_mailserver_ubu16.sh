@@ -594,6 +594,8 @@ echo "
 # for Amavis in /etc/postfix/master.cf.
 \$max_servers  = 3;
 
+\$myauthservid = \“amavis.local\”;
+
 # Add spam info headers if at or above that level - this ensures they
 # are always added.
 \$sa_tag_level_deflt  = -9999;
@@ -617,11 +619,20 @@ echo "
 echo "ClamAV database is up to dat"
 freshclam
 
+
+# Add Postgrey whitelists
+echo "add postgrey whitelists"
+echo "
+POSTGREY_OPTS=\"\$POSTGREY_OPTS --whitelist-clients=/etc/postgrey/whitelist_clients\"
+POSTGREY_OPTS=\"\$POSTGREY_OPTS --whitelist-recipients=/etc/postgrey/whitelist_recipients\"
+" >> /etc/default/postgrey
+
 # restart services for spam and virus
 echo "restart services for spam and virus"
 service clamav-daemon restart
 service amavis restart
 service spamassassin restart
+service postgrey restart
 
 # add information for postfix where to find database
 echo "
@@ -806,6 +817,21 @@ sender_bcc_maps = hash:/etc/postfix/bcc_map" >> /etc/postfix/main.cf
 echo "<a href=\"javascript:DeCryptX\('0d2o2c2t1d3C2g0x0a0m0p0l2g202e0o1n'\)\">$DMARC_MAIL</a> <a href=\"javascript:DeCryptX\('3p2c3l3o3e2q2z3i3r0r3e0c2e2B3h1y3d1n2r0l2g310c3r3p'\)\">$DMARC_MAIL</a>" >> /etc/postfix/bcc_map
 postmap /etc/postfix/bcc_map
 
+# Install dovecot sieve server side script plugin
+echo "Install dovecot sieve"
+apt-get install dovecot-sieve
+
+sed -i "s,#mail_plugins =.*,mail_plugins = \$mail_plugins sieve," /etc/dovecot/conf.d/15-lda.conf
+sed -i "s,#sieve_before =.*,sieve_before = /var/mail/SpamToJunk.sieve," /etc/dovecot/conf.d/90-sieve.conf
+
+echo 'require "fileinto";
+if header :comparator "i;ascii-casemap" :contains "X-Spam-Flag" "YES"  {
+    fileinto "Junk";
+    stop;
+}
+' >> /var/mail/SpamToJunk.sieve
+sievec /var/mail/SpamToJunk.sieve
+
 
 
 # restart all services
@@ -816,7 +842,21 @@ service spamassassin restart
 service clamav-daemon restart
 service amavis restart
 service dovecot restart
-postfix restart
+service postgrey restart
+
+
+echo "A lost comment from one of the pages
+Great guide to get started with SPF/DKIM/DMARC, thanks!
+
+It is however missing the AddAllSignatureResults setting for opendkim.conf. Without it only the first Authentication-Result header is parsed, and DMARC might not see the DKIM results. This is the default in opendkim 2.10.0, but jessie has 2.9.2 for now. http://sourceforge.net/p/opendkim/feature-requests/182/
+
+Something that should probably be added is that Postfix skips the first header when passing mail to milters. So the Received-SPF header will get lost. See this discussion for a solution:
+http://www.trusteddomain.org/pipermail/opendmarc-users/2014-September/000404.html
+http://www.trusteddomain.org/pipermail/opendmarc-users/2014-September/000439.html
+
+Another thing worth mentioning is the IgnoreAuthenticatedClients setting in opendmarc.conf to prevent flagging SMTP clients as failing DMARC. You do need opendmarc 1.3.1 (from stretch) though because of http://sourceforge.net/p/opendmarc/tickets/103/
+"
+read
 
 # Write mysql root password to file - keep it save
 echo "Write root password into file /var/scripts/m-r-pass.txt, keep it safe"

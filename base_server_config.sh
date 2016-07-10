@@ -99,3 +99,5 @@ net.ipv6.conf.eth0.disable_ipv6 = 1
 " >> /etc/sysctl.conf
 
 sysctl -p
+
+echo "add nfs share as ro to /etc/fstab "

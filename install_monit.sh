@@ -27,6 +27,8 @@ check process apache2 with pidfile /var/run/apache2/apache2.pid
   group www
   start program = \"/etc/init.d/apache2 start\"
   stop program = \"/etc/init.d/apache2 stop\"
+  if children > 255 for 5 cycles then alert
+  if cpu usage > 95% for 3 cycles then alert
   if failed host localhost port 80 protocol http
     with timeout 10 seconds
     then restart
@@ -108,6 +110,70 @@ check process syslogd with pidfile /var/run/rsyslogd.pid
    if timestamp > 65 minutes then alert # Have you seen "-- MARK --"?
 "  > /etc/monit/conf.d/rsyslog
 
+echo "create config to check postgrey service"
+echo '
+check process postgrey with pidfile /var/run/postgrey.pid
+   group postgrey
+   start program = "/etc/init.d/postgrey start"
+   stop  program = "/etc/init.d/postgrey stop"
+   if failed host 127.0.0.1 port 10023 type tcp then restart
+   if 5 restarts within 5 cycles then timeout
+' > /etc/monit/conf.d/postgrey
+
+echo "create config to check opendmarc service"
+echo '
+check process opendkim with pidfile /var/run/opendmarc/opendmarc.pid
+   group opendmarc
+   start program = "/etc/init.d/opendmarc start"
+   stop  program = "/etc/init.d/opendmarc stop"
+   if failed host localhost port 8892 type tcp then restart
+   if 5 restarts within 5 cycles then timeout
+' > /etc/monit/conf.d/opendmarc
+
+echo "create config to check opendkim service"
+echo '
+check process opendkim with pidfile /var/run/opendkim/opendkim.pid
+   group opendkim
+   start program = "/etc/init.d/opendkim start"
+   stop  program = "/etc/init.d/opendkim stop"
+   if failed host localhost port 8891 type tcp then restart
+   if 5 restarts within 5 cycles then timeout
+' > /etc/monit/conf.d/opendkim
+
+echo "create config to check cron"
+echo '
+# Cron
+check process cron with pidfile /var/run/crond.pid
+   start program = "/etc/init.d/cron start"
+   stop  program = "/etc/init.d/cron stop"
+   group system
+   depends cron_init, cron_bin
+check file cron_init with path /etc/init.d/cron
+   group system
+check file cron_bin with path /usr/sbin/cron
+   group system
+' > /etc/monit/conf.d/cron
+
+echo "create config to check redis"
+echo '
+check process redis-server
+    with pidfile "/var/run/redis/redis-server.pid"
+    start program = "/etc/init.d/redis-server start"
+    stop program = "/etc/init.d/redis-server stop"
+    if 2 restarts within 3 cycles then timeout
+    if totalmem > 100 Mb then alert
+    if children > 255 for 5 cycles then stop
+    if cpu usage > 95% for 3 cycles then restart
+    if 5 restarts within 5 cycles then timeout
+' > /etc/monit/conf.d/redis
+
+echo "create config to check free hard drive"
+echo '
+check device disk with path /
+    if SPACE usage > 80% then alert
+check device nfs with path /root/snapshot
+    if SPACE usage > 80% then alert
+' > /etc/monit/conf.d/disk-space
 
 MONITRC=/etc/monit/monitrc
 sed -i "s/# set alert sysadm@foo.*/set alert admin@$DOMAIN # receive all alerts/" $MONITRC
