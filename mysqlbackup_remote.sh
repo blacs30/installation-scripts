@@ -86,7 +86,7 @@ fi;
 # step 3: make a hard-link-only (except for dirs) copy of the latest snapshot,
 # if that exists
 if [ -d $BACKUPDIR/0 ] ; then                     \
-$MV -al $BACKUPDIR/0 $BACKUPDIR/1 ; \
+$MV $BACKUPDIR/0 $BACKUPDIR/1 ; \
 fi;
 
 ### Create backup dir ###
