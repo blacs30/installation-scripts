@@ -6,11 +6,14 @@ exec &> /tmp/backuplog.txt
 # ------------- system commands used by this script --------------------
 ID=/usr/bin/id;
 ECHO=/bin/echo;
-
+RM=/bin/rm;
+MV=/bin/mv;
+TOUCH=/bin/touch;
+RSYNC=/usr/bin/rsync;
 MOUNT=/bin/mount;
 
 MOUNT_DEVICE=NFS_SERVER_IP:/NFS_SHARE;
-MOUNT_POINT=/root/backup;
+MOUNT_POINT=/root/snapshot;
 INPROGRESS_FILE="$MOUNT_POINT/backup.inprogress";
 MYID="$$"
 
@@ -29,7 +32,7 @@ ROTATION="14"
 GZIPCHECK=();
 ### Server Setup ###
 MUSER="mysqlbackup";
-MPASS="Cla_Lis88";
+MPASS="mysqlpass";
 MHOST="localhost";
 MPORT="3306";
 IGNOREDB="
@@ -67,9 +70,28 @@ echo $MYID >> $INPROGRESS_FILE
 chmod 600 $INPROGRESS_FILE
 echo $MYID
 
+# step 1: delete the oldest snapshot, if it exists:
+if [ -d $BACKUPDIR/3 ] ; then                     \
+$RM -rf $BACKUPDIR/3 ;                            \
+fi ;
+
+# step 2: shift the middle snapshots(s) back by one, if they exist
+if [ -d $BACKUPDIR/2 ] ; then                     \
+$MV $BACKUPDIR/2 $BACKUPDIR/3 ;     \
+fi;
+if [ -d $BACKUPDIR/1 ] ; then                     \
+$MV $BACKUPDIR/1 $BACKUPDIR/2 ;     \
+fi;
+
+# step 3: make a hard-link-only (except for dirs) copy of the latest snapshot,
+# if that exists
+if [ -d $BACKUPDIR/0 ] ; then                     \
+$MV -al $BACKUPDIR/0 $BACKUPDIR/1 ; \
+fi;
+
 ### Create backup dir ###
-if [ ! -d $BACKUPDIR ]; then
-  mkdir -p $BACKUPDIR
+if [ ! -d $BACKUPDIR/0 ]; then
+  mkdir -p $BACKUPDIR/0
     if [ "$?" = "0" ]; then
         :
     else
@@ -96,7 +118,7 @@ do
     fi
 
     if [ "$DUMP" == "yes" ]; then
-        FILE="$BACKUPDIR/$NOWFILE-$db.sql.gz";
+        FILE="$BACKUPDIR/0/$NOWFILE-$db.sql.gz";
         echo "BACKING UP $db";
         $MYSQLDUMP --add-drop-database --opt --lock-all-tables -u $MUSER -p$MPASS -h $MHOST -P $MPORT $db | gzip > $FILE
         if [ "$?" = "0" ]; then
@@ -120,6 +142,9 @@ for (( i=0;i<$CHECKOUTS;i++)); do
     CHECKSUM=$(( $CHECKSUM + ${GZIPCHECK[${i}]} ));
 done
 
+# step 5: update the mtime of hourly.0 to reflect the snapshot time
+$TOUCH $BACKUPDIR/0 ;
+
 ### If all files check out, delete the oldest dir ###
 if [ "$CHECKSUM" == "$CHECKOUTS" ]; then
     echo "All files checked out ok. Deleting oldest dir.";
@@ -141,7 +166,7 @@ if [ "$CHECKSUM" == "$CHECKOUTS" ]; then
 else
     echo "Dispatching Karl, he's an Expert";
     ### Send mail with contents of logfile ###
-    mail -s "Backuplog" mail@lisowski-development.de < /tmp/backuplog.txt;
+    mail -s "Backuplog" mail@example.com < /tmp/backuplog.txt;
 fi
 
 # now remount the RW snapshot mountpoint as readonly

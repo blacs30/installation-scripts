@@ -142,6 +142,7 @@ mailbox_size_limit = 0
 recipient_delimiter = +
 inet_interfaces = all
 mynetworks_style = host
+message_size_limit = 20480000
 
 # This specifies where the virtual mailbox folders will be located.
 virtual_mailbox_base = /var/vmail
@@ -181,4 +182,3 @@ content_filter = amavis:[127.0.0.1]:10024
 header_checks = regexp:/etc/postfix/header_checks
 # getting rid of x-original-to
 enable_original_recipient = no
-
