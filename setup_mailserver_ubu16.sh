@@ -2,7 +2,7 @@
 # mailserver
 # help for basic setup https://www.exratione.com/2016/05/a-mailserver-on-ubuntu-16-04-postfix-dovecot-mysql/
 # help for spf dkim and dmarc setup https://www.skelleton.net/2015/03/21/how-to-eliminate-spam-and-protect-your-name-with-dmarc/
-
+# help for amavis configuration https://thomas-leister.de/postfix-amavis-spamfilter-spamassassin-sieve/
 
 export HOSTNAME=mail.example.com
 export SHUF=$(shuf -i 13-15 -n 1)
@@ -21,6 +21,8 @@ export PFA_DB_USER=mail
 export PFA_DB_NAME=mail
 export POSTFIXADM=postfixadmin-2.93
 export POSTMASTER=postmaster@example.com
+export POSTFIXADMIN_BASIC_USER=postfixadmin
+export POSTFIXADMIN_BASIC_PASSWD=postfixpasswd
 
 echo "in CFS or UFW etc open following ports:
 22 (SSH)
@@ -118,7 +120,8 @@ aptitude -y purge expect
 
 # Install Apache and activate modules
 echo "Install apache and active modules"
-aptitude install apache2 -y
+aptitude install -y apache2 \
+                 libapache2-mod-geoip
 
 # Activate apache modules
 echo "Active apache modules"
@@ -126,7 +129,75 @@ a2enmod rewrite \
         headers \
         deflate \
         expires \
-        ssl
+        ssl     \
+        geoip
+
+# write geoip config file
+echo "write geoip config file"
+echo "
+<IfModule mod_geoip.c>
+   GeoIPEnable On
+   GeoIPDBFile /usr/local/share/GeoIP/GeoIP.dat
+   GeoIPDBFile /usr/local/share/GeoIP/GeoIP.dat MemoryCache
+   GeoIPDBFile /usr/local/share/GeoIP/GeoIP.dat CheckCache
+   GeoIPScanProxyHeaders On
+
+#   SetEnvIf GEOIP_COUNTRY_CODE DE BlockCountry
+
+      SetEnvIf GEOIP_COUNTRY_CODE CH AllowCountry
+      SetEnvIf GEOIP_COUNTRY_CODE DE AllowCountry
+      SetEnvIf GEOIP_COUNTRY_CODE PL AllowCountry
+
+      SetEnvIf GEOIP_COUNTRY_CODE CH AllowCountryWM
+      SetEnvIf GEOIP_COUNTRY_CODE DE AllowCountryWM
+      SetEnvIf GEOIP_COUNTRY_CODE IE AllowCountryWM
+      SetEnvIf GEOIP_COUNTRY_CODE GB AllowCountryWM
+      SetEnvIf GEOIP_COUNTRY_CODE PL AllowCountryWM
+
+      SetEnvIf GEOIP_COUNTRY_CODE AE BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE AF BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE AL BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE AM BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE AZ BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE BA BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE BD BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE BG BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE BY BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE CD BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE CF BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE CN BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE GR BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE HK BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE IL BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE IQ BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE IR BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE JO BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE KE BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE KG BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE KR BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE KZ BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE LB BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE LY BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE MA BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE MD BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE ME BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE MN BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE OM BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE PK BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE RU BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE SA BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE SD BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE SN BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE SY BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE TJ BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE TM BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE TN BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE TW BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE UA BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE UZ BlockCountry
+      SetEnvIf GEOIP_COUNTRY_CODE VN BlockCountry
+   </IfModule>
+" > /etc/apache2/mods-available/geoip.conf
 
 # Install PHP 7
 echo "Install php7"
@@ -221,7 +292,7 @@ else
 #Forward everything to port 80
 <VirtualHost *:80>
   ServerName $DOMAIN
-  Redirect permanent / https://$DOMAIN
+  Redirect permanent / https://$DOMAIN/
   CustomLog $WWWLOGDIR/access.log combined
   ErrorLog $WWWLOGDIR/error.log
 </VirtualHost>
@@ -259,13 +330,23 @@ else
    # You will probably need to change this next Directory directive as well
    # in order to match the earlier one.
    <Directory "$WWWPATHHTML">
-    SSLOptions +StdEnvVars
-    Options FollowSymLinks
-    AllowOverride All
-    AuthType Basic
-    AuthName "Restricted Content"
-    AuthUserFile /etc/apache2/.htpasswd
-    Require valid-user
+      Options FollowSymLinks
+      AllowOverride All
+   </Directory>
+
+   # You will probably need to change this next Directory directive as well
+    # in order to match the earlier one.
+    <Directory "$WWWPATHHTML/postfixadmin/">
+       SSLOptions +StdEnvVars
+       Options FollowSymLinks
+       AllowOverride All
+       Order deny,allow
+       Deny from all
+       allow from env=AllowCountry
+       AuthType Basic
+       AuthName "Restricted Content"
+       AuthUserFile /etc/apache2/.htpasswd_postfixadmin
+       Require valid-user
    </Directory>
 
    <IfModule mod_dav.c>
@@ -291,6 +372,10 @@ fi
 # activate owncloud-ssl config file
 echo "enable vhost"
 a2ensite "$SSL_CONF_FILE"
+
+# create password for webmail access
+echo "create password for postfixadmin access"
+htpasswd /etc/apache2/.htpasswd_postfixadmin $POSTFIXADMIN_BASIC_USER $POSTFIXADMIN_BASIC_PASSWD
 
 # Install base mailserver components
 debconf-set-selections <<< "postfix postfix/mailname string $HOSTNAME"
@@ -539,11 +624,57 @@ echo "AllowSupplementaryGroups was removed from clamav"
 # adtivate amavis
 echo "activate amavis"
 AMAVIS_CONF=/etc/amavis/conf.d/15-content_filter_mode
+cp $AMAVIS_CONF /tmp/
 sed -i "s,#@bypass_virus_checks_maps,@bypass_virus_checks_maps," $AMAVIS_CONF
 sed -i 's,#   \\%bypass_virus_checks,   \\%bypass_virus_checks,' $AMAVIS_CONF
 sed -i "s,#@bypass_spam_checks_maps,@bypass_spam_checks_maps," $AMAVIS_CONF
 sed -i 's,#   \\%bypass_spam_checks,   \\%bypass_spam_checks,' $AMAVIS_CONF
 unset AMAVIS_CONF
+
+AMAVIS_DEFAULTS_CONF=/etc/amavis/conf.d/20-debian_defaults
+cp $AMAVIS_DEFAULTS_CONF /tmp/
+sed -i "s,\$sa_spam_subject_tag.*,\$sa_spam_subject_tag = '***SPAM*** ';," $AMAVIS_DEFAULTS_CONF
+sed -i "s,\$sa_tag_level_deflt.*,\$sa_tag_level_deflt  = undef;," $AMAVIS_DEFAULTS_CONF
+sed -i "s,\$sa_tag2_level_deflt.*,\$sa_tag2_level_deflt = 5;," $AMAVIS_DEFAULTS_CONF
+sed -i "s,\$sa_kill_level_deflt.*,\$sa_kill_level_deflt = 20;," $AMAVIS_DEFAULTS_CONF
+sed -i "s,\$sa_dsn_cutoff_level.*,\$sa_dsn_cutoff_level = 10;   # spam level beyond which a DSN is not sent," $AMAVIS_DEFAULTS_CONF
+
+unset AMAVIS_DEFAULTS_CONF
+
+# amavis database connection to check for new mails
+echo "amavis database connection to check for new mails"
+AMAVIS_USER_ACCESS_CONF=/etc/amavis/conf.d/50-user
+cp $AMAVIS_USER_ACCESS_CONF /tmp/
+sed -i "s,#@bypass_virus_checks_maps,@bypass_virus_checks_maps," $AMAVIS_USER_ACCESS_CONF
+sed -i -e '12,13d' $AMAVIS_USER_ACCESS_CONF
+echo "
+# Three concurrent processes. This should fit into the RAM available on an
+# AWS micro instance. This has to match the number of processes specified
+# for Amavis in /etc/postfix/master.cf.
+\$max_servers  = 2;
+
+\$myauthservid = \“amavis.local\”;
+
+# Add spam info headers if at or above that level - this ensures they
+# are always added.
+\$sa_tag_level_deflt  = -9999;
+
+# Check the database to see if mail is for local delivery, and thus
+# should be spam checked.
+@lookup_sql_dsn = (
+   ['DBI:mysql:database=$PFA_DB_NAME;host=127.0.0.1;port=3306',
+    '$PFA_DB_USER',
+    '$PFA_DB_PASS']);
+\$sql_select_policy = 'SELECT domain from domain WHERE CONCAT("@",domain) IN (%k)';
+
+# Uncomment to bump up the log level when testing.
+# \$log_level = 2;
+
+\$hdrfrom_notify_sender = 'Postmaster Lisowski Development <$WEBMASTER_MAIL>';
+
+#------------ Do not modify anything below this line -------------
+1;  # ensure a defined return
+" >> $AMAVIS_USER_ACCESS_CONF
 
 # adtivate amavis
 echo "activate spamassassin"
@@ -580,45 +711,9 @@ score CUST_DKIM_SIGNED_INVALID 6.0
 echo "adjust mailserver domain in /etc/spamassassin/local.cf"
 read
 
-
-
-
-# amavis database connection to check for new mails
-echo "amavis database connection to check for new mails"
-AMAVIS_USER_ACCESS_CONF=/etc/amavis/conf.d/50-user
-sed -i "s,#@bypass_virus_checks_maps,@bypass_virus_checks_maps," $AMAVIS_USER_ACCESS_CONF
-sed -i -e '12,13d' $AMAVIS_USER_ACCESS_CONF
-echo "
-# Three concurrent processes. This should fit into the RAM available on an
-# AWS micro instance. This has to match the number of processes specified
-# for Amavis in /etc/postfix/master.cf.
-\$max_servers  = 3;
-
-\$myauthservid = \“amavis.local\”;
-
-# Add spam info headers if at or above that level - this ensures they
-# are always added.
-\$sa_tag_level_deflt  = -9999;
-
-# Check the database to see if mail is for local delivery, and thus
-# should be spam checked.
-@lookup_sql_dsn = (
-   ['DBI:mysql:database=$PFA_DB_NAME;host=127.0.0.1;port=3306',
-    '$PFA_DB_USER',
-    '$PFA_DB_PASS']);
-\$sql_select_policy = 'SELECT domain from domain WHERE CONCAT("@",domain) IN (%k)';
-
-# Uncomment to bump up the log level when testing.
-# \$log_level = 2;
-
-#------------ Do not modify anything below this line -------------
-1;  # ensure a defined return
-" >> $AMAVIS_USER_ACCESS_CONF
-
 # ClamAV database is up to database
 echo "ClamAV database is up to dat"
 freshclam
-
 
 # Add Postgrey whitelists
 echo "add postgrey whitelists"
@@ -746,13 +841,6 @@ apt-get install postfix-policyd-spf-python
 sed -i "s,HELO_reject =.*,HELO_reject = False," /etc/postfix-policyd-spf-python/policyd-spf.conf
 sed -i "s,Mail_From_reject =.*,Mail_From_reject = False," /etc/postfix-policyd-spf-python/policyd-spf.conf
 
-echo "
-# --------------------------------------
-# SPF
-# --------------------------------------
-policy-spf_time_limit = 3600s" >> /etc/postfix/main.cf
-
-sed -i "s@\(smtpd_recipient_restrictions =.*,\)\( permit\)@\1 check_policy_service unix:private/policy-spf, permit @" /etc/postfix/main.cf
 
 echo "
 # --------------------------------------
@@ -774,17 +862,19 @@ apt-get install opendkim opendkim-tools
 # Install DMARC package
 echo "Install DMARC package"
 apt-get install opendmarc
-vi /etc/opendmarc.conf
-sed -i "s,# AuthservID.*,AuthservID $HOSTNAME," /etc/opendmarc.conf
-echo "HistoryFile /var/run/opendmarc/opendmarc.dat" >> /etc/opendmarc.conf
-echo "IgnoreHosts /etc/opendmarc/ignore.hosts" >> /etc/opendmarc.conf
+OPENDMARC_CONF=/etc/opendmarc.conf
+sed -i "s,# AuthservID.*,AuthservID $HOSTNAME," $OPENDMARC_CONF
+sed -i "s,# TrustedAuthservIDs.*,TrustedAuthservIDs HOSTNAME," $OPENDMARC_CONF
+echo "HistoryFile /var/run/opendmarc/opendmarc.dat" >> $OPENDMARC_CONF
+echo "IgnoreHosts /etc/opendmarc/ignore.hosts" >> $OPENDMARC_CONF
+echo "IgnoreMailFrom lisowski-development.com" >> $OPENDMARC_CONF
 echo "
 # For testing
-SoftwareHeader true" >> /etc/opendmarc.conf
+SoftwareHeader true" >> $OPENDMARC_CONF
 mkdir /etc/opendmarc/
 echo "localhost" >> /etc/opendmarc/ignore.hosts
 echo "SOCKET=\"inet:8892@localhost\"" >> /etc/default/opendmarc
-sed -i '/smtpd_milters/s/$/,inet:localhost:8892/' /etc/postfix/main.cf
+
 
 cp /usr/share/doc/opendmarc/schema.mysql /tmp/
 vi /tmp/schema.mysql
@@ -822,28 +912,32 @@ echo "Install dovecot sieve"
 apt-get install dovecot-sieve
 
 sed -i "s,#mail_plugins =.*,mail_plugins = \$mail_plugins sieve," /etc/dovecot/conf.d/15-lda.conf
-sed -i "s,#sieve_before =.*,sieve_before = /var/mail/SpamToJunk.sieve," /etc/dovecot/conf.d/90-sieve.conf
+sed -i "s,sieve_before =.*,sieve_before = /var/vmail/sieve/spam-global.sieve," /etc/dovecot/conf.d/90-sieve.conf
+sed -i "s,sieve_dir =.*,sieve_dir = /var/vmail/%d/%n/sieve/scripts/," /etc/dovecot/conf.d/90-sieve.conf
+sed -i "s,sieve =.*,sieve = /var/vmail/%d/%n/sieve/active-script.sieve," /etc/dovecot/conf.d/90-sieve.conf
+
+mkdir /var/vmail/sieve
 
 echo 'require "fileinto";
-if header :comparator "i;ascii-casemap" :contains "X-Spam-Flag" "YES"  {
-    fileinto "Junk";
-    stop;
+if header :contains "X-Spam-Flag" "YES" {
+  fileinto "Spam";
 }
-' >> /var/mail/SpamToJunk.sieve
-sievec /var/mail/SpamToJunk.sieve
+' >> /var/vmail/sieve/spam-global.sieve
+chown -R vmail:mail /var/vmail/sieve/
+sievec /var/vmail/sieve/spam-global.sieve
 
-
+# https://thomas-leister.de/dovecot-sieve-manager-installieren-und-einrichten/
 
 # restart all services
 echo "restart all serices again"
-/etc/init.d/opendmarc start
 postfix stop && postfix start
 service spamassassin restart
 service clamav-daemon restart
 service amavis restart
 service dovecot restart
 service postgrey restart
-
+service opendkim restart
+service opendmarc restart
 
 echo "A lost comment from one of the pages
 Great guide to get started with SPF/DKIM/DMARC, thanks!

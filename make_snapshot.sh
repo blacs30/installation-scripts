@@ -93,12 +93,12 @@ sed -i "/.*$MYID.*/d" $INPROGRESS_FILE
 # count lines in file
 ACTIVE_SYNCS=$(wc -l $INPROGRESS_FILE | awk '{print $1}')
 
-[[ $ACTIVE_SYNCS -eq 0 ]] && rm -f $INPROGRESS_FILE
-
 if [[ $ACTIVE_SYNCS -ge 1 ]]
         then
         echo "Other syncs are still running - don't remount ro"
 else
+  # delete inprogress file now
+  rm -f $INPROGRESS_FILE
   # now remount the RW snapshot mountpoint as readonly
   $MOUNT -o remount,ro $MOUNT_DEVICE $MOUNT_POINT ;
   if (( $? ))

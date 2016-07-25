@@ -24,14 +24,14 @@ check process amavisd with pidfile /var/run/amavis/amavisd.pid
 
 echo "
 check process apache2 with pidfile /var/run/apache2/apache2.pid
-  group www
   start program = \"/etc/init.d/apache2 start\"
   stop program = \"/etc/init.d/apache2 stop\"
   if children > 255 for 5 cycles then alert
   if cpu usage > 95% for 3 cycles then alert
-  if failed host localhost port 80 protocol http
-    with timeout 10 seconds
-    then restart
+  check host host0.com with address host0.com
+      if failed port 443 protocol https with timeout 30 seconds then alert
+  check host host1 with address host1.com
+      if failed port 443 protocol https with timeout 30 seconds then alert
   if 5 restarts within 5 cycles then timeout
 " > /etc/monit/conf.d/apache2
 
@@ -43,8 +43,8 @@ check process dovecot with pidfile /var/run/dovecot/master.pid
   group mail
   # We'd like to use this line, but see:
   # http://serverfault.com/questions/610976/monit-failing-to-connect-to-dovecot-over-ssl-imap
-  #if failed port 993 type tcpssl sslauto protocol imap for 5 cycles then restart
-  if failed port 993 for 5 cycles then restart
+  if failed port 993 type tcpssl protocol imap for 5 cycles then restart
+  # if failed port 993 for 5 cycles then restart
   if 5 restarts within 25 cycles then timeout
 " > /etc/monit/conf.d/dovecot
 
@@ -63,14 +63,15 @@ check process postfix with pidfile /var/spool/postfix/pid/master.pid
   start program = \"/etc/init.d/postfix start\"
   stop  program = \"/etc/init.d/postfix stop\"
   if failed port 25 protocol smtp then restart
+  if failed port 465 type tcpssl protocol smtp for 5 cycles then restart
   if 5 restarts within 5 cycles then timeout
 " > /etc/monit/conf.d/postfix
 
 echo "
-check process spamassassin with pidfile /var/run/spamd.pid
+check process spamassassin with pidfile /var/run/spamassassin.pid
   group mail
-  start program = \"/etc/init.d/spamassassin start\"
-  stop  program = \"/etc/init.d/spamassassin stop\"
+  start program = \"service spamassassin start\"
+  stop  program = \"service spamassassin stop\"
   if 5 restarts within 5 cycles then timeout
 " > /etc/monit/conf.d/spamassassin
 
@@ -84,20 +85,13 @@ check process sshd with pidfile /var/run/sshd.pid
 
 echo "create config to check the host system"
 echo "
-check system \$HOST
-    if loadavg (5min) > 3 then alert
-    if loadavg (15min) > 1 then alert
-    if memory usage > 80% for 4 cycles then alert
-    if swap usage > 20% for 4 cycles then alert
-    # Test the user part of CPU usage
-    if cpu usage (user) > 80% for 2 cycles then alert
-    # Test the system part of CPU usage
-    if cpu usage (system) > 20% for 2 cycles then alert
-    # Test the i/o wait part of CPU usage
-    if cpu usage (wait) > 80% for 2 cycles then alert
-    # Test CPU usage including user, system and wait. Note that
-    # multi-core systems can generate 100% per core
-    # so total CPU usage can be more than 100%
+check system localhost
+        if loadavg (1min) > 8 then alert
+        if loadavg (5min) > 6 for 3 cycles then alert
+        if memory usage > 90% then alert
+        if cpu usage (user) > 80% then alert
+        if cpu usage (system) > 30% then alert
+        if cpu usage (wait) > 80% for 3 cycles then alert
 " > /etc/monit/conf.d/system
 
 echo "create config to check rsyslog service"
@@ -167,10 +161,20 @@ check process redis-server
     if 5 restarts within 5 cycles then timeout
 ' > /etc/monit/conf.d/redis
 
+echo "create config to check clamav"
+echo '
+check process clamavd
+   matching "clamd"
+   start program = "/etc/init.d/clamav-daemon start"
+   stop  program = "/etc/init.d/clamav-daemon stop"
+   if failed unixsocket /var/run/clamav/clamd.ctl then restart
+   if 5 restarts within 5 cycles then timeout
+' > /etc/monit/conf.d/clamav
+
 echo "create config to check free hard drive"
 echo '
 check device disk with path /
-    if SPACE usage > 80% then alert
+    if SPACE usage > 80% for 8 cycles then alert
 check device nfs with path /root/snapshot
     if SPACE usage > 80% then alert
 ' > /etc/monit/conf.d/disk-space
@@ -202,13 +206,13 @@ SSLProxyVerify none
 SSLProxyCheckPeerCN off
 SSLProxyCheckPeerName off
 SSLProxyCheckPeerExpire off
-
-ProxyPass /monit/  https://127.0.0.1:2812/
-ProxyPassReverse /monit/  https://127.0.0.1:2812/
-  <Location /monit/>
-    Order deny,allow
-    Allow from all
-  </Location>
+<Location /monit/>
+  ProxyPass https://127.0.0.1:2812/
+  ProxyPassReverse https://127.0.0.1:2812/
+  Order deny,allow
+  Deny from all
+  allow from env=AllowCountry
+</Location>
 "
 
 # Write mysql root password to file - keep it save

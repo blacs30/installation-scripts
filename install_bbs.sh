@@ -107,7 +107,7 @@ else
 # Forward everything to port 80
 <VirtualHost *:80>
   ServerName $DOMAIN
-  Redirect permanent / https://$DOMAIN
+  Redirect permanent / https://$DOMAIN/
   CustomLog $WWWLOGDIR/access.log combined
   ErrorLog $WWWLOGDIR/error.log
 </VirtualHost>

@@ -169,7 +169,7 @@ else
 # Forward everything to port 80
 <VirtualHost *:80>
   ServerName $DOMAIN
-  Redirect permanent / https://$DOMAIN
+  Redirect permanent / https://$DOMAIN/
   CustomLog $WWWLOGDIR/access.log combined
   ErrorLog $WWWLOGDIR/error.log
 </VirtualHost>
@@ -209,6 +209,18 @@ else
      <IfModule mod_dav.c>
      Dav off
      </IfModule>
+
+     <Directory "$WWWPATHHTML/wp-admin">
+       Order deny,allow
+       Deny from all
+       allow from env=AllowCountry
+     </Directory>
+
+     <Location "/wp-login.php">
+       Order deny,allow
+       Deny from all
+       allow from env=AllowCountry
+     </Location>
 
     SetEnv HOME $WWWPATHHTML
     SetEnv HTTP_HOME $WWWPATHHTML

@@ -295,7 +295,7 @@ else
 # Forward everything to port 80
 <VirtualHost *:80>
   ServerName $target_domain
-  Redirect permanent / https://$target_domain
+  Redirect permanent / https://$target_domain/
   CustomLog $target_directory/../log/access.log combined
   ErrorLog $target_directory/../log/error.log
 </VirtualHost>

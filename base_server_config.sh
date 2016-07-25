@@ -101,3 +101,8 @@ net.ipv6.conf.eth0.disable_ipv6 = 1
 sysctl -p
 
 echo "add nfs share as ro to /etc/fstab "
+
+# install apticron
+apt-get install -y apticron
+vi /etc/apticron/apticron.conf
+EMAIL="...."

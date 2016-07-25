@@ -22,6 +22,7 @@ MOUNT_DEVICE=NFS_SERVER_IP:/NFS_SHARE;
 MOUNT_POINT=/root/backup;
 INPROGRESS_FILE="$MOUNT_POINT/backup.inprogress";
 ROTATE_FOLDER=$1;
+if [ "$1" = "" ]; then exit; fi
 
 # ------------- the script itself --------------------------------------
 MOUNT_RO_STATUS=$(fgrep -c 'root/snapshot nfs ro,' /proc/mounts)
@@ -49,14 +50,31 @@ echo $MYID
 
 
 # step 1: delete the oldest snapshot, if it exists:
-if [ -d $ROTATE_FOLDER/daily.2 ] ; then                      \
-$RM -rf $ROTATE_FOLDER/daily.2 ;                             \
+if [ -d $ROTATE_FOLDER/daily.6 ] ; then                      \
+$RM -rf $ROTATE_FOLDER/daily.6 ;                             \
 fi ;
 
 # step 2: shift the middle snapshots(s) back by one, if they exist
+if [ -d $ROTATE_FOLDER/daily.5 ] ; then                      \
+$MV $ROTATE_FOLDER/daily.5 $ROTATE_FOLDER/daily.6 ;       \
+fi;
+
+if [ -d $ROTATE_FOLDER/daily.4 ] ; then                      \
+$MV $ROTATE_FOLDER/daily.4 $ROTATE_FOLDER/daily.5 ;       \
+fi;
+
+if [ -d $ROTATE_FOLDER/daily.3 ] ; then                      \
+$MV $ROTATE_FOLDER/daily.3 $ROTATE_FOLDER/daily.4 ;       \
+fi;
+
+if [ -d $ROTATE_FOLDER/daily.2 ] ; then                      \
+$MV $ROTATE_FOLDER/daily.2 $ROTATE_FOLDER/daily.3 ;       \
+fi;
+
 if [ -d $ROTATE_FOLDER/daily.1 ] ; then                      \
 $MV $ROTATE_FOLDER/daily.1 $ROTATE_FOLDER/daily.2 ;       \
 fi;
+
 if [ -d $ROTATE_FOLDER/daily.0 ] ; then                      \
 $MV $ROTATE_FOLDER/daily.0 $ROTATE_FOLDER/daily.1;        \
 fi;
@@ -79,12 +97,12 @@ sed -i "/.*$MYID.*/d" $INPROGRESS_FILE
 # count lines in file
 ACTIVE_SYNCS=$(wc -l $INPROGRESS_FILE | awk '{print $1}')
 
-[[ $ACTIVE_SYNCS -eq 0 ]] && rm -f $INPROGRESS_FILE
-
 if [[ $ACTIVE_SYNCS -ge 1 ]]
         then
         echo "Other syncs are still running - don't remount ro"
 else
+  # delete inprogress file now
+  rm -f $INPROGRESS_FILE
   # now remount the RW snapshot mountpoint as readonly
   $MOUNT -o remount,ro $MOUNT_DEVICE $MOUNT_POINT ;
   if (( $? ))

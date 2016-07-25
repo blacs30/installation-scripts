@@ -343,7 +343,7 @@ else
 #Forward everything to port 80
 <VirtualHost *:80>
   ServerName $DOMAIN
-  Redirect permanent / https://$DOMAIN
+  Redirect permanent / https://$DOMAIN/
   CustomLog $WWWLOGDIR/access.log combined
   ErrorLog $WWWLOGDIR/error.log
 </VirtualHost>
@@ -353,6 +353,7 @@ else
 <IfModule mod_headers.c>
    Header always set Strict-Transport-Security "max-age=15768000; includeSubDomains; preload"
  </IfModule>
+
    SSLEngine on
    # settings for self signed certificates
    SSLCipherSuite HIGH:MEDIUM
@@ -380,9 +381,9 @@ else
    <Directory "$WWWPATHHTML">
    Options Indexes FollowSymLinks
    AllowOverride All
-   Allow from all
-   Require all granted
-   Satisfy Any
+   Order deny,allow
+   Deny from all
+   allow from env=AllowCountry
    </Directory>
 
    <IfModule mod_dav.c>
