@@ -28,6 +28,7 @@ fn_log_info_cmd()  {
 
 fn_terminate_script() {
     fn_log_info "SIGINT caught."
+    mail -s "Backup for $SRC_FOLDER: SIGINT caught." mail@example.com < $LOG_FILE
     exit 1
 }
 
@@ -58,6 +59,7 @@ fn_expire_backup() {
     # sure we're deleting the right folder
     if [ -z "$(fn_find_backup_marker "$(dirname -- "$1")")" ]; then
         fn_log_error "$1 is not on a backup destination - aborting."
+        mail -s "Backup for $SRC_FOLDER: $1 is not on a backup destination - aborting." mail@example.com < $LOG_FILE
         exit 1
     fi
 
@@ -136,6 +138,7 @@ fi
 for ARG in "$SRC_FOLDER" "$DEST_FOLDER" "$EXCLUSION_FILE"; do
 if [[ "$ARG" == *"'"* ]]; then
         fn_log_error 'Arguments may not have any single quote characters.'
+        mail -s 'Arguments may not have any single quote characters.' mail@example.com < $LOG_FILE
         exit 1
     fi
 done
@@ -155,6 +158,7 @@ if [ -z "$(fn_find_backup_marker "$DEST_FOLDER")" ]; then
     fn_log_info ""
     fn_log_info_cmd "mkdir -p -- \"$DEST_FOLDER\" ; touch \"$(fn_backup_marker_path "$DEST_FOLDER")\""
     fn_log_info ""
+    mail -s "Backup for $SRC_FOLDER: Safety check failed - the destination does not appear to be a backup folder or drive (marker file not found)." mail@example.com < $LOG_FILE
     exit 1
 fi
 
@@ -198,6 +202,7 @@ if [ -n "$(fn_find "$INPROGRESS_FILE")" ]; then
 	    RUNNINGPID="$(fn_run_cmd "cat $INPROGRESS_FILE")"
 	    if [ "$RUNNINGPID" = "$(pgrep "$APPNAME")" ]; then
 	        fn_log_error "Previous backup task is still active - aborting."
+          mail -s "Backup for $SRC_FOLDER: Previous backup task is still active - aborting backup." mail@example.com < $LOG_FILE
 	        exit 1
 	    fi
 	fi
@@ -323,6 +328,7 @@ while : ; do
 
         if [[ "$(fn_find_backups | wc -l)" -lt "2" ]]; then
             fn_log_error "No space left on device, and no old backup to delete."
+            mail -s "Backup for $SRC_FOLDER: No space left on device, and no old backup to delete" mail@example.com < $LOG_FILE
             exit 1
         fi
 
@@ -340,7 +346,7 @@ while : ; do
     fi
     if [ -n "$(grep "rsync error:" "$LOG_FILE")" ]; then
         fn_log_error "Rsync reported an error, please check '$LOG_FILE' for more details."
-        fusermount -u /mnt/remote-ftp
+        mail -s "Backup for $SRC_FOLDER: Rsync reported a warning, please check '$LOG_FILE' for more details." mail@example.com < $LOG_FILE
         exit 1
     fi
 
@@ -352,10 +358,10 @@ while : ; do
     fn_ln "$(basename -- "$DEST")" "$DEST_FOLDER/latest"
 
     fn_rm "$INPROGRESS_FILE"
+    mail -s "Backup for $SRC_FOLDER: Backup completed without errors." mail@example.com < $LOG_FILE
     rm -f -- "$LOG_FILE"
 
     fn_log_info "Backup completed without errors."
-    fusermount -u /mnt/remote-ftp
 
     exit 0
 done
