@@ -2,6 +2,10 @@
 # Script fuer inkrementelles Backup mit 30 taegigem Vollbackup
 LOG_FILE=/tmp/incremental_backuplog.txt
 exec &> $LOG_FILE
+echo "
+#
+#
+# Backup start at " `date`
 
 ### Einstellungen ##
 BACKUPDIR="media/backup"           ## Pfad zum Backupverzeichnis
@@ -12,8 +16,8 @@ ROTATEDIR_CONFIGDB="media/confdbbackup/rotate"    ## Pfad wo die Backups nach 30
 TIMESTAMP="timestamp.dat"          ## Zeitstempel
 SOURCE="home/user"                 ## Verzeichnis(se) welche(s) gesichert werden soll(en)
 SOURCE_CONF_DB="$TMP_MYSQLDB_BACKUP_DIR home/user"                 ## Verzeichnis(se) welche(s) gesichert werden soll(en)
-DATUM="$(date +%d-%m-%Y)"          ## Datumsformat einstellen
-ZEIT="$(date +%H:%M)"              ## Zeitformat einstellen
+DATUM="$(date +%d-%m-%Y)"                                                       ## Datumsformat einstellen
+ZEIT="$(date +%H:%M)"                                                           ## Zeitformat einstellen
 MOUNT_DEVICE=NFS_SERVER_IP:/NFS_SHARE;
 MOUNT_POINT=/root/snapshot;
 INPROGRESS_FILE="$MOUNT_POINT/backup.inprogress";
@@ -21,6 +25,7 @@ ID=/usr/bin/id;
 MYID="$$"
 GZIPCHECK=();
 ### MYSQL Setup ###
+NOWFILE=`date +"%Y-%m-%d"`;
 MUSER="mysqlbackup";
 MPASS="mysqlpass";
 MHOST="localhost";
@@ -36,16 +41,16 @@ EXCLUDE="--exclude=home/user/Filme --exclude=home/user/Musik --exclude=home/user
 EXCLUDE_CONF_DB="--exclude=home/user/Filme --exclude=home/user/Musik --exclude=home/user/Spiele --exclude=home/user/.VirtualBox  --exclude=home/user/.local/share/Trash"
 
 # make sure we're running as root
-if (( `$ID -u` != 0 )); then { echo "Sorry, must be root.  Exiting..."; exit; } fi
+if (( `$ID -u` != 0 )); then { echo "$ID, Sorry, must be root.  Exiting..."; exit; } fi
 MOUNT_RO_STATUS=$(fgrep -c 'root/snapshot nfs ro,' /proc/mounts)
 if [ "$MOUNT_RO_STATUS" -eq "1" ];
         then
-        echo "Mounted read only - remount rw"
+        echo "$ID, Mounted read only - remount rw"
         # attempt to remount the RW mount point as RW; else abort
         mount -o remount,rw $MOUNT_DEVICE $MOUNT_POINT ;
         if (( $? )); then
         {
-                echo "snapshot: could not remount $MOUNT_POINT readwrite";
+                echo "$ID, snapshot: could not remount $MOUNT_POINT readwrite";
                 exit;
         }
         fi;
@@ -54,9 +59,10 @@ fi
 echo $MYID >> $INPROGRESS_FILE
 chmod 600 $INPROGRESS_FILE
 
-backup_mysql_dbs() {
+### Wechsel in root damit die Pfade stimmen ##
+cd /
 
-  ### Create backup dir ###
+### Create backup dir ###
   if [ ! -d $TMP_MYSQLDB_BACKUP_DIR ]; then
     mkdir -p $TMP_MYSQLDB_BACKUP_DIR
       if [ "$?" = "0" ]; then
@@ -68,6 +74,11 @@ backup_mysql_dbs() {
    :
   fi
 
+echo "
+#
+# Start backup of MYSQL
+#
+" | tee -a $LOG_FILE
   ### Get the list of available databases ###
   DBS="$(mysql -u $MUSER -p$MPASS -h $MHOST -P $MPORT -Bse 'show databases')"
 
@@ -85,7 +96,7 @@ backup_mysql_dbs() {
       fi
 
       if [ "$DUMP" == "yes" ]; then
-          FILE="TMP_MYSQLDB_BACKUP_DIR/$NOWFILE-$db.sql.gz";
+          FILE="$TMP_MYSQLDB_BACKUP_DIR/$NOWFILE-$db.sql.gz";
           echo "BACKING UP $db";
           mysqldump --add-drop-database --opt --lock-all-tables -u $MUSER -p$MPASS -h $MHOST -P $MPORT $db | gzip > $FILE
           if [ "$?" = "0" ]; then
@@ -109,25 +120,15 @@ backup_mysql_dbs() {
       CHECKSUM=$(( $CHECKSUM + ${GZIPCHECK[${i}]} ));
   done
 
-  # step 5: update the mtime of hourly.0 to reflect the snapshot time
-  $TOUCH $TMP_MYSQLDB_BACKUP_DIR ;
-
   ### If all files check out, delete the oldest dir ###
   if [ "$CHECKSUM" == "$CHECKOUTS" ]; then
       echo "All files checked out ok. MYSQLDUMP successful.";
-      mail -s "MYSQLDUMP Success Backuplog" mail@example.com < $LOG_FILE;
+      # mail -s "MYSQLDUMP Success Backuplog" db-backup@lisowski-development.com < $LOG_FILE;
   else
       echo "Dispatching Karl, he's an Expert";
       ### Send mail with contents of logfile ###
-      mail -s "MYSQLDUMP ERROR Backuplog" mail@example.com < $LOG_FILE;
+      mail -s "MYSQLDUMP ERROR Backuplog" db-backup@lisowski-development.com < $LOG_FILE;
   fi
-}
-
-# run function for mysql database backup
-backup_mysql_dbs
-
-### Wechsel in root damit die Pfade stimmen ##
-cd /
 
 ### Backupverzeichnis anlegen ##
 mkdir -p ${BACKUPDIR}
@@ -136,7 +137,7 @@ mkdir -p ${CONFIG_DB_BACKUPDIR}
 ### Test ob Backupverzeichnis existiert und Mail an Admin bei fehlschlagen ##
 if [ ! -d "${BACKUPDIR}" ] || [ ! -d "${CONFIG_DB_BACKUPDIR}" ] ; then
 
-mail -s "Backupverzeichnis nicht vorhanden!" mail@example.com <<EOM
+mail -s "Backupverzeichnis nicht vorhanden!" db-backup@lisowski-development.com <<EOM
 Hallo Admin,
 das Backup am ${DATUM} konnte nicht erstellt werden. Das Verzeichnis ${BACKUPDIR} oder ${CONFIG_DB_BACKUPDIR} wurde nicht gefunden und konnte auch nicht angelegt werden.
 Mit freundlichem Gruss Backupscript
@@ -158,10 +159,11 @@ if [ "$[backupnr++]" -ge 30 ]; then
 mkdir -p ${ROTATEDIR}/${DATUM}-${ZEIT}
 mkdir -p ${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}
 
+
 ### Test ob Rotateverzeichnis existiert und Mail an Admin bei fehlschlagen ##
 if [ ! -d "${ROTATEDIR}/${DATUM}-${ZEIT}" ] || [ ! -d "${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}" ]; then
 
-mail -s "Rotateverzeichnis nicht vorhanden!" mail@example.com <<EOM
+mail -s "Rotateverzeichnis nicht vorhanden!" db-backup@lisowski-development.com <<EOM
 Hallo Admin,
 die alten Backups konnten am ${DATUM} nicht verschoben werden. Das Verzeichnis ${ROTATEDIR} oder ${ROTATEDIR_CONFIGDB} wurde nicht gefunden und konnte auch nicht angelegt werden.
 Mit freundlichem Gruss Backupscript
@@ -176,7 +178,7 @@ fi
 ### Abfragen ob das Backupverschieben erfolgreich war ##
 if [ $? -ne 0 ]; then
 
-mail -s "Backupverschieben fehlerhaft!" mail@example.com <<EOM
+mail -s "Backupverschieben fehlerhaft!" db-backup@lisowski-development.com <<EOM
 Hallo Admin,
 die alten Backups konnte am ${DATUM} nicht verschoben werden.
 Mit freundlichem Gruss Backupscript
@@ -185,7 +187,7 @@ EOM
 exit 1
 else
 
-mail -s "Backupverschieben erfolgreich" mail@example.com <<EOM
+mail -s "Backupverschieben erfolgreich" db-backup@lisowski-development.com <<EOM
 Hallo Admin,
 die alten Backups wurde am ${DATUM} erfolgreich nach ${ROTATEDIR}/${DATUM}-${ZEIT} verschoben.
 Mit freundlichem Gruss Backupscript
@@ -202,43 +204,43 @@ filename=backup-${backupnr}.tgz
 
 ### Nun wird das eigentliche Backup ausgefuehrt ##
 SOURCE_SUCCESS=Successful
-tar -cpzf ${BACKUPDIR}/${filename} -g ${BACKUPDIR}/${TIMESTAMP} ${SOURCE} ${EXCLUDE}
+echo "
+#
+# Start backup of ${SOURCE}
+#
+" | tee -a $LOG_FILE
+tar -cpvzf ${BACKUPDIR}/${filename} -g ${BACKUPDIR}/${TIMESTAMP} ${SOURCE} ${EXCLUDE} | tee -a $LOG_FILE
 
 ### Abfragen ob das Backup erfolgreich war ##
 if [ $? -ne 0 ]; then
-SOURCE_SUCCESS=fehler
-mail -s "Backup (${SOURCE}) war fehlerhaft!" mail@example.com <<EOM
-Hallo Admin,
-das Backup ${filename} am ${DATUM} wurde mit Fehler(n) beendet.
-Mit freundlichem Gruss Backupscript
-EOM
+SOURCE_SUCCESS=fehlerhaft
+mail -s "Backup (${SOURCE}) war fehlerhaft!" db-backup@lisowski-development.com < $LOG_FILE
 fi
 
 SOURCE_CONF_DB_SUCCESS=Successful
-tar -cpzf ${CONFIG_DB_BACKUPDIR}/${filename} -g ${CONFIG_DB_BACKUPDIR}/${TIMESTAMP} ${SOURCE_CONF_DB} ${EXCLUDE_CONF_DB}
+echo "
+#
+# Start backup of ${SOURCE_CONF_DB}
+#
+" | tee -a $LOG_FILE
+tar -cpvzf ${CONFIG_DB_BACKUPDIR}/${filename} -g ${CONFIG_DB_BACKUPDIR}/${TIMESTAMP} ${SOURCE_CONF_DB} ${EXCLUDE_CONF_DB} | tee -a $LOG_FILE
 
 ### Abfragen ob das Backup erfolgreich war ##
 if [ $? -ne 0 ]; then
-SOURCE_CONF_DB_SUCCESS=fehler
-mail -s "Backup (${SOURCE_CONF_DB}) war fehlerhaft!" mail@example.com <<EOM
-Hallo Admin,
-das Backup ${filename} am ${DATUM} wurde mit Fehler(n) beendet.
-Mit freundlichem Gruss Backupscript
-EOM
+SOURCE_CONF_DB_SUCCESS=fehlerhaft
+mail -s "Backup (${SOURCE_CONF_DB}) war fehlerhaft!" db-backup@lisowski-development.com < $LOG_FILE
 fi
 
+echo "
+#
+# End backup of at `date`
+#
+" | tee -a $LOG_FILE && mail -s "Backup (${SOURCE}) war $SOURCE_SUCCESS und (${SOURCE_CONF_DB}) war $SOURCE_CONF_DB_SUCCESS" db-backup@lisowski-development.com < $LOG_FILE
 
-mail -s "Backup (${SOURCE}) war $SOURCE_SUCCESS und von (${SOURCE_CONF_DB}) war $SOURCE_CONF_DB_SUCCESS" mail@example.com <<EOM
-Hallo Admin,
-das Backup von $SOURCE mit Namen ${filename} am ${DATUM} wurde erfolgreich in ${BACKUPDIR}/${TIMESTAMP} gebackupt.
-das Backup von $SOURCE_CONF_DB mit Namen ${filename} am ${DATUM} wurde erfolgreich in ${CONFIG_DB_BACKUPDIR}/${TIMESTAMP} gebackupt.
-Mit freundlichem Gruss Backupscript
-EOM
-
-fi
 
 # remove temporary mysql exports
 rm -rf $TMP_MYSQLDB_BACKUP_DIR
+rm -rf $LOG_FILE
 # remove entry in progress file
 sed -i "/.*$MYID.*/d" $INPROGRESS_FILE
 # count lines in file
@@ -246,7 +248,7 @@ ACTIVE_SYNCS=$(wc -l $INPROGRESS_FILE | awk '{print $1}')
 if [[ $ACTIVE_SYNCS -ge 1 ]]
         then
         echo "Other syncs are still running - don't remount ro"
-        mail -s "Other syncs are still running - don't remount ro" mail@example.com
+        mail -s "$ID, Other syncs are still running - don't remount ro" db-backup@lisowski-development.com
 else
   # delete inprogress file now
   rm -f $INPROGRESS_FILE
@@ -256,7 +258,7 @@ else
 	then
   	{
           echo "snapshot: could not remount, $MOUNT_POINT is in use"
-          mail -s "snapshot: could not remount, $MOUNT_POINT is in use" mail@example.com
+          mail -s "$ID, snapshot: could not remount, $MOUNT_POINT is in use" db-backup@lisowski-development.com
           exit
   	}
 	fi
