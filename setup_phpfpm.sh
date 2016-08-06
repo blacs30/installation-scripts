@@ -3,12 +3,16 @@
 # http://z-issue.com/wp/apache-2-4-the-event-mpm-php-via-mod_proxy_fcgi-and-php-fpm-with-vhosts/
 # https://www.linode.com/docs/websites/apache/install-php-fpm-and-apache-on-debian-8
 # https://wiki.apache.org/httpd/PHP-FPM#unix_domain_socket_.28UDS.29_approach
-# 
+#
+# php values
+# http://php.net/manual/en/install.fpm.configuration.php
+#
 
 APACHECONF=/etc/apache2/sites-available/001-wordpress.example.com.conf
 WWWPATHHTML=/var/www/wordpress.example.com/public_html
 pool=example_wp
-SITE_URL=
+SITE_URL=wordpress.example.com
+PHP_TIMEZONE=Europe/Berlin
 
 a2enmod proxy_fcgi proxy actions
 
@@ -61,7 +65,7 @@ cat <<EOM > /etc/apache2/mods-available/php7.0.conf
 </IfModule>
 EOM
 
-#echo "error_log = /var/log/php-fpm.log" >> /etc/php/7.0/fpm/php.ini
+sed -i 's,;date.timezone =.*,date.timezone = $PHP_TIMEZONE,g' /etc/php/7.0/fpm/php.ini
 sed -i 's/;events.mechanism = epoll.*/events.mechanism = epoll/g' /etc/php/7.0/fpm/php-fpm.conf
 sed -i 's/;emergency_restart_threshold = 0.*/emergency_restart_threshold = 0/g' /etc/php/7.0/fpm/php-fpm.conf
 
@@ -87,6 +91,11 @@ pm.max_spare_servers = 5
 pm.max_requests = 10000
 ; Maximum amount of time to process a request (similar to max_execution_time in php.ini
 request_terminate_timeout = 300
+php_value[memory_limit] = 96M
+php_value[max_execution_time] = 120
+php_value[max_input_time] = 300
+php_value[php_post_max_size] = 25M
+php_value[upload_max_filesize] = 25M
 EOM
 
 mkdir /var/run/php
@@ -110,4 +119,4 @@ cat <<EOM >> $APACHECONF
 EOM
 
 service php7.0-fpm restart
-server apache2 restart
+service apache2 restart

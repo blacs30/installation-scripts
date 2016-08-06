@@ -123,11 +123,11 @@ echo "
   ### If all files check out, delete the oldest dir ###
   if [ "$CHECKSUM" == "$CHECKOUTS" ]; then
       echo "All files checked out ok. MYSQLDUMP successful.";
-      # mail -s "MYSQLDUMP Success Backuplog" db-backup@lisowski-development.com < $LOG_FILE;
+      # mail -s "MYSQLDUMP Success Backuplog" mail@example.com < $LOG_FILE;
   else
       echo "Dispatching Karl, he's an Expert";
       ### Send mail with contents of logfile ###
-      mail -s "MYSQLDUMP ERROR Backuplog" db-backup@lisowski-development.com < $LOG_FILE;
+      mail -s "MYSQLDUMP ERROR Backuplog" mail@example.com < $LOG_FILE;
   fi
 
 ### Backupverzeichnis anlegen ##
@@ -137,7 +137,7 @@ mkdir -p ${CONFIG_DB_BACKUPDIR}
 ### Test ob Backupverzeichnis existiert und Mail an Admin bei fehlschlagen ##
 if [ ! -d "${BACKUPDIR}" ] || [ ! -d "${CONFIG_DB_BACKUPDIR}" ] ; then
 
-mail -s "Backupverzeichnis nicht vorhanden!" db-backup@lisowski-development.com <<EOM
+mail -s "Backupverzeichnis nicht vorhanden!" mail@example.com <<EOM
 Hallo Admin,
 das Backup am ${DATUM} konnte nicht erstellt werden. Das Verzeichnis ${BACKUPDIR} oder ${CONFIG_DB_BACKUPDIR} wurde nicht gefunden und konnte auch nicht angelegt werden.
 Mit freundlichem Gruss Backupscript
@@ -163,7 +163,7 @@ mkdir -p ${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}
 ### Test ob Rotateverzeichnis existiert und Mail an Admin bei fehlschlagen ##
 if [ ! -d "${ROTATEDIR}/${DATUM}-${ZEIT}" ] || [ ! -d "${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}" ]; then
 
-mail -s "Rotateverzeichnis nicht vorhanden!" db-backup@lisowski-development.com <<EOM
+mail -s "Rotateverzeichnis nicht vorhanden!" mail@example.com <<EOM
 Hallo Admin,
 die alten Backups konnten am ${DATUM} nicht verschoben werden. Das Verzeichnis ${ROTATEDIR} oder ${ROTATEDIR_CONFIGDB} wurde nicht gefunden und konnte auch nicht angelegt werden.
 Mit freundlichem Gruss Backupscript
@@ -172,13 +172,11 @@ EOM
  . exit 1
 else
 mv ${BACKUPDIR}/* ${ROTATEDIR}/${DATUM}-${ZEIT}
-mv ${CONFIG_DB_BACKUPDIR}/* ${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}
-fi
 
 ### Abfragen ob das Backupverschieben erfolgreich war ##
 if [ $? -ne 0 ]; then
 
-mail -s "Backupverschieben fehlerhaft!" db-backup@lisowski-development.com <<EOM
+mail -s "Backupverschieben für ${BACKUPDIR} fehlerhaft!" mail@example.com <<EOM
 Hallo Admin,
 die alten Backups konnte am ${DATUM} nicht verschoben werden.
 Mit freundlichem Gruss Backupscript
@@ -187,11 +185,28 @@ EOM
 exit 1
 else
 
-mail -s "Backupverschieben erfolgreich" db-backup@lisowski-development.com <<EOM
+mail -s "Backupverschieben erfolgreich" mail@example.com <<EOM
 Hallo Admin,
 die alten Backups wurde am ${DATUM} erfolgreich nach ${ROTATEDIR}/${DATUM}-${ZEIT} verschoben.
 Mit freundlichem Gruss Backupscript
 EOM
+fi
+mv ${CONFIG_DB_BACKUPDIR}/* ${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}
+### Abfragen ob das Backupverschieben erfolgreich war ##
+if [ $? -ne 0 ]; then
+mail -s "Backupverschieben für ${CONFIG_DB_BACKUPDIR} fehlerhaft!" mail@example.com <<EOM
+Hallo Admin,
+die alten Backups konnte am ${DATUM} nicht verschoben werden.
+Mit freundlichem Gruss Backupscript
+EOM
+exit 1
+else
+mail -s "Backupverschieben erfolgreich" mail@example.com <<EOM
+Hallo Admin,
+die alten Backups wurde am ${DATUM} erfolgreich nach ${ROTATEDIR}/${DATUM}-${ZEIT} verschoben.
+Mit freundlichem Gruss Backupscript
+EOM
+fi
 
 ### die Backupnummer wieder auf 1 stellen ##
 backupnr=1
@@ -214,7 +229,7 @@ tar -cpvzf ${BACKUPDIR}/${filename} -g ${BACKUPDIR}/${TIMESTAMP} ${SOURCE} ${EXC
 ### Abfragen ob das Backup erfolgreich war ##
 if [ $? -ne 0 ]; then
 SOURCE_SUCCESS=fehlerhaft
-mail -s "Backup (${SOURCE}) war fehlerhaft!" db-backup@lisowski-development.com < $LOG_FILE
+mail -s "Backup (${SOURCE}) war fehlerhaft!" mail@example.com < $LOG_FILE
 fi
 
 SOURCE_CONF_DB_SUCCESS=Successful
@@ -228,27 +243,27 @@ tar -cpvzf ${CONFIG_DB_BACKUPDIR}/${filename} -g ${CONFIG_DB_BACKUPDIR}/${TIMEST
 ### Abfragen ob das Backup erfolgreich war ##
 if [ $? -ne 0 ]; then
 SOURCE_CONF_DB_SUCCESS=fehlerhaft
-mail -s "Backup (${SOURCE_CONF_DB}) war fehlerhaft!" db-backup@lisowski-development.com < $LOG_FILE
+mail -s "Backup (${SOURCE_CONF_DB}) war fehlerhaft!" mail@example.com < $LOG_FILE
 fi
 
 echo "
 #
 # End backup of at `date`
 #
-" | tee -a $LOG_FILE && mail -s "Backup (${SOURCE}) war $SOURCE_SUCCESS und (${SOURCE_CONF_DB}) war $SOURCE_CONF_DB_SUCCESS" db-backup@lisowski-development.com < $LOG_FILE
+" | tee -a $LOG_FILE && mail -s "Backup (${SOURCE}) war $SOURCE_SUCCESS und (${SOURCE_CONF_DB}) war $SOURCE_CONF_DB_SUCCESS" mail@example.com < $LOG_FILE
 
 
 # remove temporary mysql exports
 rm -rf $TMP_MYSQLDB_BACKUP_DIR
 rm -rf $LOG_FILE
-# remove entry in progress file
+# remove entry in progress file<s
 sed -i "/.*$MYID.*/d" $INPROGRESS_FILE
 # count lines in file
 ACTIVE_SYNCS=$(wc -l $INPROGRESS_FILE | awk '{print $1}')
 if [[ $ACTIVE_SYNCS -ge 1 ]]
         then
         echo "Other syncs are still running - don't remount ro"
-        mail -s "$ID, Other syncs are still running - don't remount ro" db-backup@lisowski-development.com
+        mail -s "$ID, Other syncs are still running - don't remount ro" mail@example.com
 else
   # delete inprogress file now
   rm -f $INPROGRESS_FILE
@@ -258,7 +273,7 @@ else
 	then
   	{
           echo "snapshot: could not remount, $MOUNT_POINT is in use"
-          mail -s "$ID, snapshot: could not remount, $MOUNT_POINT is in use" db-backup@lisowski-development.com
+          mail -s "$ID, snapshot: could not remount, $MOUNT_POINT is in use" mail@example.com
           exit
   	}
 	fi
