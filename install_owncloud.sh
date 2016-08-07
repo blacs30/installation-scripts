@@ -23,8 +23,8 @@ export WWWPATH=$HTML/$DOMAIN
 export SSLPATH=$WWWPATH/ssl
 export WWWPATHHTML=$HTML/$DOMAIN/public_html
 export WWWLOGDIR=$WWWPATH/log
-export OCZIPFILEPATH=https://download.owncloud.org/community/owncloud-9.0.2.tar.bz2
-export OCZIPFILE=owncloud-9.0.2.tar.bz2
+export OCZIPFILEPATH=https://download.owncloud.org/community/owncloud-9.1.0.tar.bz2
+export OCZIPFILE=owncloud-9.1.0.tar.bz2
 export SSL_CONF="" # assigned later /etc/apache2/sites-available/XXX-$DOMAIN.conf"
 
 # Check if root
@@ -200,7 +200,7 @@ chmod +x $SCRIPTS/$DOMAIN-permission_update.sh
 
 # install owncloud from command line
 echo "install owncloud"
-su www-data -s /bin/bash -c 'php $WWWPATHHTML/occ maintenance:install -vvv --database "mysql" --database-name "$OC_DB_NAME" --database-table-prefix "$OC_DB_NAME\_" --database-user "$OC_DB_USER" --database-pass "$OC_DB_PASS" --admin-user "admin" --admin-pass "$OC_ADMIN_PASS"'
+su www-data -s /bin/bash -c 'php $WWWPATHHTML/occ maintenance:install -vvv --database "mysql" --database-name "$OC_DB_NAME" --database-table-prefix "$OC_DB_NAME_" --database-user "$OC_DB_USER" --database-pass "$OC_DB_PASS" --admin-user "admin" --admin-pass "$OC_ADMIN_PASS"'
 
 # owncloud config for filesize and timeout
 echo "change upload size"
