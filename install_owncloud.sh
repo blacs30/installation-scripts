@@ -187,14 +187,12 @@ cat $WWWPATH/$DOMAIN-createdb.sql | mysql -u root -p$MYSQL_ROOT_PASS
 
 # Download Secure permissions
 echo "Download secure permission file from github"
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/setup_secure_permissions_owncloud.sh -P $SCRIPTS
-mv $SCRIPTS/setup_secure_permissions_owncloud.sh $SCRIPTS/$DOMAIN-secure-permission.sh
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/setup_secure_permissions_owncloud.sh -O $SCRIPTS/$DOMAIN-secure-permission.sh
 sed -i "s,OWNCLOUDPATH,$WWWPATHHTML," $SCRIPTS/$DOMAIN-secure-permission.sh
 chmod +x $SCRIPTS/$DOMAIN-secure-permission.sh
 
 # Download Update permissions
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/update_set_permission.sh -P $SCRIPTS
-mv $SCRIPTS/update_set_permission.sh $SCRIPTS/$DOMAIN-permission_update.sh
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/update_set_permission.sh -O $SCRIPTS/$DOMAIN-permission_update.sh
 sed -i "s,OWNCLOUDPATH,$WWWPATHHTML," $SCRIPTS/$DOMAIN-permission_update.sh
 chmod +x $SCRIPTS/$DOMAIN-permission_update.sh
 

@@ -51,7 +51,7 @@ APACHECONF=$APACHECONFDIR/$APACHECONFFILE
 cat <<EOM > /etc/php/7.0/fpm/pool.d/$pool.conf
 ;; $SITE_URL
 [$pool]
-env[HOSTNAME] = $HOSTNAME
+env[HOSTNAME] = \$HOSTNAME
 env[PATH] = /usr/local/bin:/usr/bin:/bin
 env[TMP] = /tmp
 env[TMPDIR] = /tmp
