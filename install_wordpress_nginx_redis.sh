@@ -44,6 +44,8 @@ export BETTERWPSECFILE=better-wp-security.5.4.5.zip
 export VHOST_CONF_DIR=/etc/nginx/sites-available
 export PHP_TIMEZONE=Europe/Berlin
 export REDIS_PASS=$(cat /dev/urandom | tr -dc "a-zA-Z0-9@#*=" | fold -w $SHUF | head -n 1)
+export VHOST_CONF_FILE=$DOMAIN
+export VHOST_CONF_PATH=$VHOST_CONF_DIR/$VHOST_CONF_FILE
 
 
 echo "Check if you are root"
@@ -94,8 +96,7 @@ aptitude install -y unzip \
                     expect \
                     nginx \
                     geoip-database \
-                    libgeoip1
-                    php7.0-fpm \
+                    libgeoip1 \
                     php-common \
                     php-readline \
                     php7.0 \
@@ -106,7 +107,8 @@ aptitude install -y unzip \
                     php7.0-mysql \
                     php7.0-opcache \
                     php7.0-redis  \
-                    php7.0-readline
+                    php7.0-readline \
+                    php7.0-fpm
 
 echo "Configure redis-server for using socket end set password"
 sed -i 's/^port .*/port 0/' /etc/redis/redis.conf
@@ -114,18 +116,20 @@ echo 'unixsocket /var/run/redis/redis.sock' >> /etc/redis/redis.conf
 echo 'unixsocketperm 770' >> /etc/redis/redis.conf
 sed -i "/requirepass .*/c\requirepass $REDIS_PASS" /etc/redis/redis.conf
 
-[[ -d /var/run/redis  ]] && echo "directory /var/run/redis exists already" || mkdir /var/run/redis
+[[ ! -d /var/run/redis  ]] && mkdir /var/run/redis
 chown redis:redis /var/run/redis
 chmod 755 /var/run/redis
 
 echo "Configure php fpm"
-sed -i 's,;date.timezone =.*,date.timezone = $PHP_TIMEZONE,g' /etc/php/7.0/fpm/php.ini
+mv /etc/php/7.0/fpm/pool.d/www.conf /etc/php/7.0/fpm/pool.d/www.off
+sed -i "s,.*date.timezone =.*,date.timezone = $PHP_TIMEZONE,g" /etc/php/7.0/fpm/php.ini
 sed -i 's/;opcache.enable=0/opcache.enable=1/g' /etc/php/7.0/fpm/php.ini
+sed -i 's;pid =.*;pid = /var/run/php/php7.0-fpm.pid;g' /etc/php/7.0/fpm/php-fpm.conf
 sed -i 's/;events.mechanism = epoll.*/events.mechanism = epoll/g' /etc/php/7.0/fpm/php-fpm.conf
 sed -i 's/;emergency_restart_threshold.*/emergency_restart_threshold = 10/g' /etc/php/7.0/fpm/php-fpm.conf
-sed -i 's/;emergency_restart.*/emergency_restart = 1m/g' /etc/php/7.0/fpm/php-fpm.conf
+sed -i 's/;emergency_restart_interval.*/emergency_restart_interval = 1m/g' /etc/php/7.0/fpm/php-fpm.conf
 sed -i 's/;process_control_timeout.*/process_control_timeout = 10s/g' /etc/php/7.0/fpm/php-fpm.conf
-sed -i 's/;cgi.fix_pathinfo =.*/cgi.fix_pathinfo = 0/g' /etc/php/7.0/fpm/php-fpm.conf
+sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo = 0/g' /etc/php/7.0/fpm/php.ini
 sed -i 's,error_log =.*,error_log = /var/log/php/php7.0-fpm.log,g' /etc/php/7.0/fpm/php-fpm.conf
 
 echo "create separate service user"
@@ -171,19 +175,25 @@ unset SECURE_MYSQL
 echo "Remove expect and config files"
 aptitude -y purge expect
 
+echo "Configure nginx"
+sed -i "/http {/a include \/etc\/nginx\/global\/geoip_settings.conf;"        /etc/nginx/nginx.conf
 sed -i "s,worker_processes.*;,worker_processes 2;," /etc/nginx/nginx.conf
 sed -i "s,worker_connections.*,worker_connections 1024;," /etc/nginx/nginx.conf
 sed -i "s,# server_tokens off;,server_tokens off;," /etc/nginx/nginx.conf
+[[ ! -d /etc/nginx/global ]] && mkdir /etc/nginx/global
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/geoip_settings.conf -O /etc/nginx/global/geoip_settings.conf
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/restrictions.conf -O /etc/nginx/global/restrictions.conf
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/secure_ssl.conf -O /etc/nginx/global/secure_ssl.conf
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/wordpress.conf -O /etc/nginx/global/wordpress.conf
 
-# create directory for website and logs for vhost
 echo "create directory for application"
-[[ -d $WWWPATHHTML ]] && mkdir -p $WWWPATHHTML
-[[ -d $WWWLOGDIR ]] && mkdir -p $WWWLOGDIR
-[[ -d $SSLPATH ]] && mkdir -p $SSLPATH
-[[ -d /var/run/php ]] && mkdir -p /var/run/php
-[[ -d /var/log/php ]] && mkdir -p /var/log/php
+[[ ! -d $WWWPATHHTML ]] && mkdir -p $WWWPATHHTML
+[[ ! -d $WWWLOGDIR ]] && mkdir -p $WWWLOGDIR
+[[ ! -d $SSLPATH ]] && mkdir -p $SSLPATH
+[[ ! -d $PERMISSIONFILES ]] && mkdir -p $PERMISSIONFILES
+[[ ! -d /var/run/php ]] && mkdir -p /var/run/php
+[[ ! -d /var/log/php ]] && mkdir -p /var/log/php
 
-# create mysql database and user
 echo "create mysql database and user"
 echo "CREATE USER '$WP_DB_USER'@'localhost' IDENTIFIED BY '$WP_DB_PASS';
 CREATE DATABASE IF NOT EXISTS $WP_DB_NAME;
@@ -194,32 +204,18 @@ if [ $? -eq 0 ]; then
 rm -rf /tmp/$DOMAIN-createdb.sql
 fi
 
-# Disable default page
 echo "Disable nginx default config"
-[[ -f /etc/nginx/sites-enabled/default.conf ]] && \
-rm -rf /etc/nginx/sites-enabled/default.conf
+[[ -f /etc/nginx/sites-enabled/default ]] && rm -rf /etc/nginx/sites-enabled/default
 
-# count number of available sites
-echo "Check if vhost config exists"
-siteCount=$(ls -1 /etc/apache2/sites-enabled/ | wc -l)
-siteCountIncremented=$(printf "%03d" $((siteCount+1)))
-VHOST_CONF_FILE=$siteCountIncremented-$DOMAIN.conf
-VHOST_CONF_PATH=$VHOST_CONF_DIR/$VHOST_CONF_FILE
-
-# Check if vhost config already exist for the given domain
-CONFIGEXIST=$(find /etc/apache2/sites-available -type f -name "*$DOMAIN*"  | wc -l)
-
-# Generate Nginx directory and vhost config $VHOST_CONF_PATH
-# if vhost config does not exist
-echo "Create apache vhost config files"
+echo "Check if vhost alreay exists otherwise create it"
+CONFIGEXIST=$(find $VHOST_CONF_DIR -type f -name "*$DOMAIN*"  | wc -l)
 if [ "$CONFIGEXIST" -lt "1" ];
         then
         echo "Virtual Host exists"
       touch "$VHOST_CONF_PATH"
       cat << VHOST_CREATE > "$VHOST_CONF_PATH"
-# Redirect everything to the main site. We use a separate server statement and NOT an if statement - see http://wiki.nginx.org/IfIsEvil
 
-upstream wplisdev {
+upstream $POOL_NAME {
         server unix:///var/run/php/$POOL_NAME.sock;
 }
 
@@ -235,8 +231,8 @@ server {
        	listen          [::]:443 ssl http2;
        	server_name    	$DOMAIN www.$DOMAIN;
        	root   		$WWWPATHHTML;
-        access_log     	$WWWLOGDIR/$POOL_NAME_access.log;
-        error_log      	$WWWLOGDIR/$POOL_NAME_error.log warn;
+        access_log     	$WWWLOGDIR/$POOL_NAME-access.log;
+        error_log      	$WWWLOGDIR/$POOL_NAME-error.log warn;
 
         ssl    			on;
        	ssl_certificate        	$SSLPATH/$DOMAIN.crt;
@@ -320,14 +316,14 @@ sleep 3
 fi
 
 echo "enable vhost"
-ln -s $VHOST_CONF_PATH /etc/nginx/sites-available/$DOMAIN
+ln -s $VHOST_CONF_PATH /etc/nginx/sites-enabled/$DOMAIN
 
 echo "Create php fpm pool"
 pool=$POOL_NAME
 cat <<EOM > /etc/php/7.0/fpm/pool.d/$pool.conf
 ;; $DOMAIN
 [$pool]
-env[HOSTNAME] = $HOSTNAME
+env[HOSTNAME] = \$HOSTNAME
 env[PATH] = /usr/local/bin:/usr/bin:/bin
 env[TMP] = /tmp
 env[TMPDIR] = /tmp
@@ -450,9 +446,21 @@ wget $GOTMLSURL
 unzip -q $BETTERWPSECFILE -d $WWWPATHHTML/wp-content/plugins
 unzip -q $GOTMLSFILE -d $WWWPATHHTML/wp-content/plugins
 
+echo "Install redis object cache plugin for wordpress"
+sed -i "/$table_prefix  = {/a include \/etc\/nginx\/global\/geoip_settings.conf;"        $WWWPATHHTML/wp-config.php
+echo "
+/** Redis config */
+define( 'WP_REDIS_CLIENT', 'pecl');
+define( 'WP_REDIS_SCHEME', 'unix');
+define( 'WP_REDIS_PATH', '/var/run/redis/redis.sock');
+define( 'WP_REDIS_DATABASE', '0');
+define( 'WP_REDIS_PASSWORD', '$REDIS_PASS');
+define( 'WP_REDIS_KEY_SALT', '$POOL_NAME-');
+" >> $WWWPATHHTML/wp-config.php
+
 echo "write permission file for wordpress permissions"
 echo "
-[[ -d $WWWPATHHTML/wp-content/uploads ]] && \
+[[ ! -d $WWWPATHHTML/wp-content/uploads ]] && \
 mkdir -p $WWWPATHHTML/wp-content/uploads
 chown -R $WP_DB_USER:www-data $WWWPATHHTML/
 find $WWWPATHHTML -type d -exec chmod 755 {} \;
@@ -481,9 +489,9 @@ chmod 600 $SSLPATH/$POOL_NAME-dhparams.pem
 # Restart apache and mysql
 echo "restart apache and mysql"
 service mysql restart
-service nginx restart
-service php7.0-fpm restart
-service redis-server restart
+service nginx start
+service php7.0-fpm start
+service redis-server start
 
 # Write mysql root password to file - keep it save
 echo "Write root password into file /var/scripts/m-r-pass.txt, keep it safe"
