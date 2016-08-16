@@ -1,4 +1,10 @@
 #!/bin/bash
+# Install wordpress with
+# mysql
+# install redis
+# install nginx
+# install php7-fpm
+
 # Check if parameter setup is set
 # redis cache
 # https://serverpilot.io/community/articles/how-to-install-the-php-redis-extension.html
@@ -25,10 +31,11 @@ export TABLE_PREFIX=wp_tp_
 export SCRIPTS=/var/scripts
 export HTML=/var/www
 export DOMAIN=wordpress.example.com
+export POOL_NAME=wpexample
 export WWWPATH=$HTML/$DOMAIN
-export SSLPATH=$WWWPATH/ssl
+export SSLPATH=$HTML/ssl
 export WWWPATHHTML=$HTML/$DOMAIN/public_html
-export WWWLOGDIR=$WWWPATH/log
+export WWWLOGDIR=$HTML/log
 export WPZIPFILEPATH=https://wordpress.org/latest.zip
 export WPZIPFILE=latest.zip
 # Wordpress security plugins
@@ -36,7 +43,7 @@ export GOTMLSURL=https://downloads.wordpress.org/plugin/gotmls.4.16.17.zip
 export GOTMLSFILE=gotmls.4.16.17.zip
 export BETTERWPSECURL=https://downloads.wordpress.org/plugin/better-wp-security.5.4.5.zip
 export BETTERWPSECFILE=better-wp-security.5.4.5.zip
-export SSL_CONF="" # assigned later /etc/apache2/sites-available/XXX-$DOMAIN.conf"
+export VHOST_CONF_DIR=/etc/nginx/sites-available
 
 # Check if root
         if [ "$(whoami)" != "root" ]; then
@@ -75,20 +82,6 @@ aptitude install -y mysql-server
 echo "Start mysql server"
 service mysql restart
 
-# create directory for website and logs for vhost
-echo "create directory for application"
-mkdir -p $WWWPATHHTML
-mkdir -p $WWWLOGDIR
-mkdir -p $SSLPATH
-
-# create mysql database and user
-echo "create mysql database and user"
-echo "CREATE USER '$WP_DB_USER'@'localhost' IDENTIFIED BY '$WP_DB_PASS';
-CREATE DATABASE IF NOT EXISTS $WP_DB_NAME;
-GRANT ALL PRIVILEGES ON $WP_DB_NAME.* TO '$WP_DB_USER'@'localhost' IDENTIFIED BY '$WP_DB_PASS';
-quit" >> $WWWPATH/$DOMAIN-createdb.sql
-cat $WWWPATH/$DOMAIN-createdb.sql | mysql -u root -p$MYSQL_ROOT_PASS
-
 # install expect
 echo "Install expect"
 aptitude -y install expect
@@ -119,14 +112,11 @@ unset SECURE_MYSQL
 echo "Remove expect and config files"
 aptitude -y purge expect
 
-# Install apache2
-echo "Install apache2"
-aptitude install -y apache2
+apt-get install nginx
 
-# Enable apache rewrite and ssl
-echo "Enable apache rewrite and ssl"
-a2enmod rewrite \
-        ssl
+sed -i "s,worker_processes.*;,worker_processes 2;," /etc/nginx/nginx.conf
+sed -i "s,worker_connections.*,worker_connections 1024;," /etc/nginx/nginx.conf
+sed -i "s,# server_tokens off;,server_tokens off;," /etc/nginx/nginx.conf
 
 # Install PHP 7
 echo "Install php7"
@@ -148,30 +138,46 @@ aptitude install -y libapache2-mod-php7.0 \
                     php7.0-opcache \
                     php7.0-readline
 
+# create directory for website and logs for vhost
+echo "create directory for application"
+mkdir -p $WWWPATHHTML
+mkdir -p $WWWLOGDIR
+mkdir -p $SSLPATH
+
+# create mysql database and user
+echo "create mysql database and user"
+echo "CREATE USER '$WP_DB_USER'@'localhost' IDENTIFIED BY '$WP_DB_PASS';
+CREATE DATABASE IF NOT EXISTS $WP_DB_NAME;
+GRANT ALL PRIVILEGES ON $WP_DB_NAME.* TO '$WP_DB_USER'@'localhost' IDENTIFIED BY '$WP_DB_PASS';
+quit" >> /tmp/$DOMAIN-createdb.sql
+cat /tmp/$DOMAIN-createdb.sql | mysql -u root -p$MYSQL_ROOT_PASS
+if [ $? -eq 0 ]; then
+rm -rf /tmp/$DOMAIN-createdb.sql
+fi
+
 # Disable default page
-echo "Disable apache default config"
-[[ -f /etc/apache2/sites-enabled/000-default.conf ]] && \
-a2dissite 000-default.conf
+echo "Disable nginx default config"
+[[ -f /etc/nginx/sites-enabled/default.conf ]] && \
+rm -rf /etc/nginx/sites-enabled/default.conf
 
 # count number of available sites
 echo "Check if vhost config exists"
-export siteCount=$(ls -1 /etc/apache2/sites-enabled/ | wc -l)
-export siteCountIncremented=$(printf "%03d" $((siteCount+1)))
-export SSL_CONF_FILE=$siteCountIncremented-$DOMAIN.conf
-export SSL_CONF=/etc/apache2/sites-available/$SSL_CONF_FILE
+siteCount=$(ls -1 /etc/apache2/sites-enabled/ | wc -l)
+siteCountIncremented=$(printf "%03d" $((siteCount+1)))
+VHOST_CONF_FILE=$siteCountIncremented-$DOMAIN.conf
+VHOST_CONF_PATH=$VHOST_CONF_DIR/$VHOST_CONF_FILE
 
 # Check if vhost config already exist for the given domain
-export CONFIGEXIST=$(find /etc/apache2/sites-available -type f -name "*$DOMAIN*"  | wc -l)
+CONFIGEXIST=$(find /etc/apache2/sites-available -type f -name "*$DOMAIN*"  | wc -l)
 
-# Generate Apache directory and vhost config $SSL_CONF
+# Generate Nginx directory and vhost config $VHOST_CONF_PATH
 # if vhost config does not exist
 echo "Create apache vhost config files"
-if [ "$CONFIGEXIST" -ge "1" ];
+if [ "$CONFIGEXIST" -lt "1" ];
         then
         echo "Virtual Host exists"
-else
-      touch "$SSL_CONF"
-      cat << SSL_CREATE > "$SSL_CONF"
+      touch "$VHOST_CONF_PATH"
+      cat << VHOST_CREATE > "$VHOST_CONF_PATH"
 # Forward everything to port 80
 <VirtualHost *:80>
   ServerName $DOMAIN
@@ -238,14 +244,14 @@ else
     CustomLog $WWWLOGDIR/access-ssl.log combined
     ErrorLog $WWWLOGDIR/error-ssl.log
  </VirtualHost>
-SSL_CREATE
-echo "$SSL_CONF was successfully created"
+VHOST_CREATE
+echo "$VHOST_CONF_PATH was successfully created"
 sleep 3
 fi
 
 # activate ssl config file
 echo "enable vhost"
-a2ensite "$SSL_CONF_FILE"
+ln -s $VHOST_CONF_PATH /etc/nginx/sites-available/$DOMAIN
 
 # Download and unzip wordpress application
 echo "Download and unzip application"
@@ -257,6 +263,8 @@ rm -rf $WPZIPFILE
 # Copy wordpress to target location
 echo "copy application"
 cp -rT wordpress $WWWPATHHTML/
+echo "remove wordpress downloaded file after the last installation"
+# remove wordpress downloaded file after the last installation
 rm -rf /tmp/wordpress
 
 # Adjust wordpress config file
@@ -279,33 +287,6 @@ error_reporting(0);
 SALT=$(curl -L https://api.wordpress.org/secret-key/1.1/salt/)
 STRING='put your unique phrase here'
 printf '%s\n' "g/$STRING/d" a "$SALT" . w | ed -s $WWWPATHHTML/wp-config.php
-
-# create htaccess file
-echo "Create htaccess file for wordpress"
-echo "
-# Block the include-only files.
-<IfModule mod_rewrite.c>
-RewriteEngine On
-RewriteBase /
-RewriteRule ^wp-admin/includes/ - [F,L]
-RewriteRule !^wp-includes/ - [S=3]
-RewriteRule ^wp-includes/[^/]+\.php$ - [F,L]
-RewriteRule ^wp-includes/js/tinymce/langs/.+\.php - [F,L]
-RewriteRule ^wp-includes/theme-compat/ - [F,L]
-</IfModule>
-
-
-# BEGIN WordPress
-<IfModule mod_rewrite.c>
-RewriteEngine On
-RewriteBase /
-RewriteRule ^index\.php$ - [L]
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule . /index.php [L]
-</IfModule>
-
-# END WordPress" >> $WWWPATHHTML/.htaccess
 
 # Download security plugins for wordpress
 echo "Download and install security plugins"
@@ -345,22 +326,15 @@ openssl dhparam -out $SSLPATH/dhparams.pem 2048
 # Set secure permissions to certificate key
 echo "Set secure permissions for certificate key"
 chmod 600 $SSLPATH/$DOMAIN.key
-chmod 600 $SSLPATH/dhparams.pem
+chmod 600 $SSLPATH/$POOL_NAME_dhparams.pem
 
 # Restart apache and mysql
 echo "restart apache and mysql"
 service mysql restart
-service apache2 restart
+service nginx restart
 
 # Write mysql root password to file - keep it save
 echo "Write root password into file /var/scripts/m-r-pass.txt, keep it safe"
 echo $MYSQL_ROOT_PASS >> $SCRIPTS/m-r-pass.txt
 
-echo "Installation succeded...
-Continue with the installation of wordpress in the browser
-Then set the permalinks first and after that run
-
-chmod 600 $WWWPATHHTML/.htaccess
-
-Press ENTER to finish"
-read
+echo "Installation succeded.."

@@ -1,4 +1,5 @@
 #!/bin/bash
+# didn't work for me with nginx and phpfpm and ssl
 if [ "$1" != "" ] && [ "$1" == "setup" ]
   then
     echo "start setup"

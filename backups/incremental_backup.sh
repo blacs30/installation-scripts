@@ -1,5 +1,8 @@
 #!/bin/bash
 # Script fuer inkrementelles Backup mit 30 taegigem Vollbackup
+# https://wiki.ubuntuusers.de/Skripte/inkrementelles_Backup/
+# http://forums.vpslink.com/howtos/1920-incremental-backups-gnu-tar.html
+
 LOG_FILE=/tmp/incremental_backuplog.txt
 exec &> $LOG_FILE
 echo "
@@ -98,7 +101,7 @@ echo "
       if [ "$DUMP" == "yes" ]; then
           FILE="$TMP_MYSQLDB_BACKUP_DIR/$NOWFILE-$db.sql.gz";
           echo "BACKING UP $db";
-          mysqldump --add-drop-database --opt --lock-all-tables -u $MUSER -p$MPASS -h $MHOST -P $MPORT $db | gzip > $FILE
+          mysqldump --debug-info --add-drop-database --opt --lock-all-tables -u $MUSER -p$MPASS -h $MHOST -P $MPORT $db | gzip > $FILE
           if [ "$?" = "0" ]; then
               gunzip -t $FILE;
               if [ "$?" = "0" ]; then
@@ -123,11 +126,10 @@ echo "
   ### If all files check out, delete the oldest dir ###
   if [ "$CHECKSUM" == "$CHECKOUTS" ]; then
       echo "All files checked out ok. MYSQLDUMP successful.";
-      # mail -s "MYSQLDUMP Success Backuplog" mail@example.com < $LOG_FILE;
   else
       echo "Dispatching Karl, he's an Expert";
       ### Send mail with contents of logfile ###
-      mail -s "MYSQLDUMP ERROR Backuplog" mail@example.com < $LOG_FILE;
+      echo "MYSQLDUMP ERROR Backuplog" | mutt -s "MYSQLDUMP ERROR Backuplog" mail@example.com -a $LOG_FILE
   fi
 
 ### Backupverzeichnis anlegen ##
@@ -157,50 +159,32 @@ backupnr=$[10#${backupnr}]
 ### Backupdateinummer automatisch um +1 bis maximal 30 erhoehen ##
 if [ "$[backupnr++]" -ge 30 ]; then
 mkdir -p ${ROTATEDIR}/${DATUM}-${ZEIT}
-mkdir -p ${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}
-
 
 ### Test ob Rotateverzeichnis existiert und Mail an Admin bei fehlschlagen ##
-if [ ! -d "${ROTATEDIR}/${DATUM}-${ZEIT}" ] || [ ! -d "${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}" ]; then
+if [ ! -d "${ROTATEDIR}/${DATUM}-${ZEIT}" ]; then
 
 mail -s "Rotateverzeichnis nicht vorhanden!" mail@example.com <<EOM
 Hallo Admin,
-die alten Backups konnten am ${DATUM} nicht verschoben werden. Das Verzeichnis ${ROTATEDIR} oder ${ROTATEDIR_CONFIGDB} wurde nicht gefunden und konnte auch nicht angelegt werden.
+die alten Backups konnten am ${DATUM} nicht verschoben werden. Das Verzeichnis ${ROTATEDIR} wurde nicht gefunden und konnte auch nicht angelegt werden.
 Mit freundlichem Gruss Backupscript
 EOM
 
  . exit 1
 else
 mv ${BACKUPDIR}/* ${ROTATEDIR}/${DATUM}-${ZEIT}
-
+retval=$?
 ### Abfragen ob das Backupverschieben erfolgreich war ##
-if [ $? -ne 0 ]; then
-
-mail -s "Backupverschieben für ${BACKUPDIR} fehlerhaft!" mail@example.com <<EOM
+if [ $retval -ne 0 ]; then
+mail -s "Backupverschieben von ${BACKUPDIR} fehlerhaft!" mail@example.com <<EOM
 Hallo Admin,
 die alten Backups konnte am ${DATUM} nicht verschoben werden.
+Value was $retval
 Mit freundlichem Gruss Backupscript
 EOM
 
 exit 1
 else
 
-mail -s "Backupverschieben erfolgreich" mail@example.com <<EOM
-Hallo Admin,
-die alten Backups wurde am ${DATUM} erfolgreich nach ${ROTATEDIR}/${DATUM}-${ZEIT} verschoben.
-Mit freundlichem Gruss Backupscript
-EOM
-fi
-mv ${CONFIG_DB_BACKUPDIR}/* ${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}
-### Abfragen ob das Backupverschieben erfolgreich war ##
-if [ $? -ne 0 ]; then
-mail -s "Backupverschieben für ${CONFIG_DB_BACKUPDIR} fehlerhaft!" mail@example.com <<EOM
-Hallo Admin,
-die alten Backups konnte am ${DATUM} nicht verschoben werden.
-Mit freundlichem Gruss Backupscript
-EOM
-exit 1
-else
 mail -s "Backupverschieben erfolgreich" mail@example.com <<EOM
 Hallo Admin,
 die alten Backups wurde am ${DATUM} erfolgreich nach ${ROTATEDIR}/${DATUM}-${ZEIT} verschoben.
@@ -224,13 +208,65 @@ echo "
 # Start backup of ${SOURCE}
 #
 " | tee -a $LOG_FILE
-tar -cpvzf ${BACKUPDIR}/${filename} -g ${BACKUPDIR}/${TIMESTAMP} ${SOURCE} ${EXCLUDE} | tee -a $LOG_FILE
+tar -cpvvzf ${BACKUPDIR}/${filename} -g ${BACKUPDIR}/${TIMESTAMP} ${SOURCE} ${EXCLUDE} | tee -a $LOG_FILE
 
 ### Abfragen ob das Backup erfolgreich war ##
 if [ $? -ne 0 ]; then
 SOURCE_SUCCESS=fehlerhaft
-mail -s "Backup (${SOURCE}) war fehlerhaft!" mail@example.com < $LOG_FILE
+echo "Backup (${SOURCE}) war fehlerhaft!" | mutt -s "Backup (${SOURCE}) war fehlerhaft!" mail@example.com -a $LOG_FILE
 fi
+
+### Alle Variablen einlesen und letzte Backupdateinummer herausfinden ##
+set -- ${CONFIG_DB_BACKUPDIR}/backup-???.tgz
+lastname=${!#}
+backupnr=${lastname##*backup-}
+backupnr=${backupnr%%.*}
+backupnr=${backupnr//\?/0}
+backupnr=$[10#${backupnr}]
+
+### Backupdateinummer automatisch um +1 bis maximal 30 erhoehen ##
+if [ "$[backupnr++]" -ge 30 ]; then
+mkdir -p ${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}
+
+### Test ob Rotateverzeichnis existiert und Mail an Admin bei fehlschlagen ##
+if [ ! -d "${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}" ]; then
+
+mail -s "Rotateverzeichnis nicht vorhanden!" mail@example.com <<EOM
+Hallo Admin,
+die alten Backups konnten am ${DATUM} nicht verschoben werden. Das Verzeichnis ${ROTATEDIR_CONFIGDB} wurde nicht gefunden und konnte auch nicht angelegt werden.
+Mit freundlichem Gruss Backupscript
+EOM
+
+. exit 1
+else
+
+mv ${CONFIG_DB_BACKUPDIR}/* ${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}
+retval=$?
+### Abfragen ob das Backupverschieben erfolgreich war ##
+if [ $retval -ne 0 ]; then
+mail -s "Backupverschieben for ${CONFIG_DB_BACKUPDIR} fehlerhaft!" mail@example.com <<EOM
+Hallo Admin,
+die alten Backups konnte am ${DATUM} nicht verschoben werden.
+Value was $retval
+Mit freundlichem Gruss Backupscript
+EOM
+exit 1
+else
+mail -s "Backupverschieben erfolgreich" mail@example.com <<EOM
+Hallo Admin,
+die alten Backups wurde am ${DATUM} erfolgreich nach ${ROTATEDIR}/${DATUM}-${ZEIT} verschoben.
+Mit freundlichem Gruss Backupscript
+EOM
+fi
+
+### die Backupnummer wieder auf 1 stellen ##
+backupnr=1
+fi
+fi
+
+backupnr=000${backupnr}
+backupnr=${backupnr: -3}
+filename=backup-${backupnr}.tgz
 
 SOURCE_CONF_DB_SUCCESS=Successful
 echo "
@@ -238,32 +274,36 @@ echo "
 # Start backup of ${SOURCE_CONF_DB}
 #
 " | tee -a $LOG_FILE
-tar -cpvzf ${CONFIG_DB_BACKUPDIR}/${filename} -g ${CONFIG_DB_BACKUPDIR}/${TIMESTAMP} ${SOURCE_CONF_DB} ${EXCLUDE_CONF_DB} | tee -a $LOG_FILE
+tar -cpvvzf ${CONFIG_DB_BACKUPDIR}/${filename} -g ${CONFIG_DB_BACKUPDIR}/${TIMESTAMP} ${SOURCE_CONF_DB} ${EXCLUDE_CONF_DB} | tee -a $LOG_FILE
 
 ### Abfragen ob das Backup erfolgreich war ##
 if [ $? -ne 0 ]; then
 SOURCE_CONF_DB_SUCCESS=fehlerhaft
-mail -s "Backup (${SOURCE_CONF_DB}) war fehlerhaft!" mail@example.com < $LOG_FILE
+echo "Backup (${SOURCE_CONF_DB}) war fehlerhaft!" | mutt -s "Backup (${SOURCE_CONF_DB}) war fehlerhaft!" mail@example.com -a $LOG_FILE
 fi
 
 echo "
+
 #
 # End backup of at `date`
 #
-" | tee -a $LOG_FILE && mail -s "Backup (${SOURCE}) war $SOURCE_SUCCESS und (${SOURCE_CONF_DB}) war $SOURCE_CONF_DB_SUCCESS" mail@example.com < $LOG_FILE
+
+" | tee -a $LOG_FILE &&
+
+echo "Backup (${SOURCE}) war $SOURCE_SUCCESS und (${SOURCE_CONF_DB}) war $SOURCE_CONF_DB_SUCCESS" | mutt -s "Backup (${SOURCE}) war $SOURCE_SUCCESS und (${SOURCE_CONF_DB}) war $SOURCE_CONF_DB_SUCCESS" mail@example.com -a $LOG_FILE
 
 
 # remove temporary mysql exports
 rm -rf $TMP_MYSQLDB_BACKUP_DIR
 rm -rf $LOG_FILE
-# remove entry in progress file<s
+# remove entry in progress file
 sed -i "/.*$MYID.*/d" $INPROGRESS_FILE
 # count lines in file
 ACTIVE_SYNCS=$(wc -l $INPROGRESS_FILE | awk '{print $1}')
 if [[ $ACTIVE_SYNCS -ge 1 ]]
         then
         echo "Other syncs are still running - don't remount ro"
-        mail -s "$ID, Other syncs are still running - don't remount ro" mail@example.com
+        echo "$ID, Other syncs are still running - don't remount ro" | mutt -s "$ID, Other syncs are still running - don't remount ro" mail@example.com
 else
   # delete inprogress file now
   rm -f $INPROGRESS_FILE
@@ -273,7 +313,7 @@ else
 	then
   	{
           echo "snapshot: could not remount, $MOUNT_POINT is in use"
-          mail -s "$ID, snapshot: could not remount, $MOUNT_POINT is in use" mail@example.com
+          echo "$ID, snapshot: could not remount, $MOUNT_POINT is in use" | mutt -s "$ID, snapshot: could not remount, $MOUNT_POINT is in use" mail@example.com
           exit
   	}
 	fi
