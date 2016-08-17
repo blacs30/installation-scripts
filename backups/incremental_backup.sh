@@ -28,7 +28,7 @@ ID=/usr/bin/id;
 MYID="$$"
 GZIPCHECK=();
 ### MYSQL Setup ###
-NOWFILE=`date +"%Y-%m-%d"`;
+NOWFILE=`date +"%Y-%m-%d-%Hh-%Mm"`;
 MUSER="mysqlbackup";
 MPASS="mysqlpass";
 MHOST="localhost";

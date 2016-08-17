@@ -41,6 +41,8 @@ export GOTMLSURL=https://downloads.wordpress.org/plugin/gotmls.4.16.17.zip
 export GOTMLSFILE=gotmls.4.16.17.zip
 export BETTERWPSECURL=https://downloads.wordpress.org/plugin/better-wp-security.5.4.5.zip
 export BETTERWPSECFILE=better-wp-security.5.4.5.zip
+export REDISCACHEURL=https://downloads.wordpress.org/plugin/redis-cache.1.3.2.zip
+export REDISCACHEFILE=redis-cache.1.3.2.zip
 export VHOST_CONF_DIR=/etc/nginx/sites-available
 export PHP_TIMEZONE=Europe/Berlin
 export REDIS_PASS=$(cat /dev/urandom | tr -dc "a-zA-Z0-9@#*=" | fold -w $SHUF | head -n 1)
@@ -443,26 +445,27 @@ echo "Download and install security plugins"
 cd /tmp
 wget $BETTERWPSECURL
 wget $GOTMLSURL
+wget $REDISCACHEURL
+unzip -q $REDISCACHEFILE -d $WWWPATHHTML/wp-content/plugins
 unzip -q $BETTERWPSECFILE -d $WWWPATHHTML/wp-content/plugins
 unzip -q $GOTMLSFILE -d $WWWPATHHTML/wp-content/plugins
 
 echo "Install redis object cache plugin for wordpress"
-sed -i "/$table_prefix  = {/a include \/etc\/nginx\/global\/geoip_settings.conf;"        $WWWPATHHTML/wp-config.php
-echo "
-/** Redis config */
-define( 'WP_REDIS_CLIENT', 'pecl');
-define( 'WP_REDIS_SCHEME', 'unix');
-define( 'WP_REDIS_PATH', '/var/run/redis/redis.sock');
-define( 'WP_REDIS_DATABASE', '0');
-define( 'WP_REDIS_PASSWORD', '$REDIS_PASS');
-define( 'WP_REDIS_KEY_SALT', '$POOL_NAME-');
-" >> $WWWPATHHTML/wp-config.php
+sed -i "/^\$table_prefix.*/ a\\
+\\
+/** Redis config */ \\
+define( 'WP_REDIS_CLIENT', 'pecl'); \\
+define( 'WP_REDIS_SCHEME', 'unix'); \\
+define( 'WP_REDIS_PATH', '/var/run/redis/redis.sock'); \\
+define( 'WP_REDIS_DATABASE', '0'); \\
+define( 'WP_REDIS_PASSWORD', '$REDIS_PASS'); \\
+define( 'WP_REDIS_KEY_SALT', '${POOL_NAME}_');" $WWWPATHHTML/wp-config.php
 
 echo "write permission file for wordpress permissions"
 echo "
 [[ ! -d $WWWPATHHTML/wp-content/uploads ]] && \
 mkdir -p $WWWPATHHTML/wp-content/uploads
-chown -R $WP_DB_USER:www-data $WWWPATHHTML/
+chown -R $POOL_NAME:www-data $WWWPATHHTML/
 find $WWWPATHHTML -type d -exec chmod 755 {} \;
 find $WWWPATHHTML -type f -exec chmod 644 {} \;
 " > $PERMISSIONFILES/$DOMAIN-permission.sh

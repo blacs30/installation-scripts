@@ -89,6 +89,11 @@ csf -r
 # allow ip
 csf -a IPADDRESS
 
+List of log files for the UI System Log Watch and Search features.
+/etc/csf/csf.syslogs
+List of log files for the LOGSCANNER feature.
+/etc/csf/csf.logfiles
+
 
 # Disable IPv6
 echo "
