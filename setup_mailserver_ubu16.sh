@@ -819,6 +819,10 @@ sed -i "s,# smtpd_tls_key_file=.*,# smtpd_tls_key_file=/etc/letsencrypt/live/$DO
 sed -i "s,# smtpd_tls_CAfile=.*,# smtpd_tls_CAfile=/etc/letsencrypt/live/$DOMAIN/chain.pem," /etc/postfix/main.cf
 sed -i "s,^smtpd_tls_dh1024_param_file =.*,smtpd_tls_dh1024_param_file = $SSLPATH/dhparams.pem," /etc/postfix/main.cf
 
+postconf -e "smtpd_use_tls = yes"
+postconf -e "smtp_dns_support_level = dnssec"
+postconf -e "smtp_tls_security_level = dane"
+
 # download master.cf fro postfix from github
 mv /etc/postfix/master.cf /etc/postfix/master.cf.orig
 wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/template_master.cf  -O /etc/postfix/master.cf
