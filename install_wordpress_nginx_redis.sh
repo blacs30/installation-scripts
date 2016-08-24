@@ -31,7 +31,7 @@ export SCRIPTS=/var/scripts
 export HTML=/var/www
 export DOMAIN=wordpress.example.com
 export POOL_NAME=wpexample
-export SSLPATH=$HTML/ssl
+export SSLPATH=$HTML/letsencrypt
 export WWWPATHHTML=$HTML/$DOMAIN/public_html
 export WWWLOGDIR=$HTML/log
 export PERMISSIONFILES=$HTML/permissions
@@ -225,7 +225,13 @@ server {
         listen 		80;
         # enforce https
         server_name     $DOMAIN www.$DOMAIN;
-       	return 		301 https://$DOMAIN\$request_uri;
+        location ~ .well-known/acme-challenge/ {
+          root /var/www/letsencrypt;
+          default_type text/plain;
+        }
+        location / {
+            return301 https://\$server_name\$request_uri;
+        }
 }
 
 server {
