@@ -250,7 +250,7 @@ server {
        	ssl_dhparam    		      $SSLPATH/$POOL_NAME-dhparams.pem;
         include			            global/secure_ssl.conf;
        	include        		      global/restrictions.conf;
-
+        client_max_body_size    40M;
        	index  			index.php;
 
        	# Additional rules go here.
