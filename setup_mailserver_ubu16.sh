@@ -4,12 +4,12 @@
 # help for spf dkim and dmarc setup https://www.skelleton.net/2015/03/21/how-to-eliminate-spam-and-protect-your-name-with-dmarc/
 # help for amavis configuration https://thomas-leister.de/postfix-amavis-spamfilter-spamassassin-sieve/
 
-export HOSTNAME=mail.example.com
+export HOSTNAME=example.com
 export SHUF=$(shuf -i 13-15 -n 1)
 export MYSQL_ROOT_PASS=$(cat /dev/urandom | tr -dc "a-zA-Z0-9@#*=" | fold -w $SHUF | head -n 1)
 export SCRIPTS=/var/scripts
 export HTML=/var/www
-export DOMAIN=mail.example.com
+export DOMAIN=example.com
 export WWWPATH=$HTML/$DOMAIN
 export SSLPATH=$WWWPATH/ssl
 export WWWPATHHTML=$HTML/$DOMAIN/public_html
@@ -47,7 +47,7 @@ fi
 echo "$HOSTNAME" > /etc/hostname
 
 # And add your hostname to the first line of /etc/hosts:
-vi /etc/hosts # add 127.0.0.1 mail.example.com localhost
+vi /etc/hosts # add 127.0.0.1 example.com localhost
 
 # Install aptitude
 echo "Install aptitude"
