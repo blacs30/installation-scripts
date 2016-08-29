@@ -27,6 +27,7 @@ INPROGRESS_FILE="$MOUNT_POINT/backup.inprogress";
 ID=/usr/bin/id;
 MYID="$$"
 GZIPCHECK=();
+ADMIN_MAIL=mail@example.com
 ### MYSQL Setup ###
 NOWFILE=`date +"%Y-%m-%d-%Hh-%Mm"`;
 MUSER="mysqlbackup";
@@ -129,7 +130,7 @@ echo "
   else
       echo "Dispatching Karl, he's an Expert";
       ### Send mail with contents of logfile ###
-      echo "MYSQLDUMP ERROR Backuplog" | mutt -s "MYSQLDUMP ERROR Backuplog" mail@example.com -a $LOG_FILE
+      echo "MYSQLDUMP ERROR Backuplog" | mutt -s "MYSQLDUMP ERROR Backuplog" $ADMIN_MAIL -a $LOG_FILE
   fi
 
 ### Backupverzeichnis anlegen ##
@@ -139,7 +140,7 @@ mkdir -p ${CONFIG_DB_BACKUPDIR}
 ### Test ob Backupverzeichnis existiert und Mail an Admin bei fehlschlagen ##
 if [ ! -d "${BACKUPDIR}" ] || [ ! -d "${CONFIG_DB_BACKUPDIR}" ] ; then
 
-mail -s "Backupverzeichnis nicht vorhanden!" mail@example.com <<EOM
+mail -s "Backupverzeichnis nicht vorhanden!" $ADMIN_MAIL <<EOM
 Hallo Admin,
 das Backup am ${DATUM} konnte nicht erstellt werden. Das Verzeichnis ${BACKUPDIR} oder ${CONFIG_DB_BACKUPDIR} wurde nicht gefunden und konnte auch nicht angelegt werden.
 Mit freundlichem Gruss Backupscript
@@ -163,7 +164,7 @@ mkdir -p ${ROTATEDIR}/${DATUM}-${ZEIT}
 ### Test ob Rotateverzeichnis existiert und Mail an Admin bei fehlschlagen ##
 if [ ! -d "${ROTATEDIR}/${DATUM}-${ZEIT}" ]; then
 
-mail -s "Rotateverzeichnis nicht vorhanden!" mail@example.com <<EOM
+mail -s "Rotateverzeichnis nicht vorhanden!" $ADMIN_MAIL <<EOM
 Hallo Admin,
 die alten Backups konnten am ${DATUM} nicht verschoben werden. Das Verzeichnis ${ROTATEDIR} wurde nicht gefunden und konnte auch nicht angelegt werden.
 Mit freundlichem Gruss Backupscript
@@ -175,7 +176,7 @@ mv ${BACKUPDIR}/* ${ROTATEDIR}/${DATUM}-${ZEIT}
 retval=$?
 ### Abfragen ob das Backupverschieben erfolgreich war ##
 if [ $retval -ne 0 ]; then
-mail -s "Backupverschieben von ${BACKUPDIR} fehlerhaft!" mail@example.com <<EOM
+mail -s "Backupverschieben von ${BACKUPDIR} fehlerhaft!" $ADMIN_MAIL <<EOM
 Hallo Admin,
 die alten Backups konnte am ${DATUM} nicht verschoben werden.
 Value was $retval
@@ -185,7 +186,7 @@ EOM
 exit 1
 else
 
-mail -s "Backupverschieben erfolgreich" mail@example.com <<EOM
+mail -s "Backupverschieben erfolgreich" $ADMIN_MAIL <<EOM
 Hallo Admin,
 die alten Backups wurde am ${DATUM} erfolgreich nach ${ROTATEDIR}/${DATUM}-${ZEIT} verschoben.
 Mit freundlichem Gruss Backupscript
@@ -213,7 +214,7 @@ tar -cpvvzf ${BACKUPDIR}/${filename} -g ${BACKUPDIR}/${TIMESTAMP} ${SOURCE} ${EX
 ### Abfragen ob das Backup erfolgreich war ##
 if [ $? -ne 0 ]; then
 SOURCE_SUCCESS=fehlerhaft
-echo "Backup (${SOURCE}) war fehlerhaft!" | mutt -s "Backup (${SOURCE}) war fehlerhaft!" mail@example.com -a $LOG_FILE
+echo "Backup (${SOURCE}) war fehlerhaft!" | mutt -s "Backup (${SOURCE}) war fehlerhaft!" $ADMIN_MAIL -a $LOG_FILE
 fi
 
 ### Alle Variablen einlesen und letzte Backupdateinummer herausfinden ##
@@ -231,7 +232,7 @@ mkdir -p ${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}
 ### Test ob Rotateverzeichnis existiert und Mail an Admin bei fehlschlagen ##
 if [ ! -d "${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}" ]; then
 
-mail -s "Rotateverzeichnis nicht vorhanden!" mail@example.com <<EOM
+mail -s "Rotateverzeichnis nicht vorhanden!" $ADMIN_MAIL <<EOM
 Hallo Admin,
 die alten Backups konnten am ${DATUM} nicht verschoben werden. Das Verzeichnis ${ROTATEDIR_CONFIGDB} wurde nicht gefunden und konnte auch nicht angelegt werden.
 Mit freundlichem Gruss Backupscript
@@ -244,7 +245,7 @@ mv ${CONFIG_DB_BACKUPDIR}/* ${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}
 retval=$?
 ### Abfragen ob das Backupverschieben erfolgreich war ##
 if [ $retval -ne 0 ]; then
-mail -s "Backupverschieben for ${CONFIG_DB_BACKUPDIR} fehlerhaft!" mail@example.com <<EOM
+mail -s "Backupverschieben for ${CONFIG_DB_BACKUPDIR} fehlerhaft!" $ADMIN_MAIL <<EOM
 Hallo Admin,
 die alten Backups konnte am ${DATUM} nicht verschoben werden.
 Value was $retval
@@ -252,7 +253,7 @@ Mit freundlichem Gruss Backupscript
 EOM
 exit 1
 else
-mail -s "Backupverschieben erfolgreich" mail@example.com <<EOM
+mail -s "Backupverschieben erfolgreich" $ADMIN_MAIL <<EOM
 Hallo Admin,
 die alten Backups wurde am ${DATUM} erfolgreich nach ${ROTATEDIR}/${DATUM}-${ZEIT} verschoben.
 Mit freundlichem Gruss Backupscript
@@ -279,7 +280,7 @@ tar -cpvvzf ${CONFIG_DB_BACKUPDIR}/${filename} -g ${CONFIG_DB_BACKUPDIR}/${TIMES
 ### Abfragen ob das Backup erfolgreich war ##
 if [ $? -ne 0 ]; then
 SOURCE_CONF_DB_SUCCESS=fehlerhaft
-echo "Backup (${SOURCE_CONF_DB}) war fehlerhaft!" | mutt -s "Backup (${SOURCE_CONF_DB}) war fehlerhaft!" mail@example.com -a $LOG_FILE
+echo "Backup (${SOURCE_CONF_DB}) war fehlerhaft!" | mutt -s "Backup (${SOURCE_CONF_DB}) war fehlerhaft!" $ADMIN_MAIL -a $LOG_FILE
 fi
 
 echo "
@@ -290,7 +291,7 @@ echo "
 
 " | tee -a $LOG_FILE &&
 
-echo "Backup (${SOURCE}) war $SOURCE_SUCCESS und (${SOURCE_CONF_DB}) war $SOURCE_CONF_DB_SUCCESS" | mutt -s "Backup (${SOURCE}) war $SOURCE_SUCCESS und (${SOURCE_CONF_DB}) war $SOURCE_CONF_DB_SUCCESS" mail@example.com -a $LOG_FILE
+echo "Backup (${SOURCE}) war $SOURCE_SUCCESS und (${SOURCE_CONF_DB}) war $SOURCE_CONF_DB_SUCCESS" | mutt -s "Backup (${SOURCE}) war $SOURCE_SUCCESS und (${SOURCE_CONF_DB}) war $SOURCE_CONF_DB_SUCCESS" $ADMIN_MAIL -a $LOG_FILE
 
 
 # remove temporary mysql exports
@@ -303,7 +304,7 @@ ACTIVE_SYNCS=$(wc -l $INPROGRESS_FILE | awk '{print $1}')
 if [[ $ACTIVE_SYNCS -ge 1 ]]
         then
         echo "Other syncs are still running - don't remount ro"
-        echo "$ID, Other syncs are still running - don't remount ro" | mutt -s "$ID, Other syncs are still running - don't remount ro" mail@example.com
+        echo "$ID, Other syncs are still running - don't remount ro" | mutt -s "$ID, Other syncs are still running - don't remount ro" $ADMIN_MAIL
 else
   # delete inprogress file now
   rm -f $INPROGRESS_FILE
@@ -313,7 +314,7 @@ else
 	then
   	{
           echo "snapshot: could not remount, $MOUNT_POINT is in use"
-          echo "$ID, snapshot: could not remount, $MOUNT_POINT is in use" | mutt -s "$ID, snapshot: could not remount, $MOUNT_POINT is in use" mail@example.com
+          echo "$ID, snapshot: could not remount, $MOUNT_POINT is in use" | mutt -s "$ID, snapshot: could not remount, $MOUNT_POINT is in use" $ADMIN_MAIL
           exit
   	}
 	fi
