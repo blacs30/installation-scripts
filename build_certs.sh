@@ -3,49 +3,129 @@
 
 CERTS_PATH=/var/www/ssl
 PK_CONFIG=$3
-# LE_CERT_CONFIG=/etc/letsencrypt/config/lisowski-development.com.with_cert.conf
 CERT_CUSTOM=$2
-ADMIN_MAIL=webmaster@lisowski-development.com
+ADMIN_MAIL=webmaster@example.com
 
 [[ ! -d $CERTS_PATH/$CERT_CUSTOM/new ]] && mkdir -p $CERTS_PATH/$CERT_CUSTOM/new
 
-create_yearly_key () {
-echo "Create private key"
+usage() {
+echo "------------------------
+USAGE: build_cert MODE CUSTOM_CERT_PATH_NAME [PRIVATE_KEY.conf]
+------------------------
+MODES:
+- create_key_config
+- create_yearly_key (needs PRIVATE_KEY.conf parameter)
+	(calls create_request,create_cert,tlsa_record)
+- create_request (needs PRIVATE_KEY.conf parameter)
+	(calls create_cert,tlsa_record)
+- create_cert
+- tlsa_record
+- copy_certs
+- revoke_cert
+"
+}
+
+create_key_config () {
+# use input interactivly later
+echo "adjust this part to your need before you run this method" && exit 1
+cat << VHOST_CREATE > $PK_CONFIG
+[ req ]
+default_md = sha512
+prompt = no
+encrypt_key = no
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+
+[ req_distinguished_name ]
+countryName = "DE"
+stateOrProvinceName = "Niedersachsen"
+localityName = "Lüneburg"
+postalCode = "21337"
+streetAddress = "Wallstraße"
+organizationName = "Organisation"
+organizationalUnitName = "IT"
+commonName = "imap.example.com"
+emailAddress = "admin@example.com"
+
+[ v3_req ]
+subjectAltName = DNS:smtp.example.com,DNS:imap.example2.com,DNS:smtp.example2.com
+VHOST_CREATE
+}
+
+create_yearly_key() {
+echo "Create 4096 private key in ${CERTS_PATH}/${CERT_CUSTOM}/new/privkey.pem"
 openssl genrsa -out ${CERTS_PATH}/${CERT_CUSTOM}/new/privkey.pem 4096
 create_request
 }
 
-create_request () {
+create_request() {
 [[ ! -f $PK_CONFIG ]] && echo "file $PK_CONFIG does not exist" && exit 1
 echo "Create Request file"
 openssl req -config $PK_CONFIG -new -key $CERTS_PATH/${CERT_CUSTOM}/new/privkey.pem -out $CERTS_PATH/${CERT_CUSTOM}/new/request.csr -outform der
-
 create_cert
-tlsa3_record
 }
 
-create_cert () {
-# [[ ! -f $LE_CERT_CONFIG ]] && echo "file $LE_CERT_CONFIG does not exist" && exit 1
+create_cert() {
 echo "Create Cert"
-# /opt/letsencrypt/letsencrypt-auto certonly --config $LE_CERT_CONFIG
-/opt/letsencrypt/letsencrypt-auto certonly -t --debug --renew -a webroot --webroot-path /var/www/letsencrypt/ --kep --email $ADMIN_MAIL --csr $CERTS_PATH/$CERT_CUSTOM/request.csr --key-path $CERTS_PATH/${CERT_CUSTOM}/new/privkey.pem --cert-path $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem --fullchain-path $CERTS_PATH/${CERT_CUSTOM}/new/fullchain.pem --chain-path $CERTS_PATH/${CERT_CUSTOM}/new/chain.pem --rsa-key-size 4096
+/opt/letsencrypt/letsencrypt-auto certonly \
+-a webroot \
+--webroot-path /var/www/letsencrypt/ \
+--email $ADMIN_MAIL \
+--csr $CERTS_PATH/$CERT_CUSTOM/new/request.csr \
+--key-path $CERTS_PATH/${CERT_CUSTOM}/new/privkey.pem \
+--cert-path $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem \
+--fullchain-path $CERTS_PATH/${CERT_CUSTOM}/new/fullchain.pem \
+--chain-path $CERTS_PATH/${CERT_CUSTOM}/new/chain.pem \
+--rsa-key-size 4096
+
+[[ -f $CERTS_PATH/${CERT_CUSTOM}/new/privkey.pem ]] && [[ -f $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem ]] && cat $CERTS_PATH/${CERT_CUSTOM}/new/privkey.pem > $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem
+[[ -f $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem ]] && cat $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem >> $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem
+[[ -f $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem ]] && chmod 600 $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem
+tlsa_record
 }
 
-tlsa3_record () {
-echo "extract TLSA record"
-printf '_25._tcp.%s. IN TLSA 3 1 1 %s\n' \
-    $(uname -n) \
-    $(openssl x509 -in $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem -noout -pubkey |
-        openssl pkey -pubin -outform DER |
-        openssl dgst -sha256 -binary |
-        hexdump -ve '/1 "%02x"')
+
+copy_certs() {
+ARCH_DATE="$(date +%d-%m-%Y)"
+if [ -f ${CERTS_PATH}/${CERT_CUSTOM}/fullchain.pem ] && [ -f ${CERTS_PATH}/${CERT_CUSTOM}/new/fullchain.pem ] || [ -f ${CERTS_PATH}/${CERT_CUSTOM}/new/fullchain.pem ]
+then
+mkdir -p ${CERTS_PATH}/${CERT_CUSTOM}/archive/$ARCH_DATE
+mv -f ${CERTS_PATH}/${CERT_CUSTOM}/*.pem ${CERTS_PATH}/${CERT_CUSTOM}/archive/$ARCH_DATE
+mv ${CERTS_PATH}/${CERT_CUSTOM}/new/*.* ${CERTS_PATH}/${CERT_CUSTOM}/
+mv ${CERTS_PATH}/${CERT_CUSTOM}/request.csr ${CERTS_PATH}/${CERT_CUSTOM}/new/
+cp ${CERTS_PATH}/${CERT_CUSTOM}/privkey.pem ${CERTS_PATH}/${CERT_CUSTOM}/new/
+fi
+revoke_cert
 }
 
-move_certs () {
-if [ -f ${CERTS_PATH}/${CERT_CUSTOM}/fullchain.pem ] && [ -f ${CERTS_PATH}/${CERT_CUSTOM}/new/fullchain.pem ] then
-rm -f ${CERTS_PATH}/${CERT_CUSTOM}/*.pem
-mv ${CERTS_PATH}/${CERT_CUSTOM}/new/*.pem ${CERTS_PATH}/${CERT_CUSTOM}/.
-cp ${CERTS_PATH}/${CERT_CUSTOM}/privkey.pem ${CERTS_PATH}/${CERT_CUSTOM}/new/.
+revoke_cert() {
+echo "run this:
+bash /opt/letsencrypt/letsencrypt-auto revoke --cert-path ${CERTS_PATH}/${CERT_CUSTOM}/archive/..cert.pem"
 }
 
+if [ $# -lt 2 ]; then usage;exit; fi
 case "$1" in
+	revoke_cert)
+		revoke_cert
+	;;
+	copy_certs)
+		copy_certs
+	;;
+	tlsa_record)
+		tlsa_record
+	;;
+	create_cert)
+		create_cert
+	;;
+	create_yearly_key)
+		if [ $# -ne 3 ]; then echo "PRIVATE_KEY.conf needed";usage;exit; fi
+		create_yearly_key
+	;;
+	create_request)
+		create_request
+	;;
+	*)
+	usage
+	exit 3
+	;;
+esac

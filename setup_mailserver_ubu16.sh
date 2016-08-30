@@ -4,6 +4,16 @@
 # help for spf dkim and dmarc setup https://www.skelleton.net/2015/03/21/how-to-eliminate-spam-and-protect-your-name-with-dmarc/
 # help for amavis configuration https://thomas-leister.de/postfix-amavis-spamfilter-spamassassin-sieve/
 
+# dane help
+# https://www.heinlein-support.de/sites/default/files/e-mail_made_in_germany_broken_by_design_ueberfluessig_dank_dane.pdf
+# https://dane.sys4.de/common_mistakes
+# https://community.letsencrypt.org/t/please-avoid-3-0-1-and-3-0-2-dane-tlsa-records-with-le-certificates/7022/5
+# http://www.internetsociety.org/deploy360/blog/2016/01/lets-encrypt-certificates-for-mail-servers-and-dane-part-1-of-2/
+# https://www.internetsociety.org/deploy360/blog/2016/03/lets-encrypt-certificates-for-mail-servers-and-dane-part-2-of-2/
+# https://thomas-leister.de/dane-und-tlsa-dns-records-erklaert/
+# https://thomas-leister.de/lets-encrypt-mit-hpkp-und-dane/
+# https://www.kernel-error.de/postfix/postfix-dane-tlsa
+
 export HOSTNAME=example.com
 export SHUF=$(shuf -i 13-15 -n 1)
 export MYSQL_ROOT_PASS=$(cat /dev/urandom | tr -dc "a-zA-Z0-9@#*=" | fold -w $SHUF | head -n 1)
@@ -27,6 +37,7 @@ export POSTFIXADMIN_BASIC_PASSWD=postfixpasswd
 echo "in CFS or UFW etc open following ports:
 22 (SSH)
 25 (SMTP)
+53 (DNS)
 80 (HTTP)
 110 (POP3)
 143 (IMAP)
