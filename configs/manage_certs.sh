@@ -3,9 +3,7 @@ CERTS_PATH=/var/www/ssl
 CSR_CONFIG=$3
 CERT_CUSTOM=$2
 ADMIN_MAIL=root
-read -p "Adjust the ADMIN_MAIL and CERTS_PATH and comment out this line after that."
-
-[[ ! -d $CERTS_PATH/$CERT_CUSTOM/new ]] && mkdir -p $CERTS_PATH/$CERT_CUSTOM/new
+read -p "Adjust the ADMIN_MAIL and CERTS_PATH and comment out this line!"
 
 usage() {
 	echo "------------------------
@@ -229,15 +227,12 @@ check_expiry() {
 	[[ -f /tmp/cert_expiry.log ]] && rm -f /tmp/cert_expiry.log
 }
 
-if [ "$1" == "check_expiry" ];
-then
-	check_expiry;
-	exit;
-elif [ $# -lt 2 ];
-	then
-		usage;
-		exit;
+if [ "$1" == "check_expiry" ];then check_expiry;exit;
+	elif [ "$1" == "read_config" ];then read_config;exit;
+	elif [ $# -lt 2 ]; then	usage;exit;
+	elif [ $# -ge 2 ]; then [[ ! -d $CERTS_PATH/$CERT_CUSTOM/new ]] && mkdir -p $CERTS_PATH/$CERT_CUSTOM/new;
 fi
+
 case "$1" in
 	revoke_cert)
 		revoke_cert
