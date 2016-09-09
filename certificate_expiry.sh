@@ -2,13 +2,13 @@
 
 PRINT=true
 MAIL=true
-ADMIN_MAIL=webmaster@lisowski-development.com
+ADMIN_MAIL=webmaster@example.com
 LOGGER=false
 warning_days=10
-certs_to_check='lisowski-development.com:443
-imap.lisowski-development.com:25
-lisowski-photography.com:443
-wyzwaniemilosci.com:443
+certs_to_check='example.com:443
+imap.example.com:25
+example2.com:443
+example3.com:443
 '
 
 $PRINT && printf "%4s %26s   %-38s %s\n" "Days" "Expires On" "Domain" "Options"
