@@ -2,12 +2,12 @@
 CERTS_PATH=/var/www/ssl
 CSR_CONFIG=$3
 CERT_CUSTOM=$2
-ADMIN_MAIL=webmaster@example.com
-read -p "Adjust the ADMIN_MAIL and CERTS_PATH and comment out this line!" && exit
+ADMIN_MAIL=root
+read -p "Adjust the ADMIN_MAIL and CERTS_PATH and comment out this line after that!"
 
 [[ ! -d $CERTS_PATH/$CERT_CUSTOM/new ]] && mkdir -p $CERTS_PATH/$CERT_CUSTOM/new
 
-usage() {
+usage(){
 	echo "------------------------
 	USAGE: build_cert MODE CUSTOM_CERT_PART_NAME [CSR_REQUEST.conf]
 	------------------------
