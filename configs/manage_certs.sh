@@ -3,7 +3,7 @@ CERTS_PATH=/var/www/ssl
 CSR_CONFIG=$3
 CERT_CUSTOM=$2
 ADMIN_MAIL=root
-read -p "Adjust the ADMIN_MAIL and CERTS_PATH and comment out this line after that!" 
+read -p "Adjust the ADMIN_MAIL and CERTS_PATH and comment out this line after that."
 
 [[ ! -d $CERTS_PATH/$CERT_CUSTOM/new ]] && mkdir -p $CERTS_PATH/$CERT_CUSTOM/new
 
@@ -22,6 +22,7 @@ usage() {
 		- copy_certs
 		- revoke_cert
 		- check_expiry
+		- read_config
 
 		CUSTOM_CERT_PART_NAME:
 		It is used as a part in the complete path to the certifcates:
@@ -62,7 +63,9 @@ read_config() {
 
 create_csr_config() {
 	read_config
-	if [ ! -z "$KEY_ALL_DOMAINS_TEMP" ]; then
+
+	if [ ! -z "$KEY_ALL_DOMAINS_TEMP" ];
+	then
 		KEY_ALL_DOMAINS=$(echo "$KEY_ALL_DOMAINS_TEMP" | sed -e 's/.*/DNS:&/' -e 's/,/,DNS:/g' )
 	fi
 
@@ -72,7 +75,7 @@ create_csr_config() {
 		[[ ! -d $FOLDER_LOCATION ]] && mkdir -p $FOLDER_LOCATION
 	fi
 
-	cat << CSR_CONFIG > "$CSR_CONFIG"
+	cat << CSR_WRITE > "$CSR_CONFIG"
 	[ req ]
 	default_md = sha512
 	prompt = no
@@ -93,7 +96,7 @@ create_csr_config() {
 
 	[ v3_req ]
 	subjectAltName = $KEY_ALL_DOMAINS
-CSR_CONFIG
+CSR_WRITE
 
 	if [[ $CSR_CONFIG == *"/"* ]];
 	then
