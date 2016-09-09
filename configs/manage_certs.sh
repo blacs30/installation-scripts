@@ -228,7 +228,7 @@ check_expiry() {
 }
 
 if [ "$1" == "check_expiry" ];then check_expiry;exit;
-	elif [ "$1" == "read_config" ];then read_config;exit;
+	elif [ "$1" == "read_config" ];then read_config;return 0;
 	elif [ $# -lt 2 ]; then	usage;exit;
 	elif [ $# -ge 2 ]; then [[ ! -d $CERTS_PATH/$CERT_CUSTOM/new ]] && mkdir -p $CERTS_PATH/$CERT_CUSTOM/new;
 fi
