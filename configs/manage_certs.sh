@@ -36,27 +36,35 @@ usage() {
 }
 
 read_config() {
-	read -e -p "Enter the country name
-	---------------:" -i "DE" COUNTRYNAME
-	read -e -p "Enter the state or province name
-	---------------:" -i "Niedersachsen" PROVINCENAME
-	read -e -p "Enter the city or location name
-	---------------:" -i "Lüneburg" KEY_LOCATION
-	read -e -p "Enter the postcal code
-	---------------:" -i "21337" KEY_POST_CODE
-	read -e -p "Enter the street name
-	---------------:" -i "Wallstraße" KEY_STREET
-	read -e -p "Enter the organization name
-	---------------:" -i "Organization" KEY_ORGANIZATION
-	read -e -p "Enter the organizational unit name
-	---------------:" -i "IT" KEY_OUN
-	read -e -p "Enter the common name
-	---------------:" -i "example.com" KEY_COMMON_NAME
-	read -e -p "Enter the email address
-	---------------:" -i "$ADMIN_MAIL" KEY_MAIL
-	read -e -p "Enter all domains and subdomains, comma separated for this certificate,
-	but not the common name ($KEY_COMMON_NAME)
-	---------------:" KEY_ALL_DOMAINS_TEMP
+	echo -e "Enter the country name\n---------------: "
+	read -e -i "DE" COUNTRYNAME
+
+       echo -e "Enter the state or province name\n---------------: "
+	read -e -i "Niedersachsen" PROVINCENAME
+
+	echo -e "Enter the city or location name\n---------------: "
+	read -e -i "Lüneburg" KEY_LOCATION
+
+	echo -e "Enter the postcal code\n---------------: "
+	read -e -i "21337" KEY_POST_CODE
+
+	echo -e "Enter the street name\n---------------: "
+	read -e -i "Wallstraße" KEY_STREET
+
+	echo -e "Enter the organization name\n---------------: "
+	read -e -i "Organization" KEY_ORGANIZATION
+
+	echo -e "Enter the organizational unit name\n---------------: "
+	read -e -i "IT" KEY_OUN
+
+	echo -e "Enter the common name (base domain)\n---------------: "
+	read -e -i "example.com" KEY_COMMON_NAME
+
+	echo -e "Enter the email address\n---------------: "
+	read -e -i "$ADMIN_MAIL" KEY_MAIL
+
+	echo -e "Enter all domains and subdomains,\ncomma separated for this certificate,\nbut not the common name ($KEY_COMMON_NAME)\n---------------: "
+	read -e KEY_ALL_DOMAINS_TEMP
 }
 
 create_csr_config() {
