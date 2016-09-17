@@ -3,7 +3,7 @@ CERTS_PATH=/var/www/ssl
 CSR_CONFIG=$3
 CERT_CUSTOM=$2
 ADMIN_MAIL=root
-read -p "Adjust the ADMIN_MAIL and CERTS_PATH and comment out this line!"
+[[ "$1" != "read_config" ]] && read -p "Adjust the ADMIN_MAIL and CERTS_PATH and comment out this line!"
 
 usage() {
 	echo "------------------------
