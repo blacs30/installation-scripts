@@ -39,7 +39,7 @@ read_config() {
 	echo -e "Enter the country name\n---------------: "
 	read -e -i "DE" COUNTRYNAME
 
-       echo -e "Enter the state or province name\n---------------: "
+        echo -e "Enter the state or province name\n---------------: "
 	read -e -i "Niedersachsen" PROVINCENAME
 
 	echo -e "Enter the city or location name\n---------------: "
