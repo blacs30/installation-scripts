@@ -1,4 +1,4 @@
-echo "#!/bin/bash
+#!/bin/bash
 # Sets permissions of the owncloud instance for updating
 
 ocpath="OWNCLOUDPATH"
