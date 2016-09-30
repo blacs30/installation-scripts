@@ -1,6 +1,6 @@
 #!/bin/bash
 ocpath='OWNCLOUDPATH'
-htuser='www-data'
+htuser='HTUSER'
 htgroup='www-data'
 rootuser='root'
 
@@ -14,7 +14,7 @@ find ${ocpath}/ -type f -print0 | xargs -0 chmod 0640
 find ${ocpath}/ -type d -print0 | xargs -0 chmod 0750
 
 printf "chown Directories\n"
-chown -R ${rootuser}:${htgroup} ${ocpath}/
+chown -R ${htuser}:${htgroup} ${ocpath}/
 chown -R ${htuser}:${htgroup} ${ocpath}/apps/
 chown -R ${htuser}:${htgroup} ${ocpath}/config/
 chown -R ${htuser}:${htgroup} ${ocpath}/data/
