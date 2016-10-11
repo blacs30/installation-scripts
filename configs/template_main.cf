@@ -65,6 +65,7 @@ smtpd_tls_key_file=/etc/letsencrypt/live/www.example.com/privkey.pem
 # a CA certificate bundle from your provider. The path to that goes
 # here.
 smtpd_tls_CAfile=/etc/letsencrypt/live/www.example.com/chain.pem
+# smtp_tls_CAfile
 
 smtpd_tls_mandatory_protocols = !SSLv2, !SSLv3
 smtpd_tls_protocols = !SSLv2, !SSLv3
