@@ -2,7 +2,7 @@
 CERTS_PATH=/var/www/ssl
 CSR_CONFIG=$3
 CERT_CUSTOM=$2
-ADMIN_MAIL=root
+ADMIN_MAIL=root #is used for letsencrypt and should be a real mail address
 [[ "$1" != "read_config" ]] && read -p "Adjust the ADMIN_MAIL and CERTS_PATH and comment out this line!"
 
 usage() {
@@ -39,7 +39,7 @@ read_config() {
 	echo -e "Enter the country name\n---------------: "
 	read -e -i "DE" COUNTRYNAME
 
-        echo -e "Enter the state or province name\n---------------: "
+  echo -e "Enter the state or province name\n---------------: "
 	read -e -i "Niedersachsen" PROVINCENAME
 
 	echo -e "Enter the city or location name\n---------------: "
