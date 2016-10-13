@@ -2359,7 +2359,7 @@ start program = \"/etc/init.d/nginx start\"
 stop program = \"/etc/init.d/nginx stop\"
 if children > 255 for 5 cycles then alert
 if cpu usage > 95% for 3 cycles then alert
-check host lisowski-development.com with address $DOMAIN_APP_NAME
+check host $DOMAIN_APP_NAME with address $DOMAIN_APP_NAME
 if failed port 443 protocol https with timeout 30 seconds then alert
 if failed port 80 protocol http with timeout 30 seconds then alert
 if 5 restarts within 5 cycles then timeout
