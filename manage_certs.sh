@@ -13,26 +13,25 @@ usage() {
 	- create_csr_config (needs CSR_REQUEST.conf parameter, will write this will)
 	- create_yearly_key (needs CSR_REQUEST.conf parameter, reads this file)
 		(calls create_request,create_cert,tlsa_record)
-		- create_request (needs CSR_REQUEST.conf parameter, reads this file)
+	- create_request (needs CSR_REQUEST.conf parameter, reads this file)
 		(calls create_cert,tlsa_record)
-		- create_cert
-		- tlsa_record
-		- copy_certs
-		- revoke_cert
-		- check_expiry
-		- read_config
+	- create_cert
+	- tlsa_record
+	- copy_certs
+	- revoke_cert
+	- check_expiry
+	- read_config
 
-		CUSTOM_CERT_PART_NAME:
-		It is used as a part in the complete path to the certifcates:
-		e.g.: $CERTS_PATH/example.com/cert.pem
-		'example.com' is the CUSTOM_CERT_PART_NAME.
+	CUSTOM_CERT_PART_NAME:
+	It is used as a part in the complete path to the certifcates:
+	e.g.: $CERTS_PATH/example.com/cert.pem
+	'example.com' is the CUSTOM_CERT_PART_NAME.
 
-		[CSR_REQUEST.conf]:
-		- optional, but required for some MODES
-		- - filename or full filepath with paramter for the csr request
-		- - filename or full filepath to existing file when creating the csr request
-		------------------------
-		"
+	[CSR_REQUEST.conf]:
+	- optional, but required for some MODES
+	- filename or full filepath with paramter for the csr request
+	- filename or full filepath to existing file when creating the csr request
+	------------------------"
 }
 
 read_config() {
