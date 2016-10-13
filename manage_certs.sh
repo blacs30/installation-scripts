@@ -153,6 +153,7 @@ create_cert() {
 	[[ -f $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem ]] && cat $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem >> $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem
 	[[ -f $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem ]] && chmod 600 $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem
 	tlsa_record
+	copy_certs
 }
 
 tlsa_record() {
@@ -167,7 +168,7 @@ TLSA_RECORDS=`bash /var/scripts/chaingen.bash $TLSA_RECORD_CERT_PATH $CERT_CUSTO
 mail -s "TLSA Records for $CERT_CUSTOM." $ADMIN_MAIL <<EOM
 $TLSA_RECORDS
 EOM
-copy_certs
+echo $TLSA_RECORDS
 }
 
 copy_certs() {
