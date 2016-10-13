@@ -137,7 +137,9 @@ create_request() {
 create_cert() {
 	echo "---------------
 	Create Cert
+	remove testing if you are sure to request production certs
 	---------------"
+	read
 	/opt/letsencrypt/letsencrypt-auto certonly \
 	-a webroot \
 	--webroot-path /var/www/letsencrypt/ \
@@ -147,13 +149,13 @@ create_cert() {
 	--cert-path $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem \
 	--fullchain-path $CERTS_PATH/${CERT_CUSTOM}/new/fullchain.pem \
 	--chain-path $CERTS_PATH/${CERT_CUSTOM}/new/chain.pem \
-	--rsa-key-size 4096
+	--rsa-key-size 4096 \
+	--test-cert 
 
 	[[ -f $CERTS_PATH/${CERT_CUSTOM}/new/privkey.pem ]] && [[ -f $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem ]] && cat $CERTS_PATH/${CERT_CUSTOM}/new/privkey.pem > $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem
 	[[ -f $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem ]] && cat $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem >> $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem
 	[[ -f $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem ]] && chmod 600 $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem
 	tlsa_record
-	copy_certs
 }
 
 tlsa_record() {
