@@ -17,7 +17,7 @@ usage() {
 		(calls create_cert,tlsa_record)
 	- create_cert
 	- tlsa_record
-	- copy_certs
+	- copy_certs_to_prod
 	- revoke_cert
 	- check_expiry
 	- read_config
@@ -156,6 +156,7 @@ create_cert() {
 	[[ -f $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem ]] && cat $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem >> $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem
 	[[ -f $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem ]] && chmod 600 $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem
 	tlsa_record
+	copy_certs_to_staging
 }
 
 tlsa_record() {
@@ -173,7 +174,17 @@ EOM
 echo $TLSA_RECORDS
 }
 
-copy_certs() {
+copy_certs_to_staging() {
+	if [ -f ${CERTS_PATH}/${CERT_CUSTOM}/new/fullchain.pem ]
+	then
+		mkdir -p ${CERTS_PATH}/${CERT_CUSTOM}/staging
+		mv ${CERTS_PATH}/${CERT_CUSTOM}/new/*.* ${CERTS_PATH}/${CERT_CUSTOM}/staging/
+		mv ${CERTS_PATH}/${CERT_CUSTOM}/staging/request.csr ${CERTS_PATH}/${CERT_CUSTOM}/new/
+		cp ${CERTS_PATH}/${CERT_CUSTOM}/staging/privkey.pem ${CERTS_PATH}/${CERT_CUSTOM}/new/
+	fi
+}
+
+copy_certs_to_prod() {
 	ARCH_DATE="$(date +%d-%m-%Y)"
 	if [ -f ${CERTS_PATH}/${CERT_CUSTOM}/fullchain.pem ] && [ -f ${CERTS_PATH}/${CERT_CUSTOM}/new/fullchain.pem ] || [ -f ${CERTS_PATH}/${CERT_CUSTOM}/new/fullchain.pem ]
 	then
@@ -182,8 +193,8 @@ copy_certs() {
 		mv ${CERTS_PATH}/${CERT_CUSTOM}/new/*.* ${CERTS_PATH}/${CERT_CUSTOM}/
 		mv ${CERTS_PATH}/${CERT_CUSTOM}/request.csr ${CERTS_PATH}/${CERT_CUSTOM}/new/
 		cp ${CERTS_PATH}/${CERT_CUSTOM}/privkey.pem ${CERTS_PATH}/${CERT_CUSTOM}/new/
+	revoke_cert		
 	fi
-	revoke_cert
 }
 
 revoke_cert() {
@@ -267,8 +278,8 @@ case "$1" in
 		---------------";usage;exit; fi
 		create_csr_config
 	;;
-	copy_certs)
-		copy_certs
+	copy_certs_to_prod)
+		copy_certs_to_prod
 	;;
 	read_config)
 		read_config
