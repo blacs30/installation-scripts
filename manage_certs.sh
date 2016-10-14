@@ -186,14 +186,12 @@ copy_certs_to_staging() {
 
 copy_certs_to_prod() {
 	ARCH_DATE="$(date +%d-%m-%Y)"
-	if [ -f ${CERTS_PATH}/${CERT_CUSTOM}/fullchain.pem ] && [ -f ${CERTS_PATH}/${CERT_CUSTOM}/new/fullchain.pem ] || [ -f ${CERTS_PATH}/${CERT_CUSTOM}/new/fullchain.pem ]
-	then
-		mkdir -p ${CERTS_PATH}/${CERT_CUSTOM}/archive/$ARCH_DATE
-		mv -f ${CERTS_PATH}/${CERT_CUSTOM}/*.pem ${CERTS_PATH}/${CERT_CUSTOM}/archive/$ARCH_DATE
-		mv ${CERTS_PATH}/${CERT_CUSTOM}/new/*.* ${CERTS_PATH}/${CERT_CUSTOM}/
-		mv ${CERTS_PATH}/${CERT_CUSTOM}/request.csr ${CERTS_PATH}/${CERT_CUSTOM}/new/
-		cp ${CERTS_PATH}/${CERT_CUSTOM}/privkey.pem ${CERTS_PATH}/${CERT_CUSTOM}/new/
-	revoke_cert		
+	if [ -f ${CERTS_PATH}/${CERT_CUSTOM}/fullchain.pem ] && [ -f ${CERTS_PATH}/${CERT_CUSTOM}/staging/fullchain.pem ] || [ -f ${CERTS_PATH}/${CERT_CUSTOM}/staging/fullchain.pem ]
+        then
+                mkdir -p ${CERTS_PATH}/${CERT_CUSTOM}/archive/$ARCH_DATE
+                mv -f ${CERTS_PATH}/${CERT_CUSTOM}/*.pem ${CERTS_PATH}/${CERT_CUSTOM}/archive/$ARCH_DATE
+                mv ${CERTS_PATH}/${CERT_CUSTOM}/staging/*.* ${CERTS_PATH}/${CERT_CUSTOM}/
+        revoke_cert		
 	fi
 }
 
