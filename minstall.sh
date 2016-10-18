@@ -1323,8 +1323,9 @@ echo "
 [[ ! -d $WWWPATHHTML/wp-content/uploads ]] && \
 mkdir -p $WWWPATHHTML/wp-content/uploads
 chown -R $service_user:www-data $WWWPATHHTML/
-find $WWWPATHHTML -type d -exec chmod 755 {} \;
-find $WWWPATHHTML -type f -exec chmod 644 {} \;
+find $WWWPATHHTML -type d -exec chmod 750 {} \;
+find $WWWPATHHTML -type f -exec chmod 640 {} \;
+chmod 600 $WWWPATHHTML/wp-config.php
 " > $PERMISSIONFILES/$DOMAIN_APP_NAME-permission.sh
 
 echo "set permissions for wordpress"
@@ -4345,7 +4346,7 @@ listen.owner = $pool_owner
 listen.group = www-data
 listen.mode = 0660
 user = $pool_owner
-group = $pool_owner
+group = www-data
 request_slowlog_timeout = 5s
 slowlog = /var/log/php/slowlog-$pool_name.log
 catch_workers_output = yes
