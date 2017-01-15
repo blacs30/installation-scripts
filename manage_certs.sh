@@ -3,7 +3,10 @@ CERTS_PATH=/var/www/ssl
 CSR_CONFIG=$3
 CERT_CUSTOM=$2
 ADMIN_MAIL=root #is used for letsencrypt and should be a real mail address
-[[ "$1" != "read_config" ]] && read -p "Adjust the ADMIN_MAIL and CERTS_PATH and comment out this line!"
+if [ "$1" != "read_config" ]; then
+    echo "Adjust the ADMIN_MAIL and CERTS_PATH and comment out this line!"
+    read -r
+fi
 
 usage() {
 	echo "------------------------
@@ -35,35 +38,35 @@ usage() {
 }
 
 read_config() {
-	echo -e "Enter the country name\n---------------: "
-	read -e -i "DE" COUNTRYNAME
+	printf "Enter the country name\n---------------: e.g.: DE \n"
+	read -r COUNTRYNAME
 
-  echo -e "Enter the state or province name\n---------------: "
-	read -e -i "Niedersachsen" PROVINCENAME
+        printf "Enter the state or province name\n---------------: e.g.: Niedersachsen \n"
+	read -r PROVINCENAME
 
-	echo -e "Enter the city or location name\n---------------: "
-	read -e -i "Lüneburg" KEY_LOCATION
+	printf "Enter the city or location name\n---------------: e.g.: Lüneburg \n"
+	read -r KEY_LOCATION
 
-	echo -e "Enter the postcal code\n---------------: "
-	read -e -i "21337" KEY_POST_CODE
+	printf "Enter the postcal code\n---------------: e.g.: 21337 \n"
+	read -r KEY_POST_CODE
 
-	echo -e "Enter the street name\n---------------: "
-	read -e -i "Wallstraße" KEY_STREET
+	printf "Enter the street name\n---------------: e.g.: Wallstraße \n"
+	read -r KEY_STREET
 
-	echo -e "Enter the organization name\n---------------: "
-	read -e -i "Organization" KEY_ORGANIZATION
+	printf "Enter the organization name\n---------------: e.g.: Organization \n"
+	read -r KEY_ORGANIZATION
 
-	echo -e "Enter the organizational unit name\n---------------: "
-	read -e -i "IT" KEY_OUN
+	printf "Enter the organizational unit name\n---------------: e.g.: IT \n"
+	read -r KEY_OUN
 
-	echo -e "Enter the common name (base domain)\n---------------: "
-	read -e -i "example.com" KEY_COMMON_NAME
+	printf "Enter the common name (base domain)\n---------------: e.g.: example.com \n"
+	read -r KEY_COMMON_NAME
 
-	echo -e "Enter the email address\n---------------: "
-	read -e -i "$ADMIN_MAIL" KEY_MAIL
+	printf "Enter the email address\n---------------: e.g.: %s\n" "$ADMIN_MAIL"
+	read -r KEY_MAIL
 
-	echo -e "Enter all domains and subdomains,\ncomma separated for this certificate,\nbut not the common name ($KEY_COMMON_NAME)\n---------------: "
-	read -e KEY_ALL_DOMAINS_TEMP
+	printf "Enter all domains and subdomains,\ncomma separated for this certificate,\nbut not the common name (%s)\n---------------: \n" "$KEY_COMMON_NAME"
+	read -r KEY_ALL_DOMAINS_TEMP
 }
 
 create_csr_config() {
@@ -74,10 +77,11 @@ create_csr_config() {
 		KEY_ALL_DOMAINS=$(echo "$KEY_ALL_DOMAINS_TEMP" | sed -e 's/.*/DNS:&/' -e 's/,/,DNS:/g' )
 	fi
 
-	if [[ $CSR_CONFIG == *"/"* ]];
-	then
-  	FOLDER_LOCATION=$(dirname "$CSR_CONFIG")
-		[[ ! -d $FOLDER_LOCATION ]] && mkdir -p $FOLDER_LOCATION
+	if echo "$CSR_CONFIG" | grep -q "/" ; then
+  	        FOLDER_LOCATION=$(dirname "$CSR_CONFIG")
+		if [ ! -d "$FOLDER_LOCATION" ]; then
+		        mkdir -p "$FOLDER_LOCATION";
+		fi
 	fi
 
 	cat << CSR_WRITE > "$CSR_CONFIG"
@@ -103,14 +107,14 @@ create_csr_config() {
 	subjectAltName = $KEY_ALL_DOMAINS
 CSR_WRITE
 
-	if [[ $CSR_CONFIG == *"/"* ]];
+	if echo "$CSR_CONFIG" | grep "/" ;
 	then
 		echo "---------------
 		The csr request config was created here: $CSR_CONFIG !
 		---------------";
 	else
-		local LOCATION=$(pwd)
-		if [[ $LOCATION != "/" ]]; then LOCATION=${LOCATION}/; fi
+		LOCATION=$(pwd)
+		if [ "$LOCATION" != "/" ]; then LOCATION=${LOCATION}/; fi
 		echo "---------------
 		The csr request config was created here: ${LOCATION}$CSR_CONFIG !
 		---------------";
@@ -121,16 +125,19 @@ create_yearly_key() {
 	echo "---------------
 	Create 4096 private key in ${CERTS_PATH}/${CERT_CUSTOM}/new/privkey.pem
 	---------------"
-	openssl genrsa -out ${CERTS_PATH}/${CERT_CUSTOM}/new/privkey.pem 4096
+	openssl genrsa -out ${CERTS_PATH}/"${CERT_CUSTOM}"/new/privkey.pem 4096
 	create_request
 }
 
 create_request() {
-	[[ ! -f $CSR_CONFIG ]] && echo "file $CSR_CONFIG does not exist" && exit 1
+	if [ ! -f "$CSR_CONFIG" ]; then
+	        echo "file $CSR_CONFIG does not exist"
+	        exit 1
+	fi
 	echo "---------------
 	Create Request file
 	---------------"
-	openssl req -config $CSR_CONFIG -new -key $CERTS_PATH/${CERT_CUSTOM}/new/privkey.pem -out $CERTS_PATH/${CERT_CUSTOM}/new/request.csr -outform der
+	openssl req -config "$CSR_CONFIG" -new -key $CERTS_PATH/"${CERT_CUSTOM}"/new/privkey.pem -out $CERTS_PATH/"${CERT_CUSTOM}"/new/request.csr -outform der
 	create_cert
 }
 
@@ -139,22 +146,28 @@ create_cert() {
 	Create Cert
 	remove testing if you are sure to request production certs
 	---------------"
-	read
+	read -r
 	/opt/letsencrypt/letsencrypt-auto certonly \
 	-a webroot \
 	--webroot-path /var/www/letsencrypt/ \
 	--email $ADMIN_MAIL \
-	--csr $CERTS_PATH/$CERT_CUSTOM/new/request.csr \
-	--key-path $CERTS_PATH/${CERT_CUSTOM}/new/privkey.pem \
-	--cert-path $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem \
-	--fullchain-path $CERTS_PATH/${CERT_CUSTOM}/new/fullchain.pem \
-	--chain-path $CERTS_PATH/${CERT_CUSTOM}/new/chain.pem \
+	--csr $CERTS_PATH/"$CERT_CUSTOM"/new/request.csr \
+	--key-path $CERTS_PATH/"${CERT_CUSTOM}"/new/privkey.pem \
+	--cert-path $CERTS_PATH/"${CERT_CUSTOM}"/new/cert.pem \
+	--fullchain-path $CERTS_PATH/"${CERT_CUSTOM}"/new/fullchain.pem \
+	--chain-path $CERTS_PATH/"${CERT_CUSTOM}"/new/chain.pem \
 	--rsa-key-size 4096 \
-	--test-cert 
+	--test-cert
 
-	[[ -f $CERTS_PATH/${CERT_CUSTOM}/new/privkey.pem ]] && [[ -f $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem ]] && cat $CERTS_PATH/${CERT_CUSTOM}/new/privkey.pem > $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem
-	[[ -f $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem ]] && cat $CERTS_PATH/${CERT_CUSTOM}/new/cert.pem >> $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem
-	[[ -f $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem ]] && chmod 600 $CERTS_PATH/${CERT_CUSTOM}/new/keycert.pem
+	if [ -f $CERTS_PATH/"${CERT_CUSTOM}"/new/privkey.pem ] && [ -f $CERTS_PATH/"${CERT_CUSTOM}"/new/cert.pem ]; then
+	        cat $CERTS_PATH/"${CERT_CUSTOM}"/new/privkey.pem > $CERTS_PATH/"${CERT_CUSTOM}"/new/keycert.pem
+	fi
+	if [ -f $CERTS_PATH/"${CERT_CUSTOM}"/new/cert.pem ]; then
+	        cat $CERTS_PATH/"${CERT_CUSTOM}"/new/cert.pem >> $CERTS_PATH/"${CERT_CUSTOM}"/new/keycert.pem
+	fi
+	if [ -f $CERTS_PATH/"${CERT_CUSTOM}"/new/keycert.pem ]; then
+	        chmod 600 $CERTS_PATH/"${CERT_CUSTOM}"/new/keycert.pem
+	fi
 	tlsa_record
 	copy_certs_to_staging
 }
@@ -162,36 +175,36 @@ create_cert() {
 tlsa_record() {
 echo "extract TLSA record"
 TLSA_RECORD_CERT_PATH=$CERTS_PATH/${CERT_CUSTOM}/new/fullchain.pem
-if [ ! -f $TLSA_RECORD_CERT_PATH ]
+if [ ! -f "$TLSA_RECORD_CERT_PATH" ]
 then
 TLSA_RECORD_CERT_PATH=$CERTS_PATH/${CERT_CUSTOM}/fullchain.pem
 fi
-if [ ! -f $TLSA_RECORD_CERT_PATH ]; then echo "TLSA Record gen error, fullchain not found";usage;exit; fi
-TLSA_RECORDS=`bash /var/scripts/chaingen.bash $TLSA_RECORD_CERT_PATH $CERT_CUSTOM`
+if [ ! -f "$TLSA_RECORD_CERT_PATH" ]; then echo "TLSA Record gen error, fullchain not found";usage;exit; fi
+TLSA_RECORDS=$(bash /var/scripts/chaingen.bash "$TLSA_RECORD_CERT_PATH" "$CERT_CUSTOM")
 mail -s "TLSA Records for $CERT_CUSTOM." $ADMIN_MAIL <<EOM
 $TLSA_RECORDS
 EOM
-echo $TLSA_RECORDS
+echo "$TLSA_RECORDS"
 }
 
 copy_certs_to_staging() {
-	if [ -f ${CERTS_PATH}/${CERT_CUSTOM}/new/fullchain.pem ]
+	if [ -f ${CERTS_PATH}/"${CERT_CUSTOM}"/new/fullchain.pem ]
 	then
-		mkdir -p ${CERTS_PATH}/${CERT_CUSTOM}/staging
-		mv ${CERTS_PATH}/${CERT_CUSTOM}/new/*.* ${CERTS_PATH}/${CERT_CUSTOM}/staging/
-		mv ${CERTS_PATH}/${CERT_CUSTOM}/staging/request.csr ${CERTS_PATH}/${CERT_CUSTOM}/new/
-		cp ${CERTS_PATH}/${CERT_CUSTOM}/staging/privkey.pem ${CERTS_PATH}/${CERT_CUSTOM}/new/
+		mkdir -p ${CERTS_PATH}/"${CERT_CUSTOM}"/staging
+		mv ${CERTS_PATH}/"${CERT_CUSTOM}"/new/*.* ${CERTS_PATH}/"${CERT_CUSTOM}"/staging/
+		mv ${CERTS_PATH}/"${CERT_CUSTOM}"/staging/request.csr ${CERTS_PATH}/"${CERT_CUSTOM}"/new/
+		cp ${CERTS_PATH}/"${CERT_CUSTOM}"/staging/privkey.pem ${CERTS_PATH}/"${CERT_CUSTOM}"/new/
 	fi
 }
 
 copy_certs_to_prod() {
 	ARCH_DATE="$(date +%d-%m-%Y)"
-	if [ -f ${CERTS_PATH}/${CERT_CUSTOM}/fullchain.pem ] && [ -f ${CERTS_PATH}/${CERT_CUSTOM}/staging/fullchain.pem ] || [ -f ${CERTS_PATH}/${CERT_CUSTOM}/staging/fullchain.pem ]
+	if [ -f ${CERTS_PATH}/"${CERT_CUSTOM}"/fullchain.pem ] && [ -f ${CERTS_PATH}/"${CERT_CUSTOM}"/staging/fullchain.pem ] || [ -f ${CERTS_PATH}/"${CERT_CUSTOM}"/staging/fullchain.pem ]
         then
-                mkdir -p ${CERTS_PATH}/${CERT_CUSTOM}/archive/$ARCH_DATE
-                mv -f ${CERTS_PATH}/${CERT_CUSTOM}/*.pem ${CERTS_PATH}/${CERT_CUSTOM}/archive/$ARCH_DATE
-                mv ${CERTS_PATH}/${CERT_CUSTOM}/staging/*.* ${CERTS_PATH}/${CERT_CUSTOM}/
-        revoke_cert		
+                mkdir -p ${CERTS_PATH}/"${CERT_CUSTOM}"/archive/"$ARCH_DATE"
+                mv -f ${CERTS_PATH}/"${CERT_CUSTOM}"/*.pem ${CERTS_PATH}/"${CERT_CUSTOM}"/archive/"$ARCH_DATE"
+                mv ${CERTS_PATH}/"${CERT_CUSTOM}"/staging/*.* ${CERTS_PATH}/"${CERT_CUSTOM}"/
+        revoke_cert
 	fi
 }
 
@@ -203,12 +216,12 @@ revoke_cert() {
 }
 
 check_expiry() {
-	local PRINT=true
-	local MAIL=true
-	local LOGGER=false
-	local ADMIN_MAIL=webmaster@example.com
-	local warning_days=10
-	local certs_to_check='example.com:443
+	PRINT=true
+	MAIL=true
+	LOGGER=false
+	ADMIN_MAIL=webmaster@example.com
+	warning_days=10
+	certs_to_check='example.com:443
 	imap.example.com:25
 	example2.com:443
 	example3.com:443
@@ -223,11 +236,12 @@ check_expiry() {
 	       		add_opts='-starttls smtp'
 	       	fi
 	       	domain="$(echo "$CERT" | cut -d: -f1)"
-	       	output=$(openssl s_client -showcerts -connect "${CERT}" \
-	       		-servername "$domain" $add_opts < /dev/null 2>/dev/null |\
-	       		openssl x509 -noout -dates 2>/dev/null)
 
-	       	if [ "$?" -ne 0 ]; then
+
+	       	if ! output=$(openssl s_client -showcerts -connect "${CERT}" \
+	       		-servername "$domain" "$add_opts" < /dev/null 2>/dev/null |\
+	       		openssl x509 -noout -dates 2>/dev/null);
+	       		then
 	       		$PRINT && echo "Error connecting to host for cert [$CERT]"
 	       		$LOGGER && logger -p local6.warn "Error connecting to host for cert [$CERT]"
 	       		$MAIL && mail -s "Error connecting to host for cert [$CERT]" $ADMIN_MAIL
@@ -250,20 +264,25 @@ check_expiry() {
 	       	days_to_expire=$(((end_epoch - epoch_now) / 86400))
 
 	       	if [ "$days_to_expire" -lt "$warning_days" ]; then
-	       		$PRINT && echo -en "\033[91m"
+	       		$PRINT && printfn "\033[91m"
 	       		$LOGGER && logger -p local6.warn "cert [$CERT] is soon to expire ($days_to_expire days)"
 	       	        $MAIL && mail -s "cert [$CERT] is soon to expire ($days_to_expire days)" $ADMIN_MAIL
 	       	fi
 	       	$PRINT && printf "%4i %26s   %-38s %s\033[0m\n" "$days_to_expire" "$end_date" "$CERT" "$add_opts" | tee -a /tmp/cert_expiry.log
 	done
 	       	$MAIL && mail -s "Certificate Status" $ADMIN_MAIL < /tmp/cert_expiry.log
-	[[ -f /tmp/cert_expiry.log ]] && rm -f /tmp/cert_expiry.log
+	if [ -f /tmp/cert_expiry.log ]; then
+	        rm -f /tmp/cert_expiry.log
+	fi
 }
 
-if [ "$1" == "check_expiry" ];then check_expiry;exit;
-	elif [ "$1" == "read_config" ];then read_config;return 0;
+if [ "$1" = "check_expiry" ];then check_expiry;exit;
+	elif [ "$1" = "read_config" ];then read_config;return 0;
 	elif [ $# -lt 2 ]; then	usage;exit;
-	elif [ $# -ge 2 ]; then [[ ! -d $CERTS_PATH/$CERT_CUSTOM/new ]] && mkdir -p $CERTS_PATH/$CERT_CUSTOM/new;
+	elif [ $# -ge 2 ]; then
+	        if [ ! -d $CERTS_PATH/"$CERT_CUSTOM"/new ]; then
+	                mkdir -p $CERTS_PATH/"$CERT_CUSTOM"/new;
+	        fi
 fi
 
 case "$1" in
