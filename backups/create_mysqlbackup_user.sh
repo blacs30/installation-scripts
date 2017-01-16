@@ -1,7 +1,9 @@
 #!/bin/bash
-export SHUF=$(shuf -i 13-15 -n 1)
+SHUF=$(shuf -i 13-15 -n 1)
+export SHUF
 export MYSQLBACKUPUSER=mysqlbackup
-export MYSQLBACKUPUSERPASS=$(cat /dev/urandom | tr -dc "a-zA-Z0-9@#*=" | fold -w $SHUF | head -n 1)
+MYSQLBACKUPUSERPASS=$(< /dev/urandom tr -dc "a-zA-Z0-9@#*=" | fold -w "$SHUF" | head -n 1)
+export MYSQLBACKUPUSERPASS
 export MYSQL_ROOT_PASS=securerootpass
 
 #create sql file with create and grant scripts for mysqlbackupuser

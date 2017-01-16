@@ -5,7 +5,7 @@
 # Send mail with contents of logfile ###
 # mail -s "Backuplog" mail@domain.tld < /tmp/backuplog.txt;
 
-APPNAME=$(basename $0 | sed "s/\.sh$//")
+APPNAME=$(basename "$0" | sed "s/\.sh$//")
 
 # -----------------------------------------------------------------------------
 # Log functions
@@ -28,7 +28,7 @@ fn_log_info_cmd()  {
 
 fn_terminate_script() {
     fn_log_info "SIGINT caught."
-    mail -s "Backup for $SRC_FOLDER: SIGINT caught." mail@example.com < $LOG_FILE
+    mail -s "Backup for $SRC_FOLDER: SIGINT caught." mail@example.com < "$LOG_FILE"
     exit 1
 }
 
@@ -38,7 +38,7 @@ trap 'fn_terminate_script' SIGINT
 # Small utility functions for reducing code duplication
 # -----------------------------------------------------------------------------
 fn_display_usage() {
-	fn_log_info "Usage : $(basename $0) <source> <[user@host:]destination> [exclude-pattern-file]"
+	fn_log_info "Usage : $(basename "$0") <source> <[user@host:]destination> [exclude-pattern-file]"
 }
 
 fn_parse_date() {
@@ -51,7 +51,7 @@ fn_parse_date() {
 }
 
 fn_find_backups() {
-    fn_run_cmd "find "$DEST_FOLDER" -type d -name "????-??-??-??????" -prune | sort -r"
+    fn_run_cmd "find $DEST_FOLDER -type d -name "????-??-??-??????" -prune | sort -r"
 }
 
 fn_expire_backup() {
@@ -59,7 +59,7 @@ fn_expire_backup() {
     # sure we're deleting the right folder
     if [ -z "$(fn_find_backup_marker "$(dirname -- "$1")")" ]; then
         fn_log_error "$1 is not on a backup destination - aborting."
-        mail -s "Backup for $SRC_FOLDER: $1 is not on a backup destination - aborting." mail@example.com < $LOG_FILE
+        mail -s "Backup for $SRC_FOLDER: $1 is not on a backup destination - aborting." mail@example.com < "$LOG_FILE"
         exit 1
     fi
 
@@ -83,7 +83,7 @@ fn_run_cmd() {
     then
         eval "$SSH_CMD '$1'"
     else
-        eval $1
+        eval "$1"
     fi
 }
 
@@ -138,7 +138,7 @@ fi
 for ARG in "$SRC_FOLDER" "$DEST_FOLDER" "$EXCLUSION_FILE"; do
 if [[ "$ARG" == *"'"* ]]; then
         fn_log_error 'Arguments may not have any single quote characters.'
-        mail -s 'Arguments may not have any single quote characters.' mail@example.com < $LOG_FILE
+        mail -s 'Arguments may not have any single quote characters.' mail@example.com < "$LOG_FILE"
         exit 1
     fi
 done
@@ -158,7 +158,7 @@ if [ -z "$(fn_find_backup_marker "$DEST_FOLDER")" ]; then
     fn_log_info ""
     fn_log_info_cmd "mkdir -p -- \"$DEST_FOLDER\" ; touch \"$(fn_backup_marker_path "$DEST_FOLDER")\""
     fn_log_info ""
-    mail -s "Backup for $SRC_FOLDER: Safety check failed - the destination does not appear to be a backup folder or drive (marker file not found)." mail@example.com < $LOG_FILE
+    mail -s "Backup for $SRC_FOLDER: Safety check failed - the destination does not appear to be a backup folder or drive (marker file not found)." mail@example.com < "$LOG_FILE"
     exit 1
 fi
 
@@ -202,7 +202,7 @@ if [ -n "$(fn_find "$INPROGRESS_FILE")" ]; then
 	    RUNNINGPID="$(fn_run_cmd "cat $INPROGRESS_FILE")"
 	    if [ "$RUNNINGPID" = "$(pgrep "$APPNAME")" ]; then
 	        fn_log_error "Previous backup task is still active - aborting."
-          mail -s "Backup for $SRC_FOLDER: Previous backup task is still active - aborting backup." mail@example.com < $LOG_FILE
+          mail -s "Backup for $SRC_FOLDER: Previous backup task is still active - aborting backup." mail@example.com < "$LOG_FILE"
 	        exit 1
 	    fi
 	fi
@@ -257,7 +257,7 @@ while : ; do
     PREV="0000-00-00-000000"
     for FILENAME in $(fn_find_backups | sort -r); do
         BACKUP_DATE=$(basename "$FILENAME")
-        TIMESTAMP=$(fn_parse_date $BACKUP_DATE)
+        TIMESTAMP=$(fn_parse_date "$BACKUP_DATE")
 
         # Skip if failed to parse date...
         if [ -z "$TIMESTAMP" ]; then
@@ -265,9 +265,9 @@ while : ; do
             continue
         fi
 
-        if   [ $TIMESTAMP -ge $KEEP_ALL_DATE ]; then
+        if   [ "$TIMESTAMP" -ge $KEEP_ALL_DATE ]; then
             true
-        elif [ $TIMESTAMP -ge $KEEP_DAILIES_DATE ]; then
+        elif [ "$TIMESTAMP" -ge $KEEP_DAILIES_DATE ]; then
             # Delete all but the most recent of each day.
             [ "${BACKUP_DATE:0:10}" == "${PREV:0:10}" ] && fn_expire_backup "$FILENAME"
         else
@@ -314,7 +314,7 @@ while : ; do
 
     fn_run_cmd "echo $MYPID > $INPROGRESS_FILE"
 
-    eval $CMD
+    eval "$CMD"
 
     # -----------------------------------------------------------------------------
     # Check if we ran out of space
@@ -328,7 +328,7 @@ while : ; do
 
         if [[ "$(fn_find_backups | wc -l)" -lt "2" ]]; then
             fn_log_error "No space left on device, and no old backup to delete."
-            mail -s "Backup for $SRC_FOLDER: No space left on device, and no old backup to delete" mail@example.com < $LOG_FILE
+            mail -s "Backup for $SRC_FOLDER: No space left on device, and no old backup to delete" mail@example.com < "$LOG_FILE"
             exit 1
         fi
 
@@ -341,12 +341,12 @@ while : ; do
     # -----------------------------------------------------------------------------
     # Check whether rsync reported any errors
     # -----------------------------------------------------------------------------
-    if [ -n "$(grep "rsync:" "$LOG_FILE")" ]; then
+    if grep -q "rsync: $LOG_FILE"; then
         fn_log_warn "Rsync reported a warning, please check '$LOG_FILE' for more details."
     fi
-    if [ -n "$(grep "rsync error:" "$LOG_FILE")" ]; then
+    if grep -q  "rsync error: $LOG_FILE"; then
         fn_log_error "Rsync reported an error, please check '$LOG_FILE' for more details."
-        mail -s "Backup for $SRC_FOLDER: Rsync reported a warning, please check '$LOG_FILE' for more details." mail@example.com < $LOG_FILE
+        mail -s "Backup for $SRC_FOLDER: Rsync reported a warning, please check '$LOG_FILE' for more details." mail@example.com < "$LOG_FILE"
         exit 1
     fi
 
@@ -358,7 +358,7 @@ while : ; do
     fn_ln "$(basename -- "$DEST")" "$DEST_FOLDER/latest"
 
     fn_rm "$INPROGRESS_FILE"
-    mail -s "Backup for $SRC_FOLDER: Backup completed without errors." mail@example.com < $LOG_FILE
+    mail -s "Backup for $SRC_FOLDER: Backup completed without errors." mail@example.com < "$LOG_FILE"
     rm -f -- "$LOG_FILE"
 
     fn_log_info "Backup completed without errors."

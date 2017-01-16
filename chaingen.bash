@@ -24,7 +24,7 @@ encode() {
   local host=$hostport
   local port=25
 
-  OIFS="$IFS"; IFS=":"; set -- $hostport; IFS="$OIFS"
+  OIFS="$IFS"; IFS=":"; set -- "$hostport"; IFS="$OIFS"
   if [ $# -eq 2 ]; then host=$1; port=$2; fi
 
   printf "_%d._tcp.%s. IN TLSA %d %d %d %s\n" \
@@ -35,7 +35,7 @@ encode() {
 genrr() {
     rr=$(
         extract "$@" | digest "$@" | encode "$@"
-        exit $(( ${PIPESTATUS[0]} | ${PIPESTATUS[1]} | ${PIPESTATUS[2]} ))
+        exit $(( PIPESTATUS[0] | PIPESTATUS[1] | PIPESTATUS[2] ))
     )
     status=$?; if [ $status -ne 0 ]; then exit $status; fi
     echo "$rr"
@@ -51,7 +51,7 @@ certfile=$1; shift
 chain="$(
     openssl crl2pkcs7 -nocrl -certfile "$certfile" |
         openssl pkcs7 -print_certs
-    exit $(( ${PIPESTATUS[0]} | ${PIPESTATUS[1]} ))
+    exit $(( PIPESTATUS[0] | PIPESTATUS[1] ))
 )"
 status=$?; if [ $status -ne 0 ]; then exit $status; fi
 
@@ -59,13 +59,13 @@ hostport=$1; shift
 usage=3
 cert=
 printf "%s\n\n" "$chain" |
-while read line
+while read -r line
 do
     if [[ -z "$cert" && ! "$line" =~ ^-----BEGIN ]]; then
         continue
     fi
     cert=$(printf "%s\n%s" "$cert" "$line")
-    if [ -z "$line" -a ! -z "$cert" ]; then
+    if [ -z "$line" ] && [ ! -z "$cert" ]; then
         echo "$cert" |
             openssl x509 -noout -subject -issuer -dates |
             sed -e 's/^/;; /'

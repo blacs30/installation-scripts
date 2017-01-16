@@ -8,7 +8,7 @@ exec &> $LOG_FILE
 echo "
 #
 #
-# Backup start at " `date`
+# Backup start at " "$(date)"
 
 ### Einstellungen ##
 BACKUPDIR="media/backup"           ## Pfad zum Backupverzeichnis
@@ -29,7 +29,7 @@ MYID="$$"
 GZIPCHECK=();
 ADMIN_MAIL=mail@example.com
 ### MYSQL Setup ###
-NOWFILE=`date +"%Y-%m-%d-%Hh-%Mm"`;
+NOWFILE=$(date +"%Y-%m-%d-%Hh-%Mm");
 MUSER="mysqlbackup";
 MPASS="mysqlpass";
 MHOST="localhost";
@@ -45,14 +45,13 @@ EXCLUDE="--exclude=home/user/Filme --exclude=home/user/Musik --exclude=home/user
 EXCLUDE_CONF_DB="--exclude=home/user/Filme --exclude=home/user/Musik --exclude=home/user/Spiele --exclude=home/user/.VirtualBox  --exclude=home/user/.local/share/Trash"
 
 # make sure we're running as root
-if (( `$ID -u` != 0 )); then { echo "$ID, Sorry, must be root.  Exiting..."; exit; } fi
-MOUNT_RO_STATUS=$(fgrep -c 'root/snapshot nfs ro,' /proc/mounts)
+if (( $($ID -u) != 0 )); then { echo "$ID, Sorry, must be root.  Exiting..."; exit; } fi
+MOUNT_RO_STATUS=$(grep -F -c 'root/snapshot nfs ro,' /proc/mounts)
 if [ "$MOUNT_RO_STATUS" -eq "1" ];
         then
         echo "$ID, Mounted read only - remount rw"
         # attempt to remount the RW mount point as RW; else abort
-        mount -o remount,rw $MOUNT_DEVICE $MOUNT_POINT ;
-        if (( $? )); then
+        if ! mount -o remount,rw $MOUNT_DEVICE $MOUNT_POINT ; then
         {
                 echo "$ID, snapshot: could not remount $MOUNT_POINT readwrite";
                 exit;
@@ -64,12 +63,11 @@ echo $MYID >> $INPROGRESS_FILE
 chmod 600 $INPROGRESS_FILE
 
 ### Wechsel in root damit die Pfade stimmen ##
-cd /
+cd / || return
 
 ### Create backup dir ###
   if [ ! -d $TMP_MYSQLDB_BACKUP_DIR ]; then
-    mkdir -p $TMP_MYSQLDB_BACKUP_DIR
-      if [ "$?" = "0" ]; then
+    if mkdir -p $TMP_MYSQLDB_BACKUP_DIR; then
           :
       else
           echo "Couldn't create folder. Check folder permissions and/or disk quota!"
@@ -102,12 +100,10 @@ echo "
       if [ "$DUMP" == "yes" ]; then
           FILE="$TMP_MYSQLDB_BACKUP_DIR/$NOWFILE-$db.sql.gz";
           echo "BACKING UP $db";
-          mysqldump --debug-info --add-drop-database --opt --lock-all-tables -u $MUSER -p$MPASS -h $MHOST -P $MPORT $db | gzip > $FILE
-          if [ "$?" = "0" ]; then
-              gunzip -t $FILE;
-              if [ "$?" = "0" ]; then
+          if mysqldump --debug-info --add-drop-database --opt --lock-all-tables -u $MUSER -p$MPASS -h $MHOST -P $MPORT "$db" | gzip > "$FILE"; then
+              if gunzip -t "$FILE"; then
                   GZIPCHECK+=(1);
-                  echo `ls -alh $FILE`;
+                  ls -alh "$FILE";
               else
                   GZIPCHECK+=(0);
                   echo "Exit, gzip test failed.";
@@ -120,8 +116,8 @@ echo "
 
   ### Check if gzip test for all files was ok ###
   CHECKOUTS=${#GZIPCHECK[@]};
-  for (( i=0;i<$CHECKOUTS;i++)); do
-      CHECKSUM=$(( $CHECKSUM + ${GZIPCHECK[${i}]} ));
+  for  ((i=0; i < CHECKOUTS; i++)); do
+      CHECKSUM=$(( CHECKSUM + ${GZIPCHECK[${i}]} ));
   done
 
   ### If all files check out, delete the oldest dir ###
@@ -146,7 +142,7 @@ das Backup am ${DATUM} konnte nicht erstellt werden. Das Verzeichnis ${BACKUPDIR
 Mit freundlichem Gruss Backupscript
 EOM
 
- . exit 1
+exit 1
 fi
 
 ### Alle Variablen einlesen und letzte Backupdateinummer herausfinden ##
@@ -155,11 +151,11 @@ lastname=${!#}
 backupnr=${lastname##*backup-}
 backupnr=${backupnr%%.*}
 backupnr=${backupnr//\?/0}
-backupnr=$[10#${backupnr}]
+backupnr=$((10#${backupnr}))
 
 ### Backupdateinummer automatisch um +1 bis maximal 30 erhoehen ##
-if [ "$[backupnr++]" -ge 30 ]; then
-mkdir -p ${ROTATEDIR}/${DATUM}-${ZEIT}
+if [ "$(backupnr++)" -ge 30 ]; then
+mkdir -p ${ROTATEDIR}/"${DATUM}"-"${ZEIT}"
 
 ### Test ob Rotateverzeichnis existiert und Mail an Admin bei fehlschlagen ##
 if [ ! -d "${ROTATEDIR}/${DATUM}-${ZEIT}" ]; then
@@ -170,9 +166,9 @@ die alten Backups konnten am ${DATUM} nicht verschoben werden. Das Verzeichnis $
 Mit freundlichem Gruss Backupscript
 EOM
 
- . exit 1
+exit 1
 else
-mv ${BACKUPDIR}/* ${ROTATEDIR}/${DATUM}-${ZEIT}
+mv ${BACKUPDIR}/* ${ROTATEDIR}/"${DATUM}"-"${ZEIT}"
 retval=$?
 ### Abfragen ob das Backupverschieben erfolgreich war ##
 if [ $retval -ne 0 ]; then
@@ -209,10 +205,7 @@ echo "
 # Start backup of ${SOURCE}
 #
 " | tee -a $LOG_FILE
-tar -cpvvzf ${BACKUPDIR}/${filename} -g ${BACKUPDIR}/${TIMESTAMP} ${SOURCE} ${EXCLUDE} | tee -a $LOG_FILE
-
-### Abfragen ob das Backup erfolgreich war ##
-if [ $? -ne 0 ]; then
+if ! tar -cpvvzf ${BACKUPDIR}/${filename} -g ${BACKUPDIR}/${TIMESTAMP} ${SOURCE} "${EXCLUDE}" | tee -a $LOG_FILE; then
 SOURCE_SUCCESS=fehlerhaft
 echo "Backup (${SOURCE}) war fehlerhaft!" | mutt -s "Backup (${SOURCE}) war fehlerhaft!" $ADMIN_MAIL -a $LOG_FILE
 fi
@@ -223,11 +216,11 @@ lastname=${!#}
 backupnr=${lastname##*backup-}
 backupnr=${backupnr%%.*}
 backupnr=${backupnr//\?/0}
-backupnr=$[10#${backupnr}]
+backupnr=$(10#"${backupnr}")
 
 ### Backupdateinummer automatisch um +1 bis maximal 30 erhoehen ##
-if [ "$[backupnr++]" -ge 30 ]; then
-mkdir -p ${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}
+if [ "$(backupnr++)" -ge 30 ]; then
+mkdir -p ${ROTATEDIR_CONFIGDB}/"${DATUM}"-"${ZEIT}"
 
 ### Test ob Rotateverzeichnis existiert und Mail an Admin bei fehlschlagen ##
 if [ ! -d "${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}" ]; then
@@ -238,10 +231,10 @@ die alten Backups konnten am ${DATUM} nicht verschoben werden. Das Verzeichnis $
 Mit freundlichem Gruss Backupscript
 EOM
 
-. exit 1
+exit 1
 else
 
-mv ${CONFIG_DB_BACKUPDIR}/* ${ROTATEDIR_CONFIGDB}/${DATUM}-${ZEIT}
+mv ${CONFIG_DB_BACKUPDIR}/* ${ROTATEDIR_CONFIGDB}/"${DATUM}"-"${ZEIT}"
 retval=$?
 ### Abfragen ob das Backupverschieben erfolgreich war ##
 if [ $retval -ne 0 ]; then
@@ -275,10 +268,7 @@ echo "
 # Start backup of ${SOURCE_CONF_DB}
 #
 " | tee -a $LOG_FILE
-tar -cpvvzf ${CONFIG_DB_BACKUPDIR}/${filename} -g ${CONFIG_DB_BACKUPDIR}/${TIMESTAMP} ${SOURCE_CONF_DB} ${EXCLUDE_CONF_DB} | tee -a $LOG_FILE
-
-### Abfragen ob das Backup erfolgreich war ##
-if [ $? -ne 0 ]; then
+if ! tar -cpvvzf ${CONFIG_DB_BACKUPDIR}/${filename} -g ${CONFIG_DB_BACKUPDIR}/${TIMESTAMP} "${SOURCE_CONF_DB}" "${EXCLUDE_CONF_DB}" | tee -a $LOG_FILE; then
 SOURCE_CONF_DB_SUCCESS=fehlerhaft
 echo "Backup (${SOURCE_CONF_DB}) war fehlerhaft!" | mutt -s "Backup (${SOURCE_CONF_DB}) war fehlerhaft!" $ADMIN_MAIL -a $LOG_FILE
 fi
@@ -286,7 +276,7 @@ fi
 echo "
 
 #
-# End backup of at `date`
+# End backup of at $(date)
 #
 
 " | tee -a $LOG_FILE &&
@@ -309,9 +299,7 @@ else
   # delete inprogress file now
   rm -f $INPROGRESS_FILE
   # now remount the RW snapshot mountpoint as readonly
-  mount -o remount,ro $MOUNT_DEVICE $MOUNT_POINT ;
-  if (( $? ))
-	then
+  if ! mount -o remount,ro $MOUNT_DEVICE $MOUNT_POINT ; then
   	{
           echo "snapshot: could not remount, $MOUNT_POINT is in use"
           echo "$ID, snapshot: could not remount, $MOUNT_POINT is in use" | mutt -s "$ID, snapshot: could not remount, $MOUNT_POINT is in use" $ADMIN_MAIL
