@@ -1,6 +1,7 @@
 #! /usr/bin/env bash
 # Bash needed for PIPESTATUS array
-# https://go6lab.si/DANE/chaingen
+
+# Source: https://go6lab.si/DANE/chaingen
 
 extract() {
   case "$4" in
