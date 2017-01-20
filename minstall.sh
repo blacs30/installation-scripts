@@ -731,7 +731,7 @@ if [ ! "$(grep -Fc 'deb http://packages.dotdeb.org jessie all' /etc/apt/sources.
 then echo "deb http://packages.dotdeb.org jessie all" >> /etc/apt/sources.list; update=true; fi
 if [ ! "$(grep -Fc 'deb-src http://packages.dotdeb.org jessie all' /etc/apt/sources.list)" -ge "1" ];
 then echo "deb-src http://packages.dotdeb.org jessie all" >> /etc/apt/sources.list; update=true; fi
-$update && wget http://www.dotdeb.org/dotdeb.gpg && apt-key add dotdeb.gpg && rm -f dotdeb.gpg
+$update && wget http://www.dotdeb.org/dotdeb.gpg --no-check-certificate && apt-key add dotdeb.gpg && rm -f dotdeb.gpg
 fi
 $update && echo "Updating $INSTALLER_APP repos" && $INSTALLER_APP update
 $INSTALLER_APP install -y $components
@@ -1523,12 +1523,12 @@ if [ -d /tmp/owncloud ]; then
 fi
 
 echo "Download secure permission file from github"
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/setup_secure_permissions_owncloud.sh -O $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/setup_secure_permissions_owncloud.sh --no-check-certificate -O $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
 sed -i "s,OWNCLOUDPATH,$WWWPATHHTML," $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
 sed -i "s,HTUSER,$service_user," $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
 chmod +x $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
 
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/update_set_permission.sh -O $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission_update.sh
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/update_set_permission.sh --no-check-certificate -O $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission_update.sh
 sed -i "s,OWNCLOUDPATH,$WWWPATHHTML," $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission_update.sh
 chmod +x $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission_update.sh
 
@@ -1742,12 +1742,12 @@ if [ -d /tmp/nextcloud ]; then
 fi
 
 echo "Download secure permission file from github"
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/setup_secure_permissions_owncloud.sh -O $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/setup_secure_permissions_owncloud.sh --no-check-certificate -O $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
 sed -i "s,OWNCLOUDPATH,$WWWPATHHTML," $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
 sed -i "s,HTUSER,$service_user," $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
 chmod +x $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
 
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/update_set_permission.sh -O $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission_update.sh
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/update_set_permission.sh --no-check-certificate -O $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission_update.sh
 sed -i "s,OWNCLOUDPATH,$WWWPATHHTML," $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission_update.sh
 chmod +x $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission_update.sh
 
@@ -1935,23 +1935,23 @@ install_components "nginx geoip-database libgeoip1 apache2-utils"
 echo "Download latest geoip database."
 mv /usr/share/GeoIP/GeoIP.dat /usr/share/GeoIP/GeoIP.dat_bak
 cd /usr/share/GeoIP || echo "Couldn't change directory to /usr/share/GeoIP"
-wget https://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz
+wget https://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz --no-check-certificate
 gunzip GeoIP.dat.gz
 
 if [ ! -d /etc/nginx/global ]; then
   mkdir -p /etc/nginx/global
 fi
 if [ ! -f /etc/nginx/global/geoip_settings.conf ]; then
-  wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/geoip_settings.conf -O /etc/nginx/global/geoip_settings.conf
+  wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/geoip_settings.conf --no-check-certificate -O /etc/nginx/global/geoip_settings.conf
 fi
 if [ ! -f /etc/nginx/global/restrictions.conf ]; then
-  wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/restrictions.conf -O /etc/nginx/global/restrictions.conf
+  wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/restrictions.conf --no-check-certificate -O /etc/nginx/global/restrictions.conf
 fi
 if [ ! -f /etc/nginx/global/secure_ssl.conf ]; then
-  wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/secure_ssl.conf -O /etc/nginx/global/secure_ssl.conf
+  wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/secure_ssl.conf --no-check-certificate -O /etc/nginx/global/secure_ssl.conf
 fi
 if [ ! -f /etc/nginx/global/wordpress.conf ]; then
-  wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/wordpress.conf -O /etc/nginx/global/wordpress.conf
+  wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/wordpress.conf --no-check-certificate -O /etc/nginx/global/wordpress.conf
 fi
 
 echo "Disable nginx default config"
@@ -3281,7 +3281,7 @@ echo "
 # download main.cf fro postfix from github
 POSTFIX_CONF=/etc/postfix/main.cf
 mv $POSTFIX_CONF $POSTFIX_CONF.orig
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/template_main.cf -O $POSTFIX_CONF
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/template_main.cf --no-check-certificate -O $POSTFIX_CONF
 sed -i "s,myhostname = mail.example.com,myhostname = $DOMAIN_APP_NAME," $POSTFIX_CONF
 sed -i "s,^smtpd_tls_cert_file=.*,smtpd_tls_cert_file=$CERTS_PATH/$KEY_COMMON_NAME.crt," $POSTFIX_CONF
 sed -i "s,^smtpd_tls_key_file=.*,smtpd_tls_key_file=$CERTS_PATH/$KEY_COMMON_NAME.key," $POSTFIX_CONF
@@ -3305,7 +3305,7 @@ postconf -e "smtp_tls_loglevel = 1"
 
 # download master.cf fro postfix from github
 mv /etc/postfix/master.cf /etc/postfix/master.cf.orig
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/template_master.cf  -O /etc/postfix/master.cf
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/template_master.cf --no-check-certificate -O /etc/postfix/master.cf
 
 # recommendation regarding postfix configuration file
 echo "Please check the Postfix configuration later"
@@ -3525,7 +3525,7 @@ touch "$POSTFIXADM_CONF_FILE"
 chown "$service_user":www-data "$POSTFIXADM_CONF_FILE"
 
 echo "download postfixadmin template"
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/postfixadmin.config.local.php -O "$POSTFIXADM_CONF_FILE"
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/postfixadmin.config.local.php --no-check-certificate -O "$POSTFIXADM_CONF_FILE"
 
 if [ -z "$POSTMASTER" ]; then
 POSTMASTER=admin@$DOMAIN_APP_NAME
@@ -3746,7 +3746,7 @@ if [ ! -d $SCRIPTS_DIR ]; then
   mkdir -p $SCRIPTS_DIR
 fi
 if [ ! -f $SCRIPTS_DIR/manage_certs.sh ]; then
-  wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/manage_certs.sh -O $SCRIPTS_DIR/manage_certs.sh
+  wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/manage_certs.sh --no-check-certificate -O $SCRIPTS_DIR/manage_certs.sh
 fi
 
 . "${SCRIPTS_DIR}/manage_certs.sh" read_config
