@@ -16,8 +16,15 @@
 # https://www.kernel-error.de/postfix/postfix-dane-tlsa
 # https://thomas-leister.de/dovecot-sieve-manager-installieren-und-einrichten/
 
-
 # "run minstall.sh" to see the usage
+Pause() {
+  (tty_state=$(stty -g)
+  stty -icanon
+  LC_ALL=C dd bs=1 count=1 >/dev/null 2>&1
+  stty "$tty_state"
+  ) </dev/tty
+}
+
 set_vars() {
 echo "
 *********************************************
@@ -29,11 +36,14 @@ WWWLOGDIR=/var/www/log
 CERTS_PATH=/var/www/ssl
 SCRIPTS_DIR=/var/scripts
 PERMISSIONFILES=/var/www/permissions
-echo "
+printf "
 ---------------------------------------
 Adjust the WWWPATH and CERTS_PATH and comment out this line
+Press any key to exit
 ---------------------------------------"
-read -r && exit
+Pause
+
+exit 1
 }
 
 check_installer() {
@@ -41,38 +51,44 @@ echo "
 *********************************************
 Checking the installer
 *********************************************"
-if [ "$INSTALLER_APP" == "aptitude" ];
+if [ "$INSTALLER_APP" = "aptitude" ];
 then
-[[ -z $(which $INSTALLER_APP) ]] && ( echo "ERROR: $INSTALLER_APP not found" \
-&& read -p "Installing $INSTALLER_APP, press return to continue." -r && apt-get update && apt-get install -y aptitude ) \
-|| echo "Using $INSTALLER_APP";
-[[ ! -z $(which $INSTALLER_APP) ]] && echo "Found $INSTALLER_APP" || (read -p "ERROR: $INSTALLER_APP still not found, exit!" -r && exit 1 );
-elif [ "$INSTALLER_APP" == "apt-get" ];
+if [ -z "$(which "$INSTALLER_APP")" ]; then
+  echo "ERROR: $INSTALLER_APP not found"
+  printf "Installing %s, press return to continue. \n" "$INSTALLER_APP"
+  Pause
+  apt-get update
+  apt-get install -y aptitude
+else
+  echo "Using $INSTALLER_APP";
+fi
+if [ ! -z "$(which "$INSTALLER_APP")" ]; then
+  echo "Found $INSTALLER_APP"
+else
+  printf "ERROR: %s still not found, exit! \n" "$INSTALLER_APP"
+  Pause
+  exit 1
+fi
+elif [ "$INSTALLER_APP" = "apt-get" ];
 then
-[[ ! -z $(which $INSTALLER_APP) ]] && echo "Using $INSTALLER_APP" || ( read -p "ERROR: $INSTALLER_APP not found, exit!" -r && exit 1 );
+if [ ! -z "$(which "$INSTALLER_APP")" ]; then
+  echo "Using $INSTALLER_APP"
+else
+  ( prinft "ERROR: %s not found, exit! \n" "$INSTALLER_APP" && Pause && exit 1 );
+fi
 fi
 
-echo "
-------------------------------
-Do you want to update the REPO of the installer now?
-------------------------------"
-
-select yn in "Yes" "No"; do
-case $yn in
-Yes)
-echo "Updating $INSTALLER_APP repos"
-$INSTALLER_APP update
-break;
-;;
-No)
-echo "Skipping update of $INSTALLER_APP"
-return 0
-break;
-;;
-*)
-echo "ERROR: Invalid option!"
-;;
-esac
+while true; do
+  echo "
+  ------------------------------
+  Do you want to update the REPO of the installer now?
+  ------------------------------ [Y/n]"
+  read -r yn
+    case $yn in
+        [Yy]* ) echo "Updating $INSTALLER_APP repos"; $INSTALLER_APP update; break;;
+        [Nn]* ) echo "Skipping update of $INSTALLER_APP"; break;;
+        * ) echo "Please answer y or n.";;
+    esac
 done
 }
 
@@ -81,27 +97,18 @@ echo "
 *********************************************
 Setting the installer
 *********************************************"
-echo "
----------------------------------------
-Do you want to use 'apt-get' or 'aptitude' as installer (default: aptitude)
----------------------------------------"
 
-select INSTALLER_APP in "aptitude" "apt-get"; do
-case $INSTALLER_APP in
-aptitude)
-INSTALLER_APP=aptitude
-check_installer
-break;
-;;
-apt-get)
-INSTALLER_APP=apt-get
-check_installer
-break;
-;;
-*)
-echo "ERROR: Invalid option!"
-;;
-esac
+while true; do
+  echo "
+  ---------------------------------------
+  Do you want to use 'apt-get' or 'aptitude' as installer (e.g.: aptitude)
+  ---------------------------------------"
+  read -r answer
+    case $answer in
+        aptitude) INSTALLER_APP=aptitude; check_installer; break;;
+        apt-get) INSTALLER_APP=apt-get; check_installer; break;;
+        * ) echo "ERROR: Invalid option!";;
+    esac
 done
 
 }
@@ -143,7 +150,7 @@ sed -i -r -e "s/.*net.ipv4.conf.all.rp_filter=.*/net.ipv4.conf.all.rp_filter=1/g
 if grep -Fq '1' /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts; then
 echo "/proc/sys/net/ipv4/icmp_echo_ignore_broadcasts activated already"
 else
-echo -n '1' > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
+echo "0" > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
 fi
 
 echo "
@@ -155,8 +162,9 @@ echo "
 ------------------------------
 Enter update notification mail address
 ------------------------------"
-local mail=
-read -e -i "admin@example.com" mail
+mail=
+printf "e.g. admin@example.com \n"
+read -r mail
 sed -i -r -e "s/^EMAIL=.*/EMAIL=\"$mail\"/g" /etc/apticron/apticron.conf
 
 echo "
@@ -169,9 +177,9 @@ echo  "
 ------------------------------"
 $INSTALLER_APP install -y libwww-perl
 
-cd /tmp
-wget --no-check-certificate https://download.configserver.com/csf.tgz
-tar -xzf csf.tgz
+cd /tmp || echo 'Could not change directory to /tmp' #This should not happen as /tmp is a normally existend
+if ! wget --no-check-certificate https://download.configserver.com/csf.tgz; then echo 'ERROR downloading csf from the internet';fi
+if  ! tar -xzf csf.tgz; then echo 'ERROR extracting csf.tgz';fi
 
 echo "
 ------------------------------
@@ -183,7 +191,7 @@ echo "
 ------------------------------
 - run csf/install.sh
 ------------------------------"
-cd csf
+cd csf || echo 'Could not change directory to /tmp/csf' #This should not happen as we've just downloaded and extracted csf
 sh install.sh
 
 echo "
@@ -231,11 +239,11 @@ echo "
 Please enter the hostname, it can be a new one.
 Hostname now: $host_name
 ------------------------------"
-read -e -i "$host_name" host_name
-echo $host_name > /etc/hostname
+read -r host_name
+echo "$host_name" > /etc/hostname
 bash /etc/init.d/hostname.sh
 
-echo $host_name > /etc/mailname
+echo "$host_name" > /etc/mailname
 
 sed -i -e 's/127.0.0.1.*/# &/' -e "/^# 127.0.0.1.*/ a 127.0.0.1 $host_name" /etc/hosts
 }
@@ -251,13 +259,13 @@ echo "
 ------------------------------
 Enter an administrative user to use for ssh - instead of root - and press RETURN
 ------------------------------"
-local adminuser=
+adminuser=
 read -r adminuser
-adduser $adminuser
+adduser "$adminuser"
 
 $INSTALLER_APP install -y openssh-server
 
-local SSHD_CONFIG=/etc/ssh/sshd_config
+SSHD_CONFIG=/etc/ssh/sshd_config
 sed -i -r -e "s/^PermitRootLogin.*/PermitRootLogin no/g" $SSHD_CONFIG
 sed -i -r -e "s/^X11Forwarding.*/X11Forwarding no/g" $SSHD_CONFIG
 
@@ -285,8 +293,11 @@ echo "
 *********************************************
 CSF - Setting config
 *********************************************"
-local CSF_CONFIG_FILE=/etc/csf/csf.conf
-if [ ! -f $CSF_CONFIG_FILE ]; then read -e -p "Where is your csf configuration location? Please enter the full path: " -i "/etc/csf/csf.conf" CSF_CONFIG_FILE;fi
+CSF_CONFIG_FILE=/etc/csf/csf.conf
+if [ ! -f $CSF_CONFIG_FILE ]; then
+        printf "Where is your csf configuration location? Please enter the full path: e.g. /etc/csf/csf.conf \n"
+        read -r CSF_CONFIG_FILE
+fi
 echo "
 ------------------------------
 - Check the result of the next command (perl /usr/local/csf/bin/csftest.pl)
@@ -298,212 +309,212 @@ echo "
 ------------------------------
 Enter all IP addresses, space separated, which should be added to csf.allow file
 ------------------------------"
-local ip=
-read ip
+ip=
+read -r ip
 for i in $ip
 do
-csf -a $i
+csf -a "$i"
 done
 
-sed -i -r -e 's/^RESTRICT_SYSLOG[ |=].*/# &/' -e '/^# RESTRICT_SYSLOG[ |=].*/ a RESTRICT_SYSLOG = "3"' $CSF_CONFIG_FILE
+sed -i -r -e 's/^RESTRICT_SYSLOG[ |=].*/# &/' -e '/^# RESTRICT_SYSLOG[ |=].*/ a RESTRICT_SYSLOG = "3"' "$CSF_CONFIG_FILE"
 
-sed -i -r -e 's/^RESTRICT_UI[ |=].*/# &/' -e '/^# RESTRICT_UI[ |=].*/ a RESTRICT_UI = "2"' $CSF_CONFIG_FILE
+sed -i -r -e 's/^RESTRICT_UI[ |=].*/# &/' -e '/^# RESTRICT_UI[ |=].*/ a RESTRICT_UI = "2"' "$CSF_CONFIG_FILE"
 
-sed -i -r -e 's/^SMTP_BLOCK[ |=].*/# &/' -e '/^# SMTP_BLOCK[ |=].*/ a SMTP_BLOCK = "1"' $CSF_CONFIG_FILE
+sed -i -r -e 's/^SMTP_BLOCK[ |=].*/# &/' -e '/^# SMTP_BLOCK[ |=].*/ a SMTP_BLOCK = "1"' "$CSF_CONFIG_FILE"
 
-sed -i -r -e 's/^AT_ALERT[ |=].*/# &/' -e '/^# AT_ALERT[ |=].*/ a AT_ALERT = "1"' $CSF_CONFIG_FILE
+sed -i -r -e 's/^AT_ALERT[ |=].*/# &/' -e '/^# AT_ALERT[ |=].*/ a AT_ALERT = "1"' "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
 Enter all TCP_IN ports, comma separated without spaces, colon for range is possible
 e.g. 25,53,80,110,143,443,465,587,993,995,24441,24500:26000
 ------------------------------"
-local TCP_IN=
-read TCP_IN
-sed -i -r -e "s/^TCP_IN.*/# &/" -e "/^# TCP_IN.*/ a TCP_IN = \"$TCP_IN\"" $CSF_CONFIG_FILE
+TCP_IN=
+read -r TCP_IN
+sed -i -r -e "s/^TCP_IN.*/# &/" -e "/^# TCP_IN.*/ a TCP_IN = \"$TCP_IN\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
 Enter all TCP_OUT ports, comma separated without spaces, colon for range is possible
 e.g. 25,53,80,110,113,443,587,993,995,2703,24500:26000
 ------------------------------"
-local TCP_OUT=
-read TCP_OUT
-sed -i -r -e "s/^TCP_OUT =.*/# &/" -e "/^# TCP_OUT =.*/ a TCP_OUT = \"$TCP_OUT\"" $CSF_CONFIG_FILE
+TCP_OUT=
+read -r TCP_OUT
+sed -i -r -e "s/^TCP_OUT =.*/# &/" -e "/^# TCP_OUT =.*/ a TCP_OUT = \"$TCP_OUT\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
 Enter all UDP_IN ports, comma separated without spaces, colon for range is possible
 e.g. 53,24500:26000
 ------------------------------"
-local UDP_IN=
-read UDP_IN
-sed -i -r -e "s/^UDP_IN =.*/# &/" -e "/^# UDP_IN =.*/ a UDP_IN = \"$UDP_IN\"" $CSF_CONFIG_FILE
+UDP_IN=
+read -r UDP_IN
+sed -i -r -e "s/^UDP_IN =.*/# &/" -e "/^# UDP_IN =.*/ a UDP_IN = \"$UDP_IN\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
 Enter all UDP_OUT ports, comma separated without spaces, colon for range is possible
 e.g. 53,113,123,24441,24500:26000
 ------------------------------"
-local UDP_OUT=
-read UDP_OUT
-sed -i -r -e "s/^UDP_OUT.*/# &/" -e "/^# UDP_OUT.*/ a UDP_OUT = \"$UDP_OUT\"" $CSF_CONFIG_FILE
+UDP_OUT=
+read -r UDP_OUT
+sed -i -r -e "s/^UDP_OUT.*/# &/" -e "/^# UDP_OUT.*/ a UDP_OUT = \"$UDP_OUT\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
 Disable IPv6
 ------------------------------"
-sed -i -r "s/^IPV6[ |=].*/IPV6 = \"0\"/g" $CSF_CONFIG_FILE
+sed -i -r "s/^IPV6[ |=].*/IPV6 = \"0\"/g" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
 Check if SYSLOG is running - Enter the value in seconds (0 to disable)
 ------------------------------"
-local SYSLOG_CHECK=
-read SYSLOG_CHECK
-sed -i -r -e "s/^SYSLOG_CHECK =.*/# &/" -e "/^# SYSLOG_CHECK =.*/ a SYSLOG_CHECK = \"$SYSLOG_CHECK\"" $CSF_CONFIG_FILE
+SYSLOG_CHECK=
+read -r SYSLOG_CHECK
+sed -i -r -e "s/^SYSLOG_CHECK =.*/# &/" -e "/^# SYSLOG_CHECK =.*/ a SYSLOG_CHECK = \"$SYSLOG_CHECK\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
-Limit the number of IP's kept in the /etc/csf/csf.deny file - enter a value (200 is default)
+Limit the number of IP's kept in the /etc/csf/csf.deny file - enter a value (e.g. 200)
 ------------------------------"
-local DENY_IP_LIMIT=
-read -e -i "200" DENY_IP_LIMIT
-sed -i -r -e "s/^DENY_IP_LIMIT.*/# &/" -e "/^# DENY_IP_LIMIT.*/ a DENY_IP_LIMIT = \"$DENY_IP_LIMIT\"" $CSF_CONFIG_FILE
+DENY_IP_LIMIT=
+read -r DENY_IP_LIMIT
+sed -i -r -e "s/^DENY_IP_LIMIT.*/# &/" -e "/^# DENY_IP_LIMIT.*/ a DENY_IP_LIMIT = \"$DENY_IP_LIMIT\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
-Limit the number of IP's kept in the temprary IP ban list. - Enter a value (100 is default)
+Limit the number of IP's kept in the temprary IP ban list. - Enter a value (e.g. 100)
 ------------------------------"
-local DENY_TEMP_IP_LIMIT=
-read -e -i "100" DENY_TEMP_IP_LIMIT
-sed -i -r -e "s/^DENY_TEMP_IP_LIMIT.*/# &/" -e "/^# DENY_TEMP_IP_LIMIT.*/ a DENY_TEMP_IP_LIMIT = \"$DENY_TEMP_IP_LIMIT\"" $CSF_CONFIG_FILE
+DENY_TEMP_IP_LIMIT=
+read -r DENY_TEMP_IP_LIMIT
+sed -i -r -e "s/^DENY_TEMP_IP_LIMIT.*/# &/" -e "/^# DENY_TEMP_IP_LIMIT.*/ a DENY_TEMP_IP_LIMIT = \"$DENY_TEMP_IP_LIMIT\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
 Enter LF Alert mail address - Leave empty if mailaddress in template should be used.
 ------------------------------"
-local LF_ALERT_TO=
-read LF_ALERT_TO
-sed -i -r -e "s/^LF_ALERT_TO.*/# &/" -e "/^# LF_ALERT_TO.*/ a LF_ALERT_TO = \"$LF_ALERT_TO\"" $CSF_CONFIG_FILE
+LF_ALERT_TO=
+read -r LF_ALERT_TO
+sed -i -r -e "s/^LF_ALERT_TO.*/# &/" -e "/^# LF_ALERT_TO.*/ a LF_ALERT_TO = \"$LF_ALERT_TO\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
 Country allow access to specific ports, enter country codes, comma separated (e.g. CH,DE,PL)
 Leave empty if you don't want to use this function.
 ------------------------------"
-local CC_ALLOW_PORTS=
-read CC_ALLOW_PORTS
-sed -i -r -e "s/^CC_ALLOW_PORTS[ |=].*/# &/" -e "/^# CC_ALLOW_PORTS[ |=].*/ a CC_ALLOW_PORTS = \"$CC_ALLOW_PORTS\"" $CSF_CONFIG_FILE
+CC_ALLOW_PORTS=
+read -r CC_ALLOW_PORTS
+sed -i -r -e "s/^CC_ALLOW_PORTS[ |=].*/# &/" -e "/^# CC_ALLOW_PORTS[ |=].*/ a CC_ALLOW_PORTS = \"$CC_ALLOW_PORTS\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
 Specify TCP ports to allow for entered countries, comma separated (e.g. 21,22)
 Leave empty if you don't want to use this function.
 ------------------------------"
-local CC_ALLOW_PORTS_TCP=
-read CC_ALLOW_PORTS_TCP
-sed -i -r -e "s/^CC_ALLOW_PORTS_TCP.*/# &/" -e "/^# CC_ALLOW_PORTS_TCP.*/ a CC_ALLOW_PORTS_TCP = \"$CC_ALLOW_PORTS_TCP\"" $CSF_CONFIG_FILE
+CC_ALLOW_PORTS_TCP=
+read -r CC_ALLOW_PORTS_TCP
+sed -i -r -e "s/^CC_ALLOW_PORTS_TCP.*/# &/" -e "/^# CC_ALLOW_PORTS_TCP.*/ a CC_ALLOW_PORTS_TCP = \"$CC_ALLOW_PORTS_TCP\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
 Specify UDP ports to allow for entered countries, comma separated (e.g. 53)
 Leave empty if you don't want to use this function.
 ------------------------------"
-local CC_ALLOW_PORTS_UDP=
-read CC_ALLOW_PORTS_UDP
-sed -i -r -e "s/^CC_ALLOW_PORTS_UDP.*/# &/" -e "/^# CC_ALLOW_PORTS_UDP.*/ a CC_ALLOW_PORTS_UDP = \"$CC_ALLOW_PORTS_UDP\"" $CSF_CONFIG_FILE
+CC_ALLOW_PORTS_UDP=
+read -r CC_ALLOW_PORTS_UDP
+sed -i -r -e "s/^CC_ALLOW_PORTS_UDP.*/# &/" -e "/^# CC_ALLOW_PORTS_UDP.*/ a CC_ALLOW_PORTS_UDP = \"$CC_ALLOW_PORTS_UDP\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
 Country deny access to specific ports, enter country codes, comma separated
-(default: AE,AF,AL,AM,AZ,BA,BD,BG,BY,CD,CF,CN,GR,HK,IL,IQ,IR,JO,KE,KG,KR,KZ,LB,LY,MA,MD,ME,MN,OM,PK,RU,SA,SD,SN,SY,TJ,TM,TN,TW,UA,UZ,VN)
+(e.g.: AE,AF,AL,AM,AZ,BA,BD,BG,BY,CD,CF,CN,GR,HK,IL,IQ,IR,JO,KE,KG,KR,KZ,LB,LY,MA,MD,ME,MN,OM,PK,RU,SA,SD,SN,SY,TJ,TM,TN,TW,UA,UZ,VN)
 Make empty if you don't want to use this function.
 ------------------------------"
-local CC_DENY_PORTS=
-read -e -i "AE,AF,AL,AM,AZ,BA,BD,BG,BY,CD,CF,CN,GR,HK,IL,IQ,IR,JO,KE,KG,KR,KZ,LB,LY,MA,MD,ME,MN,OM,PK,RU,SA,SD,SN,SY,TJ,TM,TN,TW,UA,UZ,VN" CC_DENY_PORTS
-sed -i -r -e "s/^CC_DENY_PORTS =.*/# &/" -e "/^# CC_DENY_PORTS =.*/ a CC_DENY_PORTS = \"$CC_DENY_PORTS\"" $CSF_CONFIG_FILE
+CC_DENY_PORTS=
+read -r CC_DENY_PORTS
+sed -i -r -e "s/^CC_DENY_PORTS =.*/# &/" -e "/^# CC_DENY_PORTS =.*/ a CC_DENY_PORTS = \"$CC_DENY_PORTS\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
-Specify TCP ports to deny for entered countries, comma separated (default: 25,110,143,465,587,993,995)
+Specify TCP ports to deny for entered countries, comma separated (e.g.: 25,110,143,465,587,993,995)
 Make empty if you don't want to use this function.
 ------------------------------"
-local CC_DENY_PORTS_TCP=
-read -e -i "25,110,143,465,587,993,995" CC_DENY_PORTS_TCP
-sed -i -r -e "s/^CC_DENY_PORTS_TCP.*/# &/" -e "/^# CC_DENY_PORTS_TCP.*/ a CC_DENY_PORTS_TCP = \"$CC_DENY_PORTS_TCP\"" $CSF_CONFIG_FILE
+CC_DENY_PORTS_TCP=
+read -r CC_DENY_PORTS_TCP
+sed -i -r -e "s/^CC_DENY_PORTS_TCP.*/# &/" -e "/^# CC_DENY_PORTS_TCP.*/ a CC_DENY_PORTS_TCP = \"$CC_DENY_PORTS_TCP\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
-Specify UDP ports to deny for entered countries, comma separated (default: 113,123)
+Specify UDP ports to deny for entered countries, comma separated (e.g.: 113,123)
 Make empty if you don't want to use this function.
 ------------------------------"
-local CC_DENY_PORTS_UDP=
-read -e -i "113,123" CC_DENY_PORTS_UDP
-sed -i -r -e "s/^CC_DENY_PORTS_UDP.*/# &/" -e "/^# CC_DENY_PORTS_UDP.*/ a CC_DENY_PORTS_UDP = \"$CC_DENY_PORTS_UDP\"" $CSF_CONFIG_FILE
+CC_DENY_PORTS_UDP=
+read -r CC_DENY_PORTS_UDP
+sed -i -r -e "s/^CC_DENY_PORTS_UDP.*/# &/" -e "/^# CC_DENY_PORTS_UDP.*/ a CC_DENY_PORTS_UDP = \"$CC_DENY_PORTS_UDP\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
-Set LF_TRIGGER on (1) or off (0) (default: 0)
+Set LF_TRIGGER on (1) or off (0) (e.g.: 0)
 ------------------------------"
-local LF_TRIGGER=
-read -e -i "0" LF_TRIGGER
-sed -i -r -e "s/^LF_TRIGGER =.*/# &/" -e "/^# LF_TRIGGER =.*/ a LF_TRIGGER = \"$LF_TRIGGER\"" $CSF_CONFIG_FILE
+LF_TRIGGER=
+read -r LF_TRIGGER
+sed -i -r -e "s/^LF_TRIGGER =.*/# &/" -e "/^# LF_TRIGGER =.*/ a LF_TRIGGER = \"$LF_TRIGGER\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
-Enable login failure detection of pop3 connections - enter number of failed logins to block  (default: 0)
+Enable login failure detection of pop3 connections - enter number of failed logins to block  (e.g.: 0)
 ------------------------------"
-local LF_POP3D=
-read -e -i "0" LF_POP3D
-sed -i -r -e "s/^LF_POP3D[ |=].*/# &/" -e "/^# LF_POP3D[ |=].*/ a LF_POP3D = \"$LF_POP3D\"" $CSF_CONFIG_FILE
+LF_POP3D=
+read -r LF_POP3D
+sed -i -r -e "s/^LF_POP3D[ |=].*/# &/" -e "/^# LF_POP3D[ |=].*/ a LF_POP3D = \"$LF_POP3D\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
-Enable login failure detection of imap connections - enter number of failed logins to block  (default: 0)
+Enable login failure detection of imap connections - enter number of failed logins to block  (e.g.: 0)
 ------------------------------"
-local LF_IMAPD=
-read -e -i "0" LF_IMAPD
-sed -i -r -e "s/^LF_IMAPD =.*/# &/" -e "/^# LF_IMAPD =.*/ a LF_IMAPD = \"$LF_IMAPD\"" $CSF_CONFIG_FILE
+LF_IMAPD=
+read -r LF_IMAPD
+sed -i -r -e "s/^LF_IMAPD =.*/# &/" -e "/^# LF_IMAPD =.*/ a LF_IMAPD = \"$LF_IMAPD\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
-Block IMAP logins if greater than LT_IMAPD times per hour per account per IP - enter value (default: 0)
+Block IMAP logins if greater than LT_IMAPD times per hour per account per IP - enter value (e.g.: 0)
 ------------------------------"
-local LT_IMAPD=
-read -e -i "0" LT_IMAPD
-sed -i -r -e "s/^LT_IMAPD =.*/# &/" -e "/^# LT_IMAPD =.*/ a LT_IMAPD = \"$LT_IMAPD\"" $CSF_CONFIG_FILE
+LT_IMAPD=
+read -r LT_IMAPD
+sed -i -r -e "s/^LT_IMAPD =.*/# &/" -e "/^# LT_IMAPD =.*/ a LT_IMAPD = \"$LT_IMAPD\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
 Port Scan Tracking. This feature tracks port blocks logged by iptables to
 syslog. If an IP address generates a port block that is logged more than
-PS_LIMIT (10) within PS_INTERVAL seconds, the IP address will be blocked. - enter value in seconds (recommended 60-300, default: 0)
+PS_LIMIT (10) within PS_INTERVAL seconds, the IP address will be blocked. - enter value in seconds (recommended 60-300, e.g.: 0)
 ------------------------------"
-local PS_INTERVAL=
-read -e -i "0" PS_INTERVAL
-sed -i -r -e "s/^PS_INTERVAL.*/# &/" -e "/^# PS_INTERVAL.*/ a PS_INTERVAL = \"$PS_INTERVAL\"" $CSF_CONFIG_FILE
+PS_INTERVAL=
+read -r PS_INTERVAL
+sed -i -r -e "s/^PS_INTERVAL.*/# &/" -e "/^# PS_INTERVAL.*/ a PS_INTERVAL = \"$PS_INTERVAL\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
 User ID Tracking. This feature tracks UID blocks logged by iptables to
 syslog. If a UID generates a port block that is logged more than UID_LIMIT
-times within UID_INTERVAL seconds, an alert will be sent. - enter value in seconds, (recommended 120, default: 0)
+times within UID_INTERVAL seconds, an alert will be sent. - enter value in seconds, (recommended 120, e.g.: 0)
 ------------------------------"
-local UID_INTERVAL=
-read -e -i "0" UID_INTERVAL
-sed -i -r -e "s/^UID_INTERVAL.*/# &/" -e "/^# UID_INTERVAL.*/ a UID_INTERVAL = \"$UID_INTERVAL\"" $CSF_CONFIG_FILE
+UID_INTERVAL=
+read -r UID_INTERVAL
+sed -i -r -e "s/^UID_INTERVAL.*/# &/" -e "/^# UID_INTERVAL.*/ a UID_INTERVAL = \"$UID_INTERVAL\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
-Do you want to enable port knocking, e.g. for SSH access - yes(1)/no(0): (default: 1)
+Do you want to enable port knocking, e.g. for SSH access - yes(1)/no(0): (e.g.: 1)
 ------------------------------"
-local PORTKNOCKING_ALERT=
-read -e -i "1" PORTKNOCKING_ALERT
+PORTKNOCKING_ALERT=
+read -r PORTKNOCKING_ALERT
 if [ -z "$PORTKNOCKING_ALERT" ] || [ "$PORTKNOCKING_ALERT" -eq "1" ];
 then
 PORTKNOCKING_ALERT=1;
-sed -i -r -e "s/^PORTKNOCKING_ALERT.*/# &/" -e "/^# PORTKNOCKING_ALERT.*/ a PORTKNOCKING_ALERT = \"$PORTKNOCKING_ALERT\"" $CSF_CONFIG_FILE
+sed -i -r -e "s/^PORTKNOCKING_ALERT.*/# &/" -e "/^# PORTKNOCKING_ALERT.*/ a PORTKNOCKING_ALERT = \"$PORTKNOCKING_ALERT\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
@@ -511,21 +522,21 @@ Enter following information as in the example:
 openport;protocol;timeout;kport1;kport2;kport3[...;kportN],...
 e.g.: 22;TCP;20;100;200;300;400
 ------------------------------"
-local PORTKNOCKING=
-read PORTKNOCKING
-sed -i -r -e "s/^PORTKNOCKING[ |=].*/# &/" -e "/^# PORTKNOCKING[ |=].*/ a PORTKNOCKING = \"$PORTKNOCKING\"" $CSF_CONFIG_FILE
+PORTKNOCKING=
+read -r PORTKNOCKING
+sed -i -r -e "s/^PORTKNOCKING[ |=].*/# &/" -e "/^# PORTKNOCKING[ |=].*/ a PORTKNOCKING = \"$PORTKNOCKING\"" "$CSF_CONFIG_FILE"
 fi
 
 echo "
 ------------------------------
-Do you want to enable the logscanner, it will send regularly log reports- yes(1)/no(0): (default: 1)
+Do you want to enable the logscanner, it will send regularly log reports- yes(1)/no(0): (e.g.: 1)
 ------------------------------"
-local LOGSCANNER=
-read -e -i "1" LOGSCANNER
+LOGSCANNER=
+read -r LOGSCANNER
 if [ -z "$LOGSCANNER" ] || [ "$LOGSCANNER" -eq "1" ];
 then
 LOGSCANNER=1;
-sed -i -r -e "s/^LOGSCANNER[ |=].*/# &/" -e "/^# LOGSCANNER[ |=].*/ a LOGSCANNER = \"$LOGSCANNER\"" $CSF_CONFIG_FILE
+sed -i -r -e "s/^LOGSCANNER[ |=].*/# &/" -e "/^# LOGSCANNER[ |=].*/ a LOGSCANNER = \"$LOGSCANNER\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
@@ -534,48 +545,44 @@ hourly - sent on the hour
 daily  - sent at midnight (00:00)
 manual - sent whenever 'csf --logrun' is run. This allows for scheduling
 via cron job
-(default: manual)
+(e.g.: manual)
 ------------------------------"
-local LOGSCANNER_INTERVAL=
-read -e -i "manual" LOGSCANNER_INTERVAL
-sed -i -r -e "s/^LOGSCANNER_INTERVAL.*/# &/" -e "/^# LOGSCANNER_INTERVAL.*/ a LOGSCANNER_INTERVAL = \"$LOGSCANNER_INTERVAL\"" $CSF_CONFIG_FILE
-if [ "$LOGSCANNER_INTERVAL" == "manual" ];
+LOGSCANNER_INTERVAL=
+read -r LOGSCANNER_INTERVAL
+sed -i -r -e "s/^LOGSCANNER_INTERVAL.*/# &/" -e "/^# LOGSCANNER_INTERVAL.*/ a LOGSCANNER_INTERVAL = \"$LOGSCANNER_INTERVAL\"" "$CSF_CONFIG_FILE"
+if [ "$LOGSCANNER_INTERVAL" = "manual" ];
 then
-echo "
-------------------------------
-Do you want to set the cron job now?
-------------------------------"
-select yn in "Yes" "No"; do
-case $yn in
-Yes)
-echo "
-------------------------------
-To what times do you want to run the LOGSCANNER cron job? (default: daily)
-------------------------------"
-read -e -i "0 0 * * *" cronvar
-(crontab -l 2>/dev/null; echo "$cronvar $(which csf) --logrun") | crontab -
-[ "$?" = "0" ] &&   echo "crontab created: $cronvar $(which csf) --logrun"
-break;
-;;
-No)
-echo "Set a cron job later for '$(which csf) --logrun'"
-break;
-;;
-*)
-echo "ERROR: Invalid option!"
-;;
-esac
-done
+  while true; do
+    echo "
+    ------------------------------
+    Do you want to set the cron job now?
+    ------------------------------ [Y/n]"
+    read -r yn
+      case $yn in
+          [Yy]* )
+          echo "
+          ------------------------------
+          To what times do you want to run the LOGSCANNER cron job? (e.g. midnight: 0 0 * * *)
+          ------------------------------"
+          read -r cronvar
+          if (crontab -l 2>/dev/null; echo "$cronvar $(which csf) --logrun") | crontab -; then
+          echo "crontab created: $cronvar $(which csf) --logrun"
+          fi
+          break;;
+          [Nn]* ) echo "Set a cron job later for '$(which csf) --logrun'"; break;;
+          * ) echo "Please answer y or n.";;
+      esac
+  done
 fi
 
 echo "
 ------------------------------
 Set the maximum number of lines in the report before it is truncated
-1000-100000 (default: 5000)
+1000-100000 (e.g.: 5000)
 ------------------------------"
-local LOGSCANNER_LINES=
-read -e -i "5000" LOGSCANNER_LINES
-sed -i -r -e "s/^LOGSCANNER_LINES.*/# &/" -e "/^# LOGSCANNER_LINES.*/ a LOGSCANNER_LINES = \"$LOGSCANNER_LINES\"" $CSF_CONFIG_FILE
+LOGSCANNER_LINES=
+read -r LOGSCANNER_LINES
+sed -i -r -e "s/^LOGSCANNER_LINES.*/# &/" -e "/^# LOGSCANNER_LINES.*/ a LOGSCANNER_LINES = \"$LOGSCANNER_LINES\"" "$CSF_CONFIG_FILE"
 
 echo "
 ------------------------------
@@ -592,7 +599,7 @@ echo "
 ------------------------------
 CSF Firewall testing enabled, change to 0 to disable testing if CSF works well
 ------------------------------"
-sed -i -r -e "s/^TESTING[ |=].*/TESTING = \"1\"/g" $CSF_CONFIG_FILE
+sed -i -r -e "s/^TESTING[ |=].*/TESTING = \"1\"/g" "$CSF_CONFIG_FILE"
 
 }
 
@@ -601,7 +608,7 @@ echo "
 *********************************************
 CSF - Adding syslogs files
 *********************************************"
-local csf_syslogs=
+csf_syslogs=
 if [ -z "$1" ]
 then
 echo "
@@ -614,7 +621,7 @@ else
 csf_syslogs=$1
 if [ -f /etc/csf/csf.syslogs ];
 then
-echo $csf_syslogs >> /etc/csf/csf.syslogs
+echo "$csf_syslogs" >> /etc/csf/csf.syslogs
 echo "
 ------------------------------
 Added $csf_syslogs to csf.pignore, please restart csf and lfd
@@ -631,7 +638,7 @@ echo "
 *********************************************
 CSF - Adding logfiles to LOGSCANNER
 *********************************************"
-local csf_logfiles=
+csf_logfiles=
 if [ -z "$1" ]
 then
 echo "
@@ -644,7 +651,7 @@ else
 csf_logfiles=$1
 if [ -f /etc/csf/csf.logfiles ];
 then
-echo $csf_logfiles >> /etc/csf/csf.logfiles
+echo "$csf_logfiles" >> /etc/csf/csf.logfiles
 echo "
 ------------------------------
 Added $csf_logfiles to csf.pignore, please restart csf and lfd
@@ -661,7 +668,7 @@ echo "
 *********************************************
 CSF - Adding pignore entries
 *********************************************"
-local pcmd_cmd_exe=
+pcmd_cmd_exe=
 if [ -z "$1" ]
 then
 echo "
@@ -675,7 +682,7 @@ else
 if [ -f /etc/csf/csf.pignore ];
 then
 pcmd_cmd_exe=$1
-echo $pcmd_cmd_exe >> /etc/csf/csf.pignore
+echo "$pcmd_cmd_exe" >> /etc/csf/csf.pignore
 echo "
 ------------------------------
 Added $pcmd_cmd_exe to csf.pignore, please restart csf and lfd
@@ -692,35 +699,37 @@ echo "
 *********************************************
 Installing Base Components
 *********************************************"
-install_components "wget unzip rsync vim bzip2 cron rsyslog curl ed"
-start_service "rsyslog cron"
+install_components 'wget unzip rsync vim bzip2 cron rsyslog curl ed'
+start_service 'rsyslog cron'
 }
 
 install_components() {
-local update=false
-local components=$1
+update=false
+components=$1
 echo "
 ------------------------------
-Installing following components: $components
-Press return to continue, you can remove or add components.
+Installing following components:
+$components
+
+Press return to continue.
 ------------------------------"
-read -e -i "$components" components
-if [ ! $(grep -Fc 'deb http://mirrors.linode.com/debian/ jessie-updates main contrib non-free' /etc/apt/sources.list) -ge "1" ];
+Pause
+if [ ! "$(grep -Fc 'deb http://mirrors.linode.com/debian/ jessie-updates main contrib non-free' /etc/apt/sources.list)" -ge "1" ];
 then echo "deb http://mirrors.linode.com/debian/ jessie-updates main contrib non-free" >> /etc/apt/sources.list; update=true; fi
-if [ ! $(grep -Fc 'deb-src http://mirrors.linode.com/debian/ jessie-updates main contrib non-free' /etc/apt/sources.list) -ge "1" ];
+if [ ! "$(grep -Fc 'deb-src http://mirrors.linode.com/debian/ jessie-updates main contrib non-free' /etc/apt/sources.list)" -ge "1" ];
 then echo "deb-src http://mirrors.linode.com/debian/ jessie-updates main contrib non-free" >> /etc/apt/sources.list; update=true; fi
-if [ ! $(grep -Fc 'deb http://security.debian.org/ jessie/updates main contrib non-free' /etc/apt/sources.list) -ge "1" ];
+if [ ! "$(grep -Fc 'deb http://security.debian.org/ jessie/updates main contrib non-free' /etc/apt/sources.list)" -ge "1" ];
 then echo "deb http://security.debian.org/ jessie/updates main contrib non-free" >> /etc/apt/sources.list; update=true; fi
-if [ ! $(grep -Fc 'deb-src http://security.debian.org/ jessie/updates main non-free' /etc/apt/sources.list) -ge "1" ];
+if [ ! "$(grep -Fc 'deb-src http://security.debian.org/ jessie/updates main non-free' /etc/apt/sources.list)" -ge "1" ];
 then echo "deb-src http://security.debian.org/ jessie/updates main non-free" >> /etc/apt/sources.list; update=true; fi
-if [ ! $(grep -Fc 'deb http://mirrors.linode.com/debian/ jessie main contrib non-free' /etc/apt/sources.list) -ge "1" ];
+if [ ! "$(grep -Fc 'deb http://mirrors.linode.com/debian/ jessie main contrib non-free' /etc/apt/sources.list)" -ge "1" ];
 then echo "deb http://mirrors.linode.com/debian/ jessie main contrib non-free" >> /etc/apt/sources.list; update=true; fi
-if [ ! $(grep -Fc 'deb-src http://mirrors.linode.com/debian/ jessie main contrib non-free' /etc/apt/sources.list) -ge "1" ];
+if [ ! "$(grep -Fc 'deb-src http://mirrors.linode.com/debian/ jessie main contrib non-free' /etc/apt/sources.list)" -ge "1" ];
 then echo "deb-src http://mirrors.linode.com/debian/ jessie main contrib non-free" >> /etc/apt/sources.list; update=true; fi
-if [ ! -z $(which wget) ]; then
-if [ ! $(grep -Fc 'deb http://packages.dotdeb.org jessie all' /etc/apt/sources.list) -ge "1" ];
+if [ ! -z "$(which wget)" ]; then
+if [ ! "$(grep -Fc 'deb http://packages.dotdeb.org jessie all' /etc/apt/sources.list)" -ge "1" ];
 then echo "deb http://packages.dotdeb.org jessie all" >> /etc/apt/sources.list; update=true; fi
-if [ ! $(grep -Fc 'deb-src http://packages.dotdeb.org jessie all' /etc/apt/sources.list) -ge "1" ];
+if [ ! "$(grep -Fc 'deb-src http://packages.dotdeb.org jessie all' /etc/apt/sources.list)" -ge "1" ];
 then echo "deb-src http://packages.dotdeb.org jessie all" >> /etc/apt/sources.list; update=true; fi
 $update && wget http://www.dotdeb.org/dotdeb.gpg && apt-key add dotdeb.gpg && rm -f dotdeb.gpg
 fi
@@ -733,8 +742,8 @@ echo "
 *********************************************
 Installing MYSQL and securing it
 *********************************************"
-local i=1
-local pass=1
+i=1
+pass=1
 while [ $pass != "0" ]
 do
 MYSQL_ROOT_PASS=
@@ -751,28 +760,30 @@ The password was wrong.
 Please enter the correct mysql root password.
 ------------------------------"
 fi
-(( i++ ))
-read -s MYSQL_ROOT_PASS
-if [ ! -z $(which mysql) ]; then
-[ ! -z $MYSQL_ROOT_PASS ] && ( echo exit | mysql -uroot -p$MYSQL_ROOT_PASS >/dev/null 2>&1 )
+i=$((i+1))
+stty -echo
+read -r MYSQL_ROOT_PASS
+stty echo
+printf "\n"
+if [ ! -z "$(which mysql)" ]; then
+if [ ! -z "$MYSQL_ROOT_PASS" ] && ( echo exit | mysql -uroot -p"$MYSQL_ROOT_PASS" >/dev/null 2>&1 ); then pass=0; fi
 else
 pass=0
 fi
-[ "$?" = "0" ] && pass=0
 done
 
 command -v mysql >/dev/null 2>&1 || { echo >&2
 
 install_components "debconf-utils expect"
-echo mysql-server mysql-server/root_password password $MYSQL_ROOT_PASS | debconf-set-selections
-echo mysql-server mysql-server/root_password_again password $MYSQL_ROOT_PASS | debconf-set-selections
+echo mysql-server mysql-server/root_password password "$MYSQL_ROOT_PASS" | debconf-set-selections
+echo mysql-server mysql-server/root_password_again password "$MYSQL_ROOT_PASS" | debconf-set-selections
 
 install_components mysql-server
 
 start_service mysql
 
 echo "Run expect for mysql_secure_installation"
-export SECURE_MYSQL=$(expect -c "
+SECURE_MYSQL=$(expect -c "
 set timeout 10
 spawn mysql_secure_installation
 expect \"Enter current password for root:\"
@@ -791,6 +802,7 @@ expect \"Reload privilege tables now?\"
 send \"y\r\"
 expect eof
 ")
+export SECURE_MYSQL
 echo "$SECURE_MYSQL"
 unset SECURE_MYSQL
 
@@ -800,8 +812,7 @@ $INSTALLER_APP -y purge expect
 start_service mysql
 }
 
-if [ ! $(grep -Fq "sql_mode" /etc/mysql/my.cnf) ];
-  then
+if ! grep -Fq "sql_mode" /etc/mysql/my.cnf; then
     echo "sql_mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION" >> /etc/mysql/my.cnf
 fi
 }
@@ -811,9 +822,9 @@ echo "
 *********************************************
 Installing phpMyAdmin
 *********************************************"
-local SOFTWARE_URL=https://files.phpmyadmin.net/phpMyAdmin/4.6.4/phpMyAdmin-4.6.4-all-languages.zip
-local SOFTWARE_ZIP=$(basename $SOFTWARE_URL)
-local SOFTWARE_DIR=$(sed -e 's/.zip//' <<< $SOFTWARE_ZIP)
+SOFTWARE_URL=https://files.phpmyadmin.net/phpMyAdmin/4.6.4/phpMyAdmin-4.6.4-all-languages.zip
+SOFTWARE_ZIP=$(basename $SOFTWARE_URL)
+SOFTWARE_DIR=$(printf '%s' "$SOFTWARE_ZIP" | sed -e 's/.zip//')
 
 install_base_components
 
@@ -827,10 +838,11 @@ echo "
 Enter a name for installation.
 It can contain the domain/subdomain name.
 You can add phpMyAdmin to an existing installation/domain.
-Default: $DOMAIN_APP_NAME
 The base installation directory would be then e.g. $WWWPATH/$DOMAIN_APP_NAME
+
+e.g.: $DOMAIN_APP_NAME
 ------------------------------"
-read -e -i "$DOMAIN_APP_NAME" DOMAIN_APP_NAME
+read -r DOMAIN_APP_NAME
 
 # reload variables to set the $DOMAIN_APP_NAME in $WWWPATHHTML
 set_vars
@@ -840,11 +852,14 @@ echo "
 Enter the full path for the installation directory,
 The default is '$WWWPATH' followed by the entered name $DOMAIN_APP_NAME,
 Per default a 'public_html' directory will be created for the application.
+
 The default path would be then e.g.: $WWWPATHHTML
 ------------------------------"
-read -e -i "$WWWPATHHTML" WWWPATHHTML
+read -r WWWPATHHTML
 
-[[ ! -d $WWWPATHHTML ]] && mkdir -p $WWWPATHHTML
+if [ ! -d "$WWWPATHHTML" ]; then
+  mkdir -p "$WWWPATHHTML"
+fi
 
 install_mysql
 
@@ -863,71 +878,70 @@ create_php_pool
 create_nginx_vhost phpmyadmin
 
 echo "Copy application files"
-wget $SOFTWARE_URL -O /tmp/$SOFTWARE_ZIP
-unzip /tmp/$SOFTWARE_ZIP
-mkdir -p $WWWPATHHTML/phpmyadmin
-cp -rT $SOFTWARE_DIR $WWWPATHHTML/phpmyadmin
-[[ -d /tmp/$SOFTWARE_DIR ]] && rm -rf /tmp/$SOFTWARE_DIR
-[[ -f $SOFTWARE_ZIP ]] && rm -f $SOFTWARE_ZIP
+wget $SOFTWARE_URL -O /tmp/"$SOFTWARE_ZIP"
+unzip /tmp/"$SOFTWARE_ZIP"
+mkdir -p "$WWWPATHHTML"/phpmyadmin
+cp -rT "$SOFTWARE_DIR" "$WWWPATHHTML"/phpmyadmin
+if [ -d /tmp/"$SOFTWARE_DIR" ]; then
+  rm -rf /tmp/"$SOFTWARE_DIR"
+fi
+if [ -f "$SOFTWARE_ZIP" ]; then
+  rm -f "$SOFTWARE_ZIP"
+fi
 
 PHPMYADMIN_CONF=$WWWPATHHTML/phpmyadmin/config.inc.php
-cp $WWWPATHHTML/phpmyadmin/config.sample.inc.php $PHPMYADMIN_CONF
+cp "$WWWPATHHTML"/phpmyadmin/config.sample.inc.php "$PHPMYADMIN_CONF"
 
-local BLOWFISH_PASS=$(cat /dev/urandom | tr -dc "a-zA-Z0-9@#*=" | fold -w 32 | head -n 1)
-sed -i "s/.*'blowfish_secret'.*/\$cfg['blowfish_secret'] = '$BLOWFISH_PASS';/g" $PHPMYADMIN_CONF
-sed -i "s/localhost/127.0.0.1/g" $PHPMYADMIN_CONF
-sed -i "/AllowNoPassword/a \$cfg['ForceSSL'] = 'true';" $PHPMYADMIN_CONF
+BLOWFISH_PASS=$(< /dev/urandom tr -dc "a-zA-Z0-9@#*=" | fold -w "$SHUF" | head -n 1)
+sed -i "s/.*'blowfish_secret'.*/\$cfg['blowfish_secret'] = '$BLOWFISH_PASS';/g" "$PHPMYADMIN_CONF"
+sed -i "s/localhost/127.0.0.1/g" "$PHPMYADMIN_CONF"
+sed -i "/AllowNoPassword/a \$cfg['ForceSSL'] = 'true';" "$PHPMYADMIN_CONF"
 
 echo "Set permissions to files and directories"
-chown -R $service_user:www-data $WWWPATHHTML/
-find $WWWPATHHTML -type d -exec chmod 750 {} \;
-find $WWWPATHHTML -type f -exec chmod 640 {} \;
+chown -R "$service_user":www-data "$WWWPATHHTML"/
+find "$WWWPATHHTML" -type d -exec chmod 750 {} \;
+find "$WWWPATHHTML" -type f -exec chmod 640 {} \;
 
 start_service "nginx php7.0-fpm mysql"
 
-[[ ! -d $SCRIPTS_DIR ]] && mkdir -p $SCRIPTS_DIR
+if [ ! -d $SCRIPTS_DIR ]; then
+  mkdir -p $SCRIPTS_DIR
+fi
 echo "Write root password into file $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt, delete it soon!"
-echo "MYSQL ROOT Password is $MYSQL_ROOT_PASS" >> $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
-chmod 600 $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
+echo "MYSQL ROOT Password is $MYSQL_ROOT_PASS" >> $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
+chmod 600 $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
 
 echo "Installation succeded...
 Press ENTER to finish"
-read
+Pause
 }
 
 create_mysql_db() {
 MYSQL_DB_NAME=
 MYSQL_DB_USER=
-local db_type=new
-echo "
-------------------------------
-MYSQL Database:
-do you want to create a new database -
-or connect to an existing one? [New/Existing]
-------------------------------"
-select db_type in "New" "Existing"; do
-case $db_type in
-New)
-new_db=true
-break;
-;;
-Existing)
-new_db=false
-break;
-;;
-*)
-echo "ERROR: Invalid option!"
-;;
-esac
+
+while true; do
+  echo "
+  ------------------------------
+  MYSQL Database:
+  do you want to create a new database -
+  or connect to an existing one? [new/existing]
+  ------------------------------"
+  read -r answer
+    case $answer in
+        new) new_db=true; break;;
+        existing) new_db=false; break;;
+        * ) echo "ERROR: Invalid option!";;
+    esac
 done
 
-if [ $new_db == true ]; then
+if [ $new_db = true ]; then
 echo "
 *************************************
 Creating a new mysql database
 *************************************"
-local conn=false
-local init=true
+conn=false
+init=true
 while [ $conn != true ]
 do
 if [ $init = false ]; then
@@ -939,26 +953,36 @@ Please check the entered data:
 ------------------------------"
 fi
 
-[[ -z $MYSQL_HOST ]] && MYSQL_HOST=127.0.0.1
+if [ -z "$MYSQL_HOST" ]; then
+  MYSQL_HOST=127.0.0.1
+fi
 echo "
 ------------------------------
 Enter the hostname for the mysql server:
+
+e.g. $MYSQL_HOST
 ------------------------------"
-read -e -i "$MYSQL_HOST" MYSQL_HOST
+read -r MYSQL_HOST
 
 MYSQL_ROOT_PASS=
 echo "
 ------------------------------
 Enter the root password for the mysql database:
 ------------------------------"
-read -s -r MYSQL_ROOT_PASS
+stty -echo
+read -r MYSQL_ROOT_PASS
+stty echo
+printf "\n"
 
-echo exit | mysql -uroot -p$MYSQL_ROOT_PASS >/dev/null 2>&1
-[ "$?" = "0" ] && conn=true || init=false
+if echo exit | mysql -uroot -p"$MYSQL_ROOT_PASS" >/dev/null 2>&1; then
+  conn=true
+else
+  init=false
+fi
 done
 
-local conn=false
-local init=true
+conn=false
+init=true
 while [ $conn != true ]
 do
 if [ $init = false ]; then
@@ -969,12 +993,12 @@ Please enter a database which does not exists yet.
 ------------------------------"
 fi
 
-request_mysql_user_credentials $1
+request_mysql_user_credentials "$1"
 
 if [ "$(echo "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '$MYSQL_DB_NAME' ;" | \
-mysql -uroot -p$MYSQL_ROOT_PASS -h$MYSQL_HOST | grep -v SCHEMA_NAME | wc -l)" -gt "0" ];
+mysql -uroot -p"$MYSQL_ROOT_PASS" -h"$MYSQL_HOST" | grep -c SCHEMA_NAME)" -gt "0" ];
 then
-init = false
+init=false
 else
 conn=true
 fi
@@ -987,8 +1011,9 @@ Creating database now.
 echo "CREATE DATABASE IF NOT EXISTS $MYSQL_DB_NAME;
 GRANT ALL PRIVILEGES ON $MYSQL_DB_NAME.* TO '$MYSQL_DB_USER'@'127.0.0.1' IDENTIFIED BY '$MYSQL_DB_PASSWORD';
 quit" >> /tmp/createdb.sql
-cat /tmp/createdb.sql | mysql -u root -p$MYSQL_ROOT_PASS -h$MYSQL_HOST
-[ "$?" = "0" ] && echo "Created database $MYSQL_DB_NAME successfully "
+if mysql -u root -p"$MYSQL_ROOT_PASS" -h"$MYSQL_HOST" < /tmp/createdb.sql; then
+  echo "Created database $MYSQL_DB_NAME successfully "
+fi
 rm -f /tmp/createdb.sql
 
 else
@@ -997,15 +1022,19 @@ echo "
 Connecting to existing mysql database
 *************************************"
 
-[[ -z $MYSQL_HOST ]] && MYSQL_HOST=127.0.0.1
+if [ -z "$MYSQL_HOST" ]; then
+  MYSQL_HOST=127.0.0.1
+fi
 echo "
 ------------------------------
 Enter the hostname for the mysql server:
-------------------------------"
-read -e -i "$MYSQL_HOST" MYSQL_HOST
 
-local conn=false
-local init=true
+e.g. $MYSQL_HOST
+------------------------------"
+read -r MYSQL_HOST
+
+conn=false
+init=true
 while [ $conn != true ]
 do
 if [ $init = false ];
@@ -1018,15 +1047,13 @@ you want to use.
 ------------------------------"
 fi
 
-request_mysql_user_credentials $1
+request_mysql_user_credentials "$1"
 
-echo exit | mysql -u$MYSQL_DB_USER -p$MYSQL_DB_PASSWORD -h$MYSQL_HOST >/dev/null 2>&1
-if [ "$?" = "0" ];
-then
-echo "Connected successfully to database $MYSQL_DB_NAME."
-conn=true
+if echo exit | mysql -u$MYSQL_DB_USER -p"$MYSQL_DB_PASSWORD" -h"$MYSQL_HOST" >/dev/null 2>&1; then
+  echo "Connected successfully to database $MYSQL_DB_NAME."
+  conn=true
 else
-init = false
+  init=false
 fi
 done
 
@@ -1039,26 +1066,42 @@ export MYSQL_HOST
 }
 
 request_mysql_user_credentials() {
-[[ ! -z $1 ]] && MYSQL_DB_NAME=$1 || MYSQL_DB_NAME=$MYSQL_DB_NAME
+if [ ! -z "$1" ]; then
+  MYSQL_DB_NAME=$1
+else
+  MYSQL_DB_NAME=$MYSQL_DB_NAME
+fi
 echo "
 ------------------------------
 Enter a database name for the mysql database
-------------------------------"
-read -e -i "$MYSQL_DB_NAME" MYSQL_DB_NAME
 
-[[ ! -z $MYSQL_DB_USER ]] && MYSQL_DB_USER=$MYSQL_DB_USER || MYSQL_DB_USER=$MYSQL_DB_NAME
+e.g. $MYSQL_DB_NAME
+------------------------------"
+read -r MYSQL_DB_NAME
+
+if [ ! -z $MYSQL_DB_USER ]; then
+  MYSQL_DB_USER=$MYSQL_DB_USER
+else
+  MYSQL_DB_USER=$MYSQL_DB_NAME
+fi
+
 echo "
 ------------------------------
 Enter the username for the mysql database $MYSQL_DB_NAME.
+
+e.g. $MYSQL_DB_USER
 ------------------------------"
-read -e -i "$MYSQL_DB_USER" MYSQL_DB_USER
+read -r MYSQL_DB_USER
 
 MYSQL_DB_PASSWORD=
 echo "
 ------------------------------
 Enter the password for the mysql database  $MYSQL_DB_NAME for user $MYSQL_DB_USER.
 ------------------------------"
-read -s -r MYSQL_DB_PASSWORD
+stty -echo
+read -r MYSQL_DB_PASSWORD
+stty echo
+printf "\n"
 }
 
 install_webmail_lite() {
@@ -1066,8 +1109,8 @@ echo "
 *********************************************
 Installing Webmail Lite
 *********************************************"
-local AL_WEBMAIL_URL=http://www.afterlogic.org/download/webmail_php.zip
-local AL_WEBMAIL_ZIP=webmail_php.zip
+AL_WEBMAIL_URL=http://www.afterlogic.org/download/webmail_php.zip
+AL_WEBMAIL_ZIP=webmail_php.zip
 install_base_components
 
 install_components "software-properties-common php7.0 php7.0-mcrypt php7.0-curl php7.0-gd php7.0-mbstring php-xml-parser php7.0-common php7.0-cli php7.0-json	php7.0-readline	php7.0-mysql"
@@ -1079,10 +1122,11 @@ echo "
 ------------------------------
 Enter a name for installation.
 It can contain the domain/subdomain name.
-Default: $DOMAIN_APP_NAME
 The base installation directory would be then e.g. $WWWPATH/$DOMAIN_APP_NAME
+
+e.g: $DOMAIN_APP_NAME
 ------------------------------"
-read -e -i "$DOMAIN_APP_NAME" DOMAIN_APP_NAME
+read -r DOMAIN_APP_NAME
 
 # reload variables to set the $DOMAIN_APP_NAME in $WWWPATHHTML
 set_vars
@@ -1092,11 +1136,14 @@ echo "
 Enter the full path for the installation directory,
 The default is '$WWWPATH' followed by the entered name $DOMAIN_APP_NAME,
 Per default a 'public_html' directory will be created for the application.
+
 The default path would be then e.g.: $WWWPATHHTML
 ------------------------------"
-read -e -i "$WWWPATHHTML" WWWPATHHTML
+read -r WWWPATHHTML
 
-[[ ! -d $WWWPATHHTML ]] && mkdir -p $WWWPATHHTML
+if [ ! -d "$WWWPATHHTML" ]; then
+  mkdir -p "$WWWPATHHTML"
+fi
 
 create_service_user webmail
 
@@ -1117,13 +1164,15 @@ create_nginx_vhost webmail
 echo "Copy Webmail Lite application"
 wget $AL_WEBMAIL_URL -O /tmp/$AL_WEBMAIL_ZIP
 unzip /tmp/$AL_WEBMAIL_ZIP
-cp -rT webmail $WWWPATHHTML/
-[[ -d /tmp/webmail ]] && rm -rf /tmp/webmail
+cp -rT webmail "$WWWPATHHTML"/
+if [ -d /tmp/webmail ]; then
+  rm -rf /tmp/webmail
+fi
 
 echo "Set permissions to files and directories"
-chown -R $service_user:www-data $WWWPATHHTML/
-find $WWWPATHHTML -type d -exec chmod 750 {} \;
-find $WWWPATHHTML -type f -exec chmod 640 {} \;
+chown -R "$service_user":www-data "$WWWPATHHTML"/
+find "$WWWPATHHTML" -type d -exec chmod 750 {} \;
+find "$WWWPATHHTML" -type f -exec chmod 640 {} \;
 
 create_mysql_db webmail_db
 
@@ -1137,18 +1186,23 @@ ADMINPanel: https://$DOMAIN_APP_NAME/adminpanel/
 Adminuser:  mailadm Password: 12345
 
 Users login:      https://$DOMAIN_APP_NAME/index.php
-"
-read
 
-[[ ! -d $SCRIPTS_DIR ]] && mkdir -p $SCRIPTS_DIR
+Then press any key to continue
+"
+Pause
+
+if [ ! -d $SCRIPTS_DIR ]; then
+  mkdir -p $SCRIPTS_DIR
+fi
+
 echo "Write root password into file $SCRIPTS_DIR/m-r-pass.txt, delete it soon!"
-echo "MYSQL ROOT Password is $MYSQL_ROOT_PASS" >> $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
-echo "Webmail Lite MYSQL DB PASSWORD is $MYSQL_DB_PASSWORD" >> $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
-chmod 600 $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
+echo "MYSQL ROOT Password is $MYSQL_ROOT_PASS" >> $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
+echo "Webmail Lite MYSQL DB PASSWORD is $MYSQL_DB_PASSWORD" >> $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
+chmod 600 $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
 
 echo "Installation succeded...
 Press ENTER to finish"
-read
+Pause
 }
 
 install_wordpress() {
@@ -1156,16 +1210,16 @@ echo "
 *********************************************
 Installing Wordpress
 *********************************************"
-local SOFTWARE_URL=https://wordpress.org/latest.zip
-local SOFTWARE_ZIP=$(basename $SOFTWARE_URL)
-local PLUGIN1_URL=https://downloads.wordpress.org/plugin/gotmls.4.16.39.zip
-local PLUGIN1_ZIP=$(basename $PLUGIN1_URL)
-local PLUGIN2_URL=https://downloads.wordpress.org/plugin/better-wp-security.5.6.2.zip
-local PLUGIN2_ZIP=$(basename $PLUGIN2_URL)
-local PLUGIN3_URL=https://downloads.wordpress.org/plugin/redis-cache.1.3.4.zip
-local PLUGIN3_ZIP=$(basename $PLUGIN3_URL)
-local PLUGIN4_URL=https://downloads.wordpress.org/plugin/two-factor-authentication.1.2.13.zip
-local PLUGIN4_ZIP=$(basename $PLUGIN4_URL)
+SOFTWARE_URL=https://wordpress.org/latest.zip
+SOFTWARE_ZIP=$(basename $SOFTWARE_URL)
+PLUGIN1_URL=https://downloads.wordpress.org/plugin/gotmls.4.16.39.zip
+PLUGIN1_ZIP=$(basename $PLUGIN1_URL)
+PLUGIN2_URL=https://downloads.wordpress.org/plugin/better-wp-security.5.6.2.zip
+PLUGIN2_ZIP=$(basename $PLUGIN2_URL)
+PLUGIN3_URL=https://downloads.wordpress.org/plugin/redis-cache.1.3.4.zip
+PLUGIN3_ZIP=$(basename $PLUGIN3_URL)
+PLUGIN4_URL=https://downloads.wordpress.org/plugin/two-factor-authentication.1.2.13.zip
+PLUGIN4_ZIP=$(basename $PLUGIN4_URL)
 
 install_base_components
 
@@ -1178,10 +1232,11 @@ echo "
 ------------------------------
 Enter a name for installation.
 It can contain the domain/subdomain name.
-Default: $DOMAIN_APP_NAME
 The base installation directory would be then e.g. $WWWPATH/$DOMAIN_APP_NAME
+
+E.g.: $DOMAIN_APP_NAME
 ------------------------------"
-read -e -i "$DOMAIN_APP_NAME" DOMAIN_APP_NAME
+read -r DOMAIN_APP_NAME
 
 # reload variables to set the $DOMAIN_APP_NAME in $WWWPATHHTML
 set_vars
@@ -1191,36 +1246,31 @@ echo "
 Enter the full path for the installation directory,
 The default is '$WWWPATH' followed by the entered name $DOMAIN_APP_NAME,
 Per default a 'public_html' directory will be created for the application.
+
 The default path would be then e.g.: $WWWPATHHTML
 ------------------------------"
-read -e -i "$WWWPATHHTML" WWWPATHHTML
+read -r WWWPATHHTML
 
-[[ ! -d $WWWPATHHTML ]] && mkdir -p $WWWPATHHTML
+if [ ! -d "$WWWPATHHTML" ]; then
+  mkdir -p "$WWWPATHHTML"
+fi
 
 install_mysql
 
 install_nginx
 
-local var=
 use_redis=
-echo "
-------------------------------
-Do you want to use redis as cache? [Yes/No]
-------------------------------"
-select yn in "Yes" "No"; do
-case $yn in
-Yes)
-use_redis=true
-break;
-;;
-No)
-use_redis=false
-break;
-;;
-*)
-echo "ERROR: Invalid option!"
-;;
-esac
+while true; do
+  echo "
+  ------------------------------
+  Do you want to use redis as cache? [Yes/No]
+  ------------------------------"
+  read -r yn
+    case $yn in
+        [Yy]* ) use_redis=true; break;;
+        [Nn]* ) use_redis=false; break;;
+        * ) echo "Please answer y or n.";;
+    esac
 done
 
 $use_redis && install_redis
@@ -1239,11 +1289,15 @@ create_php_pool
 create_nginx_vhost wordpress
 
 echo "Copy application files"
-wget $SOFTWARE_URL -O /tmp/$SOFTWARE_ZIP
-unzip /tmp/$SOFTWARE_ZIP
-cp -rT wordpress $WWWPATHHTML/
-[[ -d /tmp/wordpress ]] && rm -rf /tmp/wordpress
-[[ -f $SOFTWARE_ZIP ]] && rm -f $SOFTWARE_ZIP
+wget $SOFTWARE_URL -O /tmp/"$SOFTWARE_ZIP"
+unzip /tmp/"$SOFTWARE_ZIP"
+cp -rT wordpress "$WWWPATHHTML"/
+if [ -d /tmp/wordpress ]; then
+  rm -rf /tmp/wordpress
+fi
+if [ -f "$SOFTWARE_ZIP" ]; then
+  rm -f "$SOFTWARE_ZIP"
+fi
 
 create_mysql_db wordpress
 
@@ -1251,25 +1305,27 @@ TABLE_PREFIX=
 echo "
 ------------------------------
 Enter a table prefix for this wordpress installation
+
+e.g.:  wp1_
 ------------------------------"
-read -e -i "wp1_" TABLE_PREFIX
+read -r TABLE_PREFIX
 
 echo "Adjust wordpress config file"
-cp $WWWPATHHTML/wp-config-sample.php $WWWPATHHTML/wp-config.php
-sed -i "s/^\$table_prefix.*;/\$table_prefix  = '$TABLE_PREFIX';/g" $WWWPATHHTML/wp-config.php
-sed -i "s/^define('DB_HOST', '.*');/define('DB_HOST', '$MYSQL_HOST');/g" $WWWPATHHTML/wp-config.php
-sed -i "s/^define('DB_USER', '.*');/define('DB_USER', '$MYSQL_DB_USER');/g" $WWWPATHHTML/wp-config.php
-sed -i "s/^define('DB_NAME', '.*');/define('DB_NAME', '$MYSQL_DB_NAME');/g" $WWWPATHHTML/wp-config.php
-sed -i "s/^define('DB_PASSWORD', '.*');/define('DB_PASSWORD', '$MYSQL_DB_PASSWORD');/g" $WWWPATHHTML/wp-config.php
+cp "$WWWPATHHTML"/wp-config-sample.php "$WWWPATHHTML"/wp-config.php
+sed -i "s/^\$table_prefix.*;/\$table_prefix  = '$TABLE_PREFIX';/g" "$WWWPATHHTML"/wp-config.php
+sed -i "s/^define('DB_HOST', '.*');/define('DB_HOST', '$MYSQL_HOST');/g" "$WWWPATHHTML"/wp-config.php
+sed -i "s/^define('DB_USER', '.*');/define('DB_USER', '$MYSQL_DB_USER');/g" "$WWWPATHHTML"/wp-config.php
+sed -i "s/^define('DB_NAME', '.*');/define('DB_NAME', '$MYSQL_DB_NAME');/g" "$WWWPATHHTML"/wp-config.php
+sed -i "s/^define('DB_PASSWORD', '.*');/define('DB_PASSWORD', '$MYSQL_DB_PASSWORD');/g" "$WWWPATHHTML"/wp-config.php
 
 echo "
 /** Disallow theme editor for WordPress. */
-define( 'DISALLOW_FILE_EDIT', true );" >> $WWWPATHHTML/wp-config.php
+define( 'DISALLOW_FILE_EDIT', true );" >> "$WWWPATHHTML"/wp-config.php
 
 echo "
 /** Disallow error reportin for php. */
 error_reporting(0);
-@ini_set(‘display_errors’, 0);" >> $WWWPATHHTML/wp-config.php
+@ini_set(‘display_errors’, 0);" >> "$WWWPATHHTML"/wp-config.php
 
 echo "
 ------------------------------
@@ -1277,24 +1333,30 @@ Setting wordpress salt strings
 ------------------------------"
 SALT=$(curl -L https://api.wordpress.org/secret-key/1.1/salt/)
 STRING='put your unique phrase here'
-printf '%s\n' "g/$STRING/d" a "$SALT" . w | ed -s $WWWPATHHTML/wp-config.php
+printf '%s\n' "g/$STRING/d" a "$SALT" . w | ed -s "$WWWPATHHTML"/wp-config.php
 
 echo "
 ------------------------------
 Downloading and installing security plugins
 ------------------------------"
-cd /tmp
+cd /tmp || echo 'Could not change directory to /tmp' #This should not happen as /tmp is a normally existend
 wget $PLUGIN1_URL
-unzip -q $PLUGIN1_ZIP -d $WWWPATHHTML/wp-content/plugins
-[[ -f $PLUGIN1_ZIP ]] && rm -f $PLUGIN1_ZIP
+unzip -q "$PLUGIN1_ZIP" -d "$WWWPATHHTML"/wp-content/plugins
+if [ -f "$PLUGIN1_ZIP" ]; then
+  rm -f "$PLUGIN1_ZIP"
+fi
 
 wget $PLUGIN2_URL
-unzip -q $PLUGIN2_ZIP -d $WWWPATHHTML/wp-content/plugins
-[[ -f $PLUGIN2_ZIP ]] && rm -f $PLUGIN2_ZIP
+unzip -q "$PLUGIN2_ZIP" -d "$WWWPATHHTML"/wp-content/plugins
+if [ -f "$PLUGIN2_ZIP" ]; then
+  rm -f "$PLUGIN2_ZIP"
+fi
 
 wget $PLUGIN4_URL
-unzip -q $PLUGIN4_ZIP -d $WWWPATHHTML/wp-content/plugins
-[[ -f $PLUGIN4_ZIP ]] && rm -f $PLUGIN4_ZIP
+unzip -q "$PLUGIN4_ZIP" -d "$WWWPATHHTML"/wp-content/plugins
+if [ -f "$PLUGIN4_ZIP" ]; then
+  rm -f "$PLUGIN4_ZIP"
+fi
 
 if $use_redis; then
 echo "
@@ -1302,8 +1364,10 @@ echo "
 Install redis object cache plugin for wordpress
 ------------------------------"
 wget $PLUGIN3_URL
-unzip -q $PLUGIN3_ZIP -d $WWWPATHHTML/wp-content/plugins
-[[ -f $PLUGIN3_ZIP ]] && rm -f $PLUGIN3_ZIP
+unzip -q "$PLUGIN3_ZIP" -d "$WWWPATHHTML"/wp-content/plugins
+if [ -f "$PLUGIN3_ZIP" ]; then
+  rm -f "$PLUGIN3_ZIP"
+fi
 
 sed -i "/^\$table_prefix.*/ a\\
 \\
@@ -1313,9 +1377,9 @@ define( 'WP_REDIS_SCHEME', 'unix'); \\
 define( 'WP_REDIS_PATH', '/var/run/redis/redis.sock'); \\
 define( 'WP_REDIS_DATABASE', '0'); \\
 define( 'WP_REDIS_PASSWORD', '$REDIS_PASS'); \\
-define( 'WP_REDIS_KEY_SALT', '${service_user}_');" $WWWPATHHTML/wp-config.php
+define( 'WP_REDIS_KEY_SALT', '${service_user}_');" "$WWWPATHHTML"/wp-config.php
 
-add_user_to_group $service_user redis
+add_user_to_group "$service_user" redis
 fi
 
 echo "write permission file for wordpress permissions"
@@ -1326,23 +1390,26 @@ chown -R $service_user:www-data $WWWPATHHTML/
 find $WWWPATHHTML -type d -exec chmod 750 {} \;
 find $WWWPATHHTML -type f -exec chmod 640 {} \;
 chmod 600 $WWWPATHHTML/wp-config.php
-" > $PERMISSIONFILES/$DOMAIN_APP_NAME-permission.sh
+" > $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission.sh
 
 echo "set permissions for wordpress"
-bash $PERMISSIONFILES/$DOMAIN_APP_NAME-permission.sh
+bash $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission.sh
 
 start_service "nginx php7.0-fpm"
 
-[[ ! -d $SCRIPTS_DIR ]] && mkdir -p $SCRIPTS_DIR
+if [ ! -d $SCRIPTS_DIR ]; then
+  mkdir -p $SCRIPTS_DIR
+fi
+
 echo "Write root password into file $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt, delete it soon!"
-echo "MYSQL ROOT Password is $MYSQL_ROOT_PASS" >> $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
-$use_redis && echo "REDIS Server Password is $REDIS_PASS" >> $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
-echo "Wordpress MYSQL DB PASSWORD is $MYSQL_DB_PASSWORD" >> $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
-chmod 600 $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
+echo "MYSQL ROOT Password is $MYSQL_ROOT_PASS" >> $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
+$use_redis && echo "REDIS Server Password is $REDIS_PASS" >> $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
+echo "Wordpress MYSQL DB PASSWORD is $MYSQL_DB_PASSWORD" >> $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
+chmod 600 $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
 
 echo "Installation succeded...
 Press ENTER to finish"
-read
+Pause
 }
 
 install_owncloud() {
@@ -1350,8 +1417,8 @@ echo "
 *********************************************
 Installing Owncloud
 *********************************************"
-local SOFTWARE_URL=https://download.owncloud.org/community/owncloud-9.1.0.tar.bz2
-local SOFTWARE_ZIP=$(basename $SOFTWARE_URL)
+SOFTWARE_URL=https://download.owncloud.org/community/owncloud-9.1.0.tar.bz2
+SOFTWARE_ZIP=$(basename $SOFTWARE_URL)
 
 install_base_components
 
@@ -1364,10 +1431,11 @@ echo "
 ------------------------------
 Enter a name for installation.
 It can contain the domain/subdomain name.
-Default: $DOMAIN_APP_NAME
 The base installation directory would be then e.g. $WWWPATH/$DOMAIN_APP_NAME
+
+E.g.: $DOMAIN_APP_NAME
 ------------------------------"
-read -e -i "$DOMAIN_APP_NAME" DOMAIN_APP_NAME
+read -r DOMAIN_APP_NAME
 export DOMAIN_APP_NAME
 
 # reload variables to set the $DOMAIN_APP_NAME in $WWWPATHHTML
@@ -1378,35 +1446,32 @@ echo "
 Enter the full path for the installation directory,
 The default is '$WWWPATH' followed by the entered name $DOMAIN_APP_NAME,
 Per default a 'public_html' directory will be created for the application.
+
 The default path would be then e.g.: $WWWPATHHTML
 ------------------------------"
-read -e -i "$WWWPATHHTML" WWWPATHHTML
-[[ ! -d $WWWPATHHTML ]] && mkdir -p $WWWPATHHTML
+read -r WWWPATHHTML
 export WWWPATHHTML
+if [ ! -d "$WWWPATHHTML" ]; then
+  mkdir -p "$WWWPATHHTML"
+fi
 
 install_mysql
 
 install_nginx
 
-echo "
-------------------------------
-Do you want to use redis as cache?
-------------------------------"
-select yn in "Yes" "No"; do
-case $yn in
-Yes)
-use_redis=true
-break;
-;;
-No)
-use_redis=false
-break;
-;;
-*)
-echo "ERROR: Invalid option!"
-;;
-esac
+while true; do
+  echo "
+  ------------------------------
+  Do you want to use redis as cache? [Yes/No]
+  ------------------------------"
+  read -r yn
+    case $yn in
+        [Yy]* ) use_redis=true; break;;
+        [Nn]* ) use_redis=false; break;;
+        * ) echo "Please answer y or n.";;
+    esac
 done
+
 $use_redis && install_redis
 $use_redis && install_components php7.0-redis
 
@@ -1414,10 +1479,12 @@ APP_TIMEZONE=Europe/Berlin
 echo "
 ------------------------------
 Please enter your owncloud timezone (e.g. for owncloud internal log entries)
-------------------------------"
-read -e -i "$APP_TIMEZONE" APP_TIMEZONE
 
-install_php_fpm $APP_TIMEZONE
+E.g.: $APP_TIMEZONE
+------------------------------"
+read -r APP_TIMEZONE
+
+install_php_fpm "$APP_TIMEZONE"
 
 create_snakeoil_certs
 
@@ -1435,65 +1502,71 @@ TABLE_PREFIX=
 echo "
 ------------------------------
 Enter a table prefix for this owncloud installation
+
+E.g.: oc1_
 ------------------------------"
-read -e -i "oc1_" TABLE_PREFIX
+read -r TABLE_PREFIX
 export TABLE_PREFIX
 
 start_service "nginx"
 
 echo "Copy application files"
-cd /tmp
-wget $SOFTWARE_URL -O /tmp/$SOFTWARE_ZIP
-tar -xjf  /tmp/$SOFTWARE_ZIP
-cp -rT owncloud $WWWPATHHTML
-[[ -f  /tmp/$SOFTWARE_ZIP ]] && rm -f /tmp/$SOFTWARE_ZIP
-[[ -d /tmp/owncloud ]] && rm -rf /tmp/owncloud
+cd /tmp || echo 'Could not change directory to /tmp' #This should not happen as /tmp is a normally existend
+wget $SOFTWARE_URL -O /tmp/"$SOFTWARE_ZIP"
+tar -xjf  /tmp/"$SOFTWARE_ZIP"
+cp -rT owncloud "$WWWPATHHTML"
+if [ -f  /tmp/"$SOFTWARE_ZIP" ]; then
+  rm -f /tmp/"$SOFTWARE_ZIP"
+fi
+if [ -d /tmp/owncloud ]; then
+  rm -rf /tmp/owncloud
+fi
 
 echo "Download secure permission file from github"
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/setup_secure_permissions_owncloud.sh -O $PERMISSIONFILES/$DOMAIN_APP_NAME-secure-permission.sh
-sed -i "s,OWNCLOUDPATH,$WWWPATHHTML," $PERMISSIONFILES/$DOMAIN_APP_NAME-secure-permission.sh
-sed -i "s,HTUSER,$service_user," $PERMISSIONFILES/$DOMAIN_APP_NAME-secure-permission.sh
-chmod +x $PERMISSIONFILES/$DOMAIN_APP_NAME-secure-permission.sh
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/setup_secure_permissions_owncloud.sh -O $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
+sed -i "s,OWNCLOUDPATH,$WWWPATHHTML," $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
+sed -i "s,HTUSER,$service_user," $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
+chmod +x $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
 
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/update_set_permission.sh -O $PERMISSIONFILES/$DOMAIN_APP_NAME-permission_update.sh
-sed -i "s,OWNCLOUDPATH,$WWWPATHHTML," $PERMISSIONFILES/$DOMAIN_APP_NAME-permission_update.sh
-chmod +x $PERMISSIONFILES/$DOMAIN_APP_NAME-permission_update.sh
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/update_set_permission.sh -O $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission_update.sh
+sed -i "s,OWNCLOUDPATH,$WWWPATHHTML," $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission_update.sh
+chmod +x $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission_update.sh
 
 echo "set setup permissions"
-bash $PERMISSIONFILES/$DOMAIN_APP_NAME-permission_update.sh
+bash $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission_update.sh
 
 echo "
 ------------------------------
 Installing owncloud
 ------------------------------"
 #echo "su www-data -s /bin/bash -c 'php $WWWPATHHTML/occ maintenance:install -vvv --database "mysql" --database-name "$MYSQL_DB_NAME" --database-table-prefix "$TABLE_PREFIX" --database-user "$MYSQL_DB_USER" --database-pass "$MYSQL_DB_PASSWORD" --admin-user "admin" --admin-pass "admin"'"
-su www-data -s /bin/bash -c 'php $WWWPATHHTML/occ maintenance:install -vvv --database mysql --database-name $MYSQL_DB_NAME --database-table-prefix $TABLE_PREFIX --database-user $MYSQL_DB_USER --database-pass $MYSQL_DB_PASSWORD --admin-user admin --admin-pass admin'
+su www-data -s /bin/bash -c "php $WWWPATHHTML/occ maintenance:install -vvv --database mysql --database-name $MYSQL_DB_NAME --database-table-prefix $TABLE_PREFIX --database-user $MYSQL_DB_USER --database-pass $MYSQL_DB_PASSWORD --admin-user admin --admin-pass admin"
 
 echo "
 ------------------------------
 Configuring owncloud
 ------------------------------"
-cp $WWWPATHHTML/config/config.php $WWWPATHHTML/config/config.php.orig_$(date +%F-%T)
+cp "$WWWPATHHTML"/config/config.php "$WWWPATHHTML"/config/config.php.orig_"$(date +%F-%T)"
 
-if [ ! $(grep  -Fq "'$DOMAIN_APP_NAME'" $WWWPATHHTML/config/config.php) ]
+if ! grep  -Fq "'$DOMAIN_APP_NAME'" "$WWWPATHHTML"/config/config.php
 then
-su www-data -s /bin/bash -c 'php $WWWPATHHTML/occ config:system:set trusted_domains 2 --value="$DOMAIN_APP_NAME"'
+su www-data -s /bin/bash -c "php $WWWPATHHTML/occ config:system:set trusted_domains 2 --value=$DOMAIN_APP_NAME"
 fi
 
-if [ ! $(grep -Fq "'https://$DOMAIN_APP_NAME'" $WWWPATHHTML/config/config.php) ]
+if ! grep -Fq "'https://$DOMAIN_APP_NAME'" "$WWWPATHHTML"/config/config.php
 then
-su www-data -s /bin/bash -c 'php $WWWPATHHTML/occ config:system:set overwrite.cli.url --value="https://$DOMAIN_APP_NAME"'
+su www-data -s /bin/bash -c "php $WWWPATHHTML/occ config:system:set overwrite.cli.url --value=https://$DOMAIN_APP_NAME"
 fi
 
-sed -i "s,UTC,$APP_TIMEZONE,"  $WWWPATHHTML/config/config.php
+sed -i "s,UTC,$APP_TIMEZONE,"  "$WWWPATHHTML"/config/config.php
 
 echo "
 ------------------------------
 add owncloud background crontab entry for $service_user user
 ------------------------------"
-su www-data -s /bin/bash -c 'php $WWWPATHHTML/occ background:cron'
+su www-data -s /bin/bash -c "php $WWWPATHHTML/occ background:cron"
 
-(crontab -l -u $service_user  2>/dev/null; echo "*/15 * * * * php $WWWPATHHTML/cron.php") | crontab -u $service_user -
+(crontab -l -u "$service_user"  2>/dev/null; echo "*/15 * * * * php $WWWPATHHTML/cron.php") | crontab -u "$service_user" -
 
 
 # TODO Default mail server
@@ -1514,34 +1587,37 @@ echo "
 ------------------------------
 Owncloud Redis config
 ------------------------------"
-sed -i '$ d' $WWWPATHHTML/config/config.php
-echo -e "'filelocking.enabled' => 'true', \
-\n'memcache.local' => '\OC\Memcache\Redis', \
-\n'memcache.locking' => '\OC\Memcache\Redis', \
-\n'redis' => array( \
-\n   'host' => '/var/run/redis/redis.sock', \
-\n   'port' => 0, \
-\n   'timeout' => 0.0, \
-\n   'password' => '$REDIS_PASS', \
-\n    ), \
-\n \
-\n);" >> $WWWPATHHTML/config/config.php
+sed -i '$ d' "$WWWPATHHTML"/config/config.php
+{
+echo "'filelocking.enabled' => true,
+'memcache.local' => '\OC\Memcache\Redis',
+'memcache.locking' => '\OC\Memcache\Redis',
+'redis' => array(
+   'host' => '/var/run/redis/redis.sock',
+   'port' => 0,
+   'timeout' => 0.0,
+   'password' => '$REDIS_PASS',
+    ), "
+} >> "$WWWPATHHTML"/config/config.php
 
-add_user_to_group $service_user redis
+add_user_to_group "$service_user" redis
 fi
 
 echo "set permissions"
-bash $PERMISSIONFILES/$DOMAIN_APP_NAME-secure-permission.sh
+bash $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
 
 start_service "nginx php7.0-fpm"
 
-[[ ! -d $SCRIPTS_DIR ]] && mkdir -p $SCRIPTS_DIR
+if [ ! -d $SCRIPTS_DIR ]; then
+  mkdir -p $SCRIPTS_DIR
+fi
+
 echo "Write root password into file $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt, delete it soon!"
-echo -e "\nWriting passwords at $(date) for installation $DOMAIN_APP_NAME" >> $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
-echo "MYSQL ROOT Password is $MYSQL_ROOT_PASS" >> $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
-$use_redis && echo "REDIS Server Password is $REDIS_PASS" >> $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
-echo "Owncloud MYSQL DB PASSWORD is $MYSQL_DB_PASSWORD" >> $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
-chmod 600 $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
+printf "Writing passwords at $(date) for installation %s" "$DOMAIN_APP_NAME" >> $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
+echo "MYSQL ROOT Password is $MYSQL_ROOT_PASS" >> $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
+$use_redis && echo "REDIS Server Password is $REDIS_PASS" >> $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
+echo "Owncloud MYSQL DB PASSWORD is $MYSQL_DB_PASSWORD" >> $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
+chmod 600 $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
 
 echo "
 User: admin
@@ -1550,7 +1626,7 @@ Please change it soon!
 
 Installation succeded...
 Press ENTER to finish"
-read
+Pause
 }
 
 install_nextcloud() {
@@ -1558,8 +1634,8 @@ echo "
 *********************************************
 Installing Nextcloud
 *********************************************"
-local SOFTWARE_URL=https://download.nextcloud.com/server/releases/nextcloud-10.0.1.tar.bz2
-local SOFTWARE_ZIP=$(basename $SOFTWARE_URL)
+SOFTWARE_URL=https://download.nextcloud.com/server/releases/nextcloud-10.0.1.tar.bz2
+SOFTWARE_ZIP=$(basename $SOFTWARE_URL)
 
 install_base_components
 
@@ -1572,10 +1648,11 @@ echo "
 ------------------------------
 Enter a name for installation.
 It can contain the domain/subdomain name.
-Default: $DOMAIN_APP_NAME
 The base installation directory would be then e.g. $WWWPATH/$DOMAIN_APP_NAME
+
+E.g.: $DOMAIN_APP_NAME
 ------------------------------"
-read -e -i "$DOMAIN_APP_NAME" DOMAIN_APP_NAME
+read -r DOMAIN_APP_NAME
 export DOMAIN_APP_NAME
 
 # reload variables to set the $DOMAIN_APP_NAME in $WWWPATHHTML
@@ -1586,37 +1663,33 @@ echo "
 Enter the full path for the installation directory,
 The default is '$WWWPATH' followed by the entered name $DOMAIN_APP_NAME,
 Per default a 'public_html' directory will be created for the application.
+
 The default path would be then e.g.: $WWWPATHHTML
 ------------------------------"
-read -e -i "$WWWPATHHTML" WWWPATHHTML
-[[ ! -d $WWWPATHHTML ]] && mkdir -p $WWWPATHHTML
+read -r WWWPATHHTML
 export WWWPATHHTML
+if [ ! -d "$WWWPATHHTML" ]; then
+  mkdir -p "$WWWPATHHTML"
+fi
 
 install_mysql
 
 install_nginx
 
-local var=
 use_redis=
-echo "
-------------------------------
-Do you want to use redis as cache?
-------------------------------"
-select yn in "Yes" "No"; do
-case $yn in
-Yes)
-use_redis=true
-break;
-;;
-No)
-use_redis=false
-break;
-;;
-*)
-echo "ERROR: Invalid option!"
-;;
-esac
+while true; do
+  echo "
+  ------------------------------
+  Do you want to use redis as cache? [Yes/No]
+  ------------------------------"
+  read -r yn
+    case $yn in
+        [Yy]* ) use_redis=true; break;;
+        [Nn]* ) use_redis=false; break;;
+        * ) echo "Please answer y or n.";;
+    esac
 done
+
 $use_redis && install_redis
 $use_redis && install_components php7.0-redis
 
@@ -1624,10 +1697,12 @@ APP_TIMEZONE=Europe/Berlin
 echo "
 ------------------------------
 Please enter your owncloud timezone (e.g. for owncloud internal log entries)
-------------------------------"
-read -e -i "$APP_TIMEZONE" APP_TIMEZONE
 
-install_php_fpm $APP_TIMEZONE
+E.g.: $APP_TIMEZONE
+------------------------------"
+read -r APP_TIMEZONE
+
+install_php_fpm "$APP_TIMEZONE"
 
 create_snakeoil_certs
 
@@ -1645,65 +1720,72 @@ TABLE_PREFIX=
 echo "
 ------------------------------
 Enter a table prefix for this nextcloud installation
+
+E.g.: nc1_
 ------------------------------"
-read -e -i "nc1_" TABLE_PREFIX
+read -r TABLE_PREFIX
 export TABLE_PREFIX
 
 start_service "nginx"
 
 echo "Copy application files"
-cd /tmp
-wget $SOFTWARE_URL -O /tmp/$SOFTWARE_ZIP
-tar -xjf  /tmp/$SOFTWARE_ZIP
-cp -rT nextcloud $WWWPATHHTML
-[[ -f  /tmp/$SOFTWARE_ZIP ]] && rm -f /tmp/$SOFTWARE_ZIP
-[[ -d /tmp/nextcloud ]] && rm -rf /tmp/nextcloud
+cd /tmp || echo 'Could not change directory to /tmp' #This should not happen as /tmp is a normally existend
+wget $SOFTWARE_URL -O /tmp/"$SOFTWARE_ZIP"
+tar -xjf  /tmp/"$SOFTWARE_ZIP"
+cp -rT nextcloud "$WWWPATHHTML"
+if [ -f  /tmp/"$SOFTWARE_ZIP" ]; then
+  rm -f /tmp/"$SOFTWARE_ZIP"
+fi
+
+if [ -d /tmp/nextcloud ]; then
+  rm -rf /tmp/nextcloud
+fi
 
 echo "Download secure permission file from github"
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/setup_secure_permissions_owncloud.sh -O $PERMISSIONFILES/$DOMAIN_APP_NAME-secure-permission.sh
-sed -i "s,OWNCLOUDPATH,$WWWPATHHTML," $PERMISSIONFILES/$DOMAIN_APP_NAME-secure-permission.sh
-sed -i "s,HTUSER,$service_user," $PERMISSIONFILES/$DOMAIN_APP_NAME-secure-permission.sh
-chmod +x $PERMISSIONFILES/$DOMAIN_APP_NAME-secure-permission.sh
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/setup_secure_permissions_owncloud.sh -O $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
+sed -i "s,OWNCLOUDPATH,$WWWPATHHTML," $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
+sed -i "s,HTUSER,$service_user," $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
+chmod +x $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
 
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/update_set_permission.sh -O $PERMISSIONFILES/$DOMAIN_APP_NAME-permission_update.sh
-sed -i "s,OWNCLOUDPATH,$WWWPATHHTML," $PERMISSIONFILES/$DOMAIN_APP_NAME-permission_update.sh
-chmod +x $PERMISSIONFILES/$DOMAIN_APP_NAME-permission_update.sh
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/update_set_permission.sh -O $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission_update.sh
+sed -i "s,OWNCLOUDPATH,$WWWPATHHTML," $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission_update.sh
+chmod +x $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission_update.sh
 
 echo "set setup permissions"
-bash $PERMISSIONFILES/$DOMAIN_APP_NAME-permission_update.sh
+bash $PERMISSIONFILES/"$DOMAIN_APP_NAME"-permission_update.sh
 
 echo "
 ------------------------------
 Installing nextcloud
 ------------------------------"
 #echo "su www-data -s /bin/bash -c 'php $WWWPATHHTML/occ maintenance:install -vvv --database "mysql" --database-name "$MYSQL_DB_NAME" --database-table-prefix "$TABLE_PREFIX" --database-user "$MYSQL_DB_USER" --database-pass "$MYSQL_DB_PASSWORD" --admin-user "admin" --admin-pass "admin"'"
-su www-data -s /bin/bash -c 'php $WWWPATHHTML/occ maintenance:install -vvv --database mysql --database-name $MYSQL_DB_NAME --database-table-prefix $TABLE_PREFIX --database-user $MYSQL_DB_USER --database-pass $MYSQL_DB_PASSWORD --admin-user admin --admin-pass admin'
+su www-data -s /bin/bash -c "php $WWWPATHHTML/occ maintenance:install -vvv --database mysql --database-name $MYSQL_DB_NAME --database-table-prefix $TABLE_PREFIX --database-user $MYSQL_DB_USER --database-pass $MYSQL_DB_PASSWORD --admin-user admin --admin-pass admin"
 
 echo "
 ------------------------------
 Configuring nextcloud
 ------------------------------"
-cp $WWWPATHHTML/config/config.php $WWWPATHHTML/config/config.php.orig_$(date +%F-%T)
+cp "$WWWPATHHTML"/config/config.php "$WWWPATHHTML"/config/config.php.orig_"$(date +%F-%T)"
 
-if [ ! $(grep  -Fq "'$DOMAIN_APP_NAME'" $WWWPATHHTML/config/config.php) ]
+if ! grep -Fq "'$DOMAIN_APP_NAME'" "$WWWPATHHTML"/config/config.php
 then
-su www-data -s /bin/bash -c 'php $WWWPATHHTML/occ config:system:set trusted_domains 2 --value="$DOMAIN_APP_NAME"'
+su www-data -s /bin/bash -c "php $WWWPATHHTML/occ config:system:set trusted_domains 2 --value=$DOMAIN_APP_NAME"
 fi
 
-if [ ! $(grep -Fq "'https://$DOMAIN_APP_NAME'" $WWWPATHHTML/config/config.php) ]
+if ! grep -Fq "'https://$DOMAIN_APP_NAME'" "$WWWPATHHTML"/config/config.php
 then
-su www-data -s /bin/bash -c 'php $WWWPATHHTML/occ config:system:set overwrite.cli.url --value="https://$DOMAIN_APP_NAME"'
+su www-data -s /bin/bash -c "php $WWWPATHHTML/occ config:system:set overwrite.cli.url --value=https://$DOMAIN_APP_NAME"
 fi
 
-sed -i "s,UTC,$APP_TIMEZONE,"  $WWWPATHHTML/config/config.php
+sed -i "s,UTC,$APP_TIMEZONE,"  "$WWWPATHHTML"/config/config.php
 
 echo "
 ------------------------------
 add nextcloud background crontab entry for $service_user user
 ------------------------------"
-su www-data -s /bin/bash -c 'php $WWWPATHHTML/occ background:cron'
+su www-data -s /bin/bash -c "php $WWWPATHHTML/occ background:cron"
 
-(crontab -l -u $service_user  2>/dev/null; echo "*/15 * * * * php $WWWPATHHTML/cron.php") | crontab -u $service_user -
+(crontab -l -u "$service_user"  2>/dev/null; echo "*/15 * * * * php $WWWPATHHTML/cron.php") | crontab -u "$service_user" -
 
 
 # TODO Default mail server
@@ -1724,34 +1806,37 @@ echo "
 ------------------------------
 Owncloud Redis config
 ------------------------------"
-sed -i '$ d' $WWWPATHHTML/config/config.php
-echo -e "'filelocking.enabled' => 'true', \
-\n'memcache.local' => '\OC\Memcache\Redis', \
-\n'memcache.locking' => '\OC\Memcache\Redis', \
-\n'redis' => array( \
-\n   'host' => '/var/run/redis/redis.sock', \
-\n   'port' => 0, \
-\n   'timeout' => 0.0, \
-\n   'password' => '$REDIS_PASS', \
-\n    ), \
-\n \
-\n);" >> $WWWPATHHTML/config/config.php
+sed -i '$ d' "$WWWPATHHTML"/config/config.php
+{
+echo "'filelocking.enabled' => true,
+'memcache.local' => '\OC\Memcache\Redis',
+'memcache.locking' => '\OC\Memcache\Redis',
+'redis' => array(
+   'host' => '/var/run/redis/redis.sock',
+   'port' => 0,
+   'timeout' => 0.0,
+   'password' => '$REDIS_PASS',
+    ), "
+} >> "$WWWPATHHTML"/config/config.php
 
-add_user_to_group $service_user redis
+add_user_to_group "$service_user" redis
 fi
 
 echo "set permissions"
-bash $PERMISSIONFILES/$DOMAIN_APP_NAME-secure-permission.sh
+bash $PERMISSIONFILES/"$DOMAIN_APP_NAME"-secure-permission.sh
 
 start_service "nginx php7.0-fpm"
 
-[[ ! -d $SCRIPTS_DIR ]] && mkdir -p $SCRIPTS_DIR
+if [ ! -d $SCRIPTS_DIR ]; then
+  mkdir -p $SCRIPTS_DIR
+fi
+
 echo "Write root password into file $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt, delete it soon!"
-echo -e "\nWriting passwords at $(date) for installation $DOMAIN_APP_NAME" >> $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
-echo "MYSQL ROOT Password is $MYSQL_ROOT_PASS" >> $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
-$use_redis && echo "REDIS Server Password is $REDIS_PASS" >> $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
-echo "Owncloud MYSQL DB PASSWORD is $MYSQL_DB_PASSWORD" >> $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
-chmod 600 $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
+printf "Writing passwords at $(date) for installation %s" "$DOMAIN_APP_NAME" >> $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
+echo "MYSQL ROOT Password is $MYSQL_ROOT_PASS" >> $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
+$use_redis && echo "REDIS Server Password is $REDIS_PASS" >> $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
+echo "Owncloud MYSQL DB PASSWORD is $MYSQL_DB_PASSWORD" >> $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
+chmod 600 $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
 
 echo "
 User: admin
@@ -1763,7 +1848,7 @@ https://help.nextcloud.com/t/10-0rc1-how-to-enable-2fa/2447/8
 
 Installation succeded...
 Press ENTER to finish"
-read
+Pause
 }
 
 install_redis() {
@@ -1785,39 +1870,47 @@ echo "
 ------------------------------
 Enter a password for the redis cache communication
 ------------------------------"
-read -s -r REDIS_PASS
+stty -echo
+read -r REDIS_PASS
+stty echo
+printf "\n"
 else
 REDIS_PASS=$(grep 'requirepass ' $REDIS_CONF | cut -d " " -f 2)
 
 pw_len=${#REDIS_PASS}
 sub_pw_len=$(awk "BEGIN {print $pw_len - 3}")
-local masked_redis_pw=
-for ((i=1;i<=sub_pw_len;i++))
-do
-masked_redis_pw+=X
+masked_redis_pw=
+count=1
+
+while [ "$count" -le "$sub_pw_len" ]; do
+  masked_redis_pw="${masked_redis_pw}"X
+  count=$((count + 1))
 done
 
 echo "
 ------------------------------
 The password was found and loaded from the redis.conf file.
 ------------------------------"
-echo $masked_redis_pw${REDIS_PASS:(-3)} && echo "Press return to continue." && read
+shown_pw_part=$(echo | awk ' { print substr("'"${REDIS_PASS}"'","'"$((pw_len-2))"'")  }')
+echo $masked_redis_pw"${shown_pw_part}" && echo "Press return to continue." && Pause
 fi
 
-cp $REDIS_CONF ${REDIS_CONF}.orig_$(date +%F-%T)
+cp $REDIS_CONF ${REDIS_CONF}.orig_"$(date +%F-%T)"
 sed -i 's/^port .*/port 0/' $REDIS_CONF
 sed -i "/requirepass .*/c\requirepass $REDIS_PASS" $REDIS_CONF
 
-if [ ! $(grep -Fq "^unixsocket /var/run/redis/redis.sock" $REDIS_CONF) ]
+if ! grep -Fq "^unixsocket /var/run/redis/redis.sock" $REDIS_CONF
 then
 echo 'unixsocket /var/run/redis/redis.sock' >> $REDIS_CONF
 fi
-if [ ! $(grep -Fq "^unixsocketperm 770" $REDIS_CONF) ]
+if ! grep -Fq "^unixsocketperm 770" $REDIS_CONF
 then
 echo 'unixsocketperm 770' >> $REDIS_CONF
 fi
 
-[[ -d /var/run/redis  ]] || mkdir /var/run/redis
+if [ ! -d /var/run/redis ]; then
+  mkdir /var/run/redis
+fi
 chown redis:redis /var/run/redis
 chmod 755 /var/run/redis
 if [ -d /etc/tmpfiles.d ]
@@ -1841,43 +1934,63 @@ install_components "nginx geoip-database libgeoip1 apache2-utils"
 
 echo "Download latest geoip database."
 mv /usr/share/GeoIP/GeoIP.dat /usr/share/GeoIP/GeoIP.dat_bak
-cd /usr/share/GeoIP
+cd /usr/share/GeoIP || echo "Couldn't change directory to /usr/share/GeoIP"
 wget https://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz
 gunzip GeoIP.dat.gz
 
-[[ ! -d /etc/nginx/global ]] && mkdir -p /etc/nginx/global
-[[ ! -f /etc/nginx/global/geoip_settings.conf ]] && wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/geoip_settings.conf -O /etc/nginx/global/geoip_settings.conf
-[[ ! -f /etc/nginx/global/restrictions.conf ]] && wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/restrictions.conf -O /etc/nginx/global/restrictions.conf
-[[ ! -f /etc/nginx/global/secure_ssl.conf ]] && wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/secure_ssl.conf -O /etc/nginx/global/secure_ssl.conf
-[[ ! -f /etc/nginx/global/wordpress.conf ]] && wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/wordpress.conf -O /etc/nginx/global/wordpress.conf
-
-echo "Disable nginx default config"
-local NGINX_DIR=/etc/nginx
-if [ ! -d $NGINX_DIR ]; then read -e -p "Where is your nginx location? Please enter the path: " -i "$NGINX_DIR" NGINX_DIR;fi
-[[ -f $NGINX_DIR/sites-enabled/default ]] && rm -rf $NGINX_DIR/sites-enabled/default
-
-local NGINX_CONF=$NGINX_DIR/nginx.conf
-if [ ! -f $NGINX_CONF ]; then read -e -p "Where is your nginx configuration location? Please enter the full path: " -i "$NGINX_DIR/nginx.conf" NGINX_CONF;fi
-
-if [ $(grep -Fc 'worker_processes 4;' $NGINX_CONF) -eq "0" ];
-then
-sed -i -r -e 's/worker_processes.*/# &/' $NGINX_CONF
-awk '/worker_processes/{p++} /worker_processes/ && p==1 {$0= $0"\nworker_processes 4;"}1' $NGINX_CONF > $NGINX_CONF.tmp
-mv $NGINX_CONF.tmp $NGINX_CONF
+if [ ! -d /etc/nginx/global ]; then
+  mkdir -p /etc/nginx/global
+fi
+if [ ! -f /etc/nginx/global/geoip_settings.conf ]; then
+  wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/geoip_settings.conf -O /etc/nginx/global/geoip_settings.conf
+fi
+if [ ! -f /etc/nginx/global/restrictions.conf ]; then
+  wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/restrictions.conf -O /etc/nginx/global/restrictions.conf
+fi
+if [ ! -f /etc/nginx/global/secure_ssl.conf ]; then
+  wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/secure_ssl.conf -O /etc/nginx/global/secure_ssl.conf
+fi
+if [ ! -f /etc/nginx/global/wordpress.conf ]; then
+  wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/wordpress.conf -O /etc/nginx/global/wordpress.conf
 fi
 
-if [ $(grep -Fc 'worker_connections 1024' $NGINX_CONF) -eq "0" ];
+echo "Disable nginx default config"
+NGINX_DIR=/etc/nginx
+if [ ! -d $NGINX_DIR ]; then
+  printf "Where is your nginx location? Please enter the path: "
+  printf "E.g.: %s " "$NGINX_DIR"
+  read -r NGINX_DIR
+fi
+if [ -f "$NGINX_DIR"/sites-enabled/default ]; then
+  rm -rf "$NGINX_DIR"/sites-enabled/default
+fi
+
+NGINX_CONF=$NGINX_DIR/nginx.conf
+if [ ! -f "$NGINX_CONF" ]; then
+  printf "Where is your nginx configuration location? Please enter the full path: "
+  printf "E.g.: %s" "$NGINX_DIR/nginx.conf"
+  read -r NGINX_CONF;
+fi
+
+if [ "$(grep -Fc 'worker_processes 4;' "$NGINX_CONF")" -eq "0" ];
 then
-sed -i -r -e 's/worker_connections.*/# &/' $NGINX_CONF
-awk '/worker_connections/{p++} /worker_connections/ && p==1 {$0= $0"\nworker_connections 1024;"}1' $NGINX_CONF > $NGINX_CONF.tmp
-mv $NGINX_CONF.tmp $NGINX_CONF
+sed -i -r -e 's/worker_processes.*/# &/' "$NGINX_CONF"
+awk '/worker_processes/{p++} /worker_processes/ && p==1 {$0= $0"\nworker_processes 4;"}1' "$NGINX_CONF" > "$NGINX_CONF".tmp
+mv "$NGINX_CONF".tmp "$NGINX_CONF"
+fi
+
+if [ "$(grep -Fc 'worker_connections 1024' "$NGINX_CONF")" -eq "0" ];
+then
+sed -i -r -e 's/worker_connections.*/# &/' "$NGINX_CONF"
+awk '/worker_connections/{p++} /worker_connections/ && p==1 {$0= $0"\nworker_connections 1024;"}1' "$NGINX_CONF" > "$NGINX_CONF".tmp
+mv "$NGINX_CONF".tmp "$NGINX_CONF"
 fi
 
 # disabled nginx server header information display
-sed -i -r -e 's/.*server_tokens.*/        server_tokens off;/' $NGINX_CONF
+sed -i -r -e 's/.*server_tokens.*/        server_tokens off;/' "$NGINX_CONF"
 
-if [ $(grep -Fc 'geoip_settings.conf' $NGINX_CONF) -eq "0" ];
-then sed -i -e '/^http {/ a include /etc/nginx/global/geoip_settings.conf;' $NGINX_CONF; fi
+if [ "$(grep -Fc 'geoip_settings.conf' "$NGINX_CONF")" -eq "0" ];
+then sed -i -e '/^http {/ a include /etc/nginx/global/geoip_settings.conf;' "$NGINX_CONF"; fi
 }
 
 install_php_fpm() {
@@ -1887,95 +2000,118 @@ Installing PHP FPM
 *********************************************"
 install_components "php7.0-fpm"
 
-[[ ! -d /var/run/php ]] && mkdir -p /var/run/php
-[[ ! -d /var/log/php ]] && mkdir -p /var/log/php
+if [ ! -d /var/run/php ]; then
+  mkdir -p /var/run/php
+fi
+if [ ! -d /var/log/php ]; then
+  mkdir -p /var/log/php
+fi
 
 echo "Configure php fpm"
-local PHP_TIMEZONE=$1
-[[ -z $PHP_TIMEZONE ]] && PHP_TIMEZONE=Europe/Berlin
-local PHP_CONFIG_FILE=/etc/php/7.0/fpm/php.ini
-local PHPFPM_CONFIG_FILE=/etc/php/7.0/fpm/php-fpm.conf
+PHP_TIMEZONE=$1
+if [ -z "$PHP_TIMEZONE" ]; then
+  PHP_TIMEZONE=Europe/Berlin
+fi
+PHP_CONFIG_FILE=/etc/php/7.0/fpm/php.ini
+PHPFPM_CONFIG_FILE=/etc/php/7.0/fpm/php-fpm.conf
 echo "
 ------------------------------
 Please enter your timezone for php
 ------------------------------
+
+E.g.: $PHP_TIMEZONE
 "
-read -e -i "$PHP_TIMEZONE" PHP_TIMEZONE
-[[ ! -f $PHP_CONFIG_FILE ]] && echo "
-------------------------------
-Where is your fpm php.ini file located? Please enter the full path
-------------------------------
-" && read -e  -i "/etc/php/7.0/fpm/php.ini" PHP_CONFIG_FILE || cp $PHP_CONFIG_FILE $PHP_CONFIG_FILE.bkp
-
-[[ ! -f $PHPFPM_CONFIG_FILE ]] && echo "
-------------------------------
-Where is your fpm php-fpm.conf file located? Please enter the full path
-------------------------------
-" && read -e -i "/etc/php/7.0/fpm/php-fpm.conf" PHPFPM_CONFIG_FILE || cp $PHPFPM_CONFIG_FILE $PHPFPM_CONFIG_FILE.bkp
-
-[[ -f /etc/php/7.0/fpm/pool.d/www.conf ]] && mv /etc/php/7.0/fpm/pool.d/www.conf /etc/php/7.0/fpm/pool.d/www.off
-
-if [ $(grep -Fc 'cgi.fix_pathinfo = 0' $PHP_CONFIG_FILE) -eq "0" ];
-then
-sed -i -r -e 's/.*cgi.fix_pathinfo.*/; &/' $PHP_CONFIG_FILE
-awk '/cgi.fix_pathinfo/{p++} /cgi.fix_pathinfo/ && p==1 {$0= $0"\ncgi.fix_pathinfo = 0"}1' $PHP_CONFIG_FILE > $PHP_CONFIG_FILE.tmp
-mv $PHP_CONFIG_FILE.tmp $PHP_CONFIG_FILE
+read -r PHP_TIMEZONE
+if [ ! -f $PHP_CONFIG_FILE ]; then
+  echo "
+  ------------------------------
+  Where is your fpm php.ini file located? Please enter the full path
+  ------------------------------
+  E.g.: /etc/php/7.0/fpm/php.ini
+  "
+  read -r PHP_CONFIG_FILE
+else
+  cp "$PHP_CONFIG_FILE" "$PHP_CONFIG_FILE".bkp
 fi
 
-if [ $(grep -Fc 'date.timezone = $PHP_TIMEZONE' $PHP_CONFIG_FILE) -eq "0" ];
-then
-sed -i -r -e 's/.*date.timezone =.*/; &/' $PHP_CONFIG_FILE
-awk -v php_tz="$PHP_TIMEZONE" '/date.timezone/{p++} /date.timezone/ && p==1 {$0= $0"\ndate.timezone = " php_tz}1' $PHP_CONFIG_FILE > $PHP_CONFIG_FILE.tmp
-mv $PHP_CONFIG_FILE.tmp $PHP_CONFIG_FILE
+if [ ! -f $PHPFPM_CONFIG_FILE ]; then
+  echo "
+  ------------------------------
+  Where is your fpm php-fpm.conf file located? Please enter the full path
+  ------------------------------
+
+  E.g.: /etc/php/7.0/fpm/php-fpm.conf
+  "
+  read -r PHPFPM_CONFIG_FILE
+else
+  cp "$PHPFPM_CONFIG_FILE" "$PHPFPM_CONFIG_FILE".bkp
 fi
 
-if [ $(grep -Fc 'opcache.enable = 1' $PHP_CONFIG_FILE) -eq "0" ];
-then
-sed -i -r -e 's/.*opcache.enable[ |=].*/; &/' $PHP_CONFIG_FILE
-awk '/opcache.enable/{p++} /opcache.enable/ && p==1 {$0= $0"\nopcache.enable = 1"}1' $PHP_CONFIG_FILE > $PHP_CONFIG_FILE.tmp
-mv $PHP_CONFIG_FILE.tmp $PHP_CONFIG_FILE
+if [ -f /etc/php/7.0/fpm/pool.d/www.conf ]; then
+  mv /etc/php/7.0/fpm/pool.d/www.conf /etc/php/7.0/fpm/pool.d/www.off
 fi
 
-if [ $(grep -Fc 'pid = /var/run/php/php7.0-fpm.pid' $PHPFPM_CONFIG_FILE) -eq "0" ]
+if [ "$(grep -Fc 'cgi.fix_pathinfo = 0' "$PHP_CONFIG_FILE")" -eq "0" ];
 then
-sed -i -r -e 's/.*pid =.*/; &/' $PHP_CONFIG_FILE
-awk '/pid =/{p++} /pid =/ && p==1 {$0= $0"\npid = /var/run/php/php7.0-fpm.pid"}1' $PHPFPM_CONFIG_FILE > $PHPFPM_CONFIG_FILE.tmp
-mv $PHPFPM_CONFIG_FILE.tmp $PHPFPM_CONFIG_FILE
+sed -i -r -e 's/.*cgi.fix_pathinfo.*/; &/' "$PHP_CONFIG_FILE"
+awk '/cgi.fix_pathinfo/{p++} /cgi.fix_pathinfo/ && p==1 {$0= $0"\ncgi.fix_pathinfo = 0"}1' "$PHP_CONFIG_FILE" > "$PHP_CONFIG_FILE".tmp
+mv "$PHP_CONFIG_FILE".tmp "$PHP_CONFIG_FILE"
 fi
 
-if [ $(grep -Fc 'events.mechanism = epoll' $PHPFPM_CONFIG_FILE) -eq "0" ];
+if [ "$(grep -Fc "date.timezone = $PHP_TIMEZONE" "$PHP_CONFIG_FILE")" -eq "0" ];
 then
-sed -i -r -e 's/.*events.mechanism =.*/; &/' $PHP_CONFIG_FILE
-awk '/events.mechanism/{p++} /events.mechanism/ && p==1 {$0= $0"\nevents.mechanism = epoll"}1' $PHPFPM_CONFIG_FILE > $PHPFPM_CONFIG_FILE.tmp
-mv $PHPFPM_CONFIG_FILE.tmp $PHPFPM_CONFIG_FILE
+sed -i -r -e 's/.*date.timezone =.*/; &/' "$PHP_CONFIG_FILE"
+awk -v php_tz="$PHP_TIMEZONE" '/date.timezone/{p++} /date.timezone/ && p==1 {$0= $0"\ndate.timezone = " php_tz}1' "$PHP_CONFIG_FILE" > "$PHP_CONFIG_FILE".tmp
+mv "$PHP_CONFIG_FILE".tmp "$PHP_CONFIG_FILE"
 fi
 
-if [ $(grep -Fc 'emergency_restart_threshold = 10' $PHPFPM_CONFIG_FILE) -eq "0" ];
+if [ "$(grep -Fc 'opcache.enable = 1' "$PHP_CONFIG_FILE")" -eq "0" ];
 then
-sed -i -r -e 's/.*emergency_restart_threshold =.*/; &/' $PHP_CONFIG_FILE
-awk '/emergency_restart_threshold/{p++} /emergency_restart_threshold/ && p==1 {$0= $0"\nemergency_restart_threshold = 10"}1' $PHPFPM_CONFIG_FILE > $PHPFPM_CONFIG_FILE.tmp
-mv $PHPFPM_CONFIG_FILE.tmp $PHPFPM_CONFIG_FILE
+sed -i -r -e 's/.*opcache.enable[ |=].*/; &/' "$PHP_CONFIG_FILE"
+awk '/opcache.enable/{p++} /opcache.enable/ && p==1 {$0= $0"\nopcache.enable = 1"}1' "$PHP_CONFIG_FILE" > "$PHP_CONFIG_FILE".tmp
+mv "$PHP_CONFIG_FILE".tmp "$PHP_CONFIG_FILE"
 fi
 
-if [ $(grep -Fc 'emergency_restart_interval = 1m' $PHPFPM_CONFIG_FILE) -eq "0" ];
+if [ "$(grep -Fc 'pid = /var/run/php/php7.0-fpm.pid' "$PHPFPM_CONFIG_FILE")" -eq "0" ]
 then
-sed -i -r -e 's/.*emergency_restart_interval =.*/; &/' $PHP_CONFIG_FILE
-awk '/emergency_restart_interval/{p++} /emergency_restart_interval/ && p==1 {$0= $0"\nemergency_restart_interval = 1m"}1' $PHPFPM_CONFIG_FILE > $PHPFPM_CONFIG_FILE.tmp
-mv $PHPFPM_CONFIG_FILE.tmp $PHPFPM_CONFIG_FILE
+sed -i -r -e 's/.*pid =.*/; &/' "$PHP_CONFIG_FILE"
+awk '/pid =/{p++} /pid =/ && p==1 {$0= $0"\npid = /var/run/php/php7.0-fpm.pid"}1' "$PHPFPM_CONFIG_FILE" > "$PHPFPM_CONFIG_FILE".tmp
+mv "$PHPFPM_CONFIG_FILE".tmp "$PHPFPM_CONFIG_FILE"
 fi
 
-if [ $(grep -Fc 'process_control_timeout = 10s' $PHPFPM_CONFIG_FILE) -eq "0" ];
+if [ "$(grep -Fc 'events.mechanism = epoll' "$PHPFPM_CONFIG_FILE")" -eq "0" ];
 then
-sed -i -r -e 's/.*process_control_timeout =/; &/' $PHP_CONFIG_FILE
-awk '/process_control_timeout/{p++} /process_control_timeout/ && p==1 {$0= $0"\nprocess_control_timeout = 10s"}1' $PHPFPM_CONFIG_FILE > $PHPFPM_CONFIG_FILE.tmp
-mv $PHPFPM_CONFIG_FILE.tmp $PHPFPM_CONFIG_FILE
+sed -i -r -e 's/.*events.mechanism =.*/; &/' "$PHP_CONFIG_FILE"
+awk '/events.mechanism/{p++} /events.mechanism/ && p==1 {$0= $0"\nevents.mechanism = epoll"}1' "$PHPFPM_CONFIG_FILE" > "$PHPFPM_CONFIG_FILE".tmp
+mv "$PHPFPM_CONFIG_FILE".tmp "$PHPFPM_CONFIG_FILE"
 fi
 
-if [ $(grep -Fc 'error_log = /var/log/php/php7.0-fpm.log' $PHPFPM_CONFIG_FILE) -eq "0" ];
+if [ "$(grep -Fc 'emergency_restart_threshold = 10' "$PHPFPM_CONFIG_FILE")" -eq "0" ];
 then
-sed -i -r -e 's/.*error_log =.*/; &/' $PHP_CONFIG_FILE
-awk '/error_log =/{p++} /error_log =/ && p==1 {$0= $0"\nerror_log = /var/log/php/php7.0-fpm.log"}1' $PHPFPM_CONFIG_FILE > $PHPFPM_CONFIG_FILE.tmp
-mv $PHPFPM_CONFIG_FILE.tmp $PHPFPM_CONFIG_FILE
+sed -i -r -e 's/.*emergency_restart_threshold =.*/; &/' "$PHP_CONFIG_FILE"
+awk '/emergency_restart_threshold/{p++} /emergency_restart_threshold/ && p==1 {$0= $0"\nemergency_restart_threshold = 10"}1' "$PHPFPM_CONFIG_FILE" > "$PHPFPM_CONFIG_FILE".tmp
+mv "$PHPFPM_CONFIG_FILE".tmp "$PHPFPM_CONFIG_FILE"
+fi
+
+if [ "$(grep -Fc 'emergency_restart_interval = 1m' "$PHPFPM_CONFIG_FILE")" -eq "0" ];
+then
+sed -i -r -e 's/.*emergency_restart_interval =.*/; &/' "$PHP_CONFIG_FILE"
+awk '/emergency_restart_interval/{p++} /emergency_restart_interval/ && p==1 {$0= $0"\nemergency_restart_interval = 1m"}1' "$PHPFPM_CONFIG_FILE" > "$PHPFPM_CONFIG_FILE".tmp
+mv "$PHPFPM_CONFIG_FILE".tmp "$PHPFPM_CONFIG_FILE"
+fi
+
+if [ "$(grep -Fc 'process_control_timeout = 10s' "$PHPFPM_CONFIG_FILE")" -eq "0" ];
+then
+sed -i -r -e 's/.*process_control_timeout =/; &/' "$PHP_CONFIG_FILE"
+awk '/process_control_timeout/{p++} /process_control_timeout/ && p==1 {$0= $0"\nprocess_control_timeout = 10s"}1' "$PHPFPM_CONFIG_FILE" > "$PHPFPM_CONFIG_FILE".tmp
+mv "$PHPFPM_CONFIG_FILE".tmp "$PHPFPM_CONFIG_FILE"
+fi
+
+if [ "$(grep -Fc 'error_log = /var/log/php/php7.0-fpm.log' "$PHPFPM_CONFIG_FILE")" -eq "0" ];
+then
+sed -i -r -e 's/.*error_log =.*/; &/' "$PHP_CONFIG_FILE"
+awk '/error_log =/{p++} /error_log =/ && p==1 {$0= $0"\nerror_log = /var/log/php/php7.0-fpm.log"}1' "$PHPFPM_CONFIG_FILE" > "$PHPFPM_CONFIG_FILE".tmp
+mv "$PHPFPM_CONFIG_FILE".tmp "$PHPFPM_CONFIG_FILE"
 fi
 }
 
@@ -1987,18 +2123,26 @@ Installing Unbound
 install_components "unbound"
 
 unbound-anchor
-local unbound_trust_file=/etc/unbound/unbound.conf.d/root-auto-trust-anchor-file.conf
-local newrk=/usr/local/etc/unbound/runtime/root.key
-mkdir -p $(dirname $newrk)
-chown unbound:unbound $(dirname $newrk)
-[[ -f /etc/unbound/root.key ]] && mv /etc/unbound/root.key $newrk && chown unbound:unbound $newrk
-[[ -f $unbound_trust_file ]] && sed -i -e $'s,^\\([ \t]*auto-trust-anchor-file:[ \t]*"\\).*$,\\1'"$newrk\"," $unbound_trust_file || ( echo "ERROR: file not found: $unbound_trust_file" && read )
+unbound_trust_file=/etc/unbound/unbound.conf.d/root-auto-trust-anchor-file.conf
+newrk=/usr/local/etc/unbound/runtime/root.key
+mkdir -p "$(dirname $newrk)"
+chown unbound:unbound "$(dirname $newrk)"
+if [ -f /etc/unbound/root.key ]; then
+  mv /etc/unbound/root.key $newrk
+  chown unbound:unbound $newrk
+fi
 
+if [ -f $unbound_trust_file ]; then
+  sed -i "s,auto-trust-anchor-file.*,auto-trust-anchor-file: \"$newrk\"," $unbound_trust_file
+else
+  echo "ERROR: file not found: $unbound_trust_file. Please fix this issue later. Press any key to continue."
+  Pause
+fi
 echo "Configure unbound"
 echo "server:
 interface: 127.0.0.1
 do-ip6: no
-directory: "/etc/unbound"
+directory: \"/etc/unbound\"
 username: unbound
 harden-below-nxdomain: yes
 harden-referral-path: yes
@@ -2026,20 +2170,20 @@ control-enable: no
 
 start_service unbound
 
-UNBOUNDISSTARTED=$(ps -C unbound | grep unbound | wc -l)
+UNBOUNDISSTARTED=$(pgrep -c unbound)
 
 echo "Change resolv.conf to use 127.0.0.1 (aka localhost)"
 if [ "$UNBOUNDISSTARTED" -ge "1" ];
 then
 sed -i 's/^/# /g' /etc/resolv.conf
 echo "nameserver 127.0.0.1" >> /etc/resolv.conf
-local nameservers_to_add=
+nameservers_to_add=
 echo "
 *********************************************
 Please enter all nameservers you want to add
 space separated
 *********************************************"
-read nameservers_to_add
+read -r nameservers_to_add
 for i in $nameservers_to_add
 do
 echo "nameserver $i" >> /etc/resolv.conf
@@ -2070,20 +2214,21 @@ install_components "php-common php-readline php7.0 php7.0-cli php7.0-common php7
 create_base_dirs
 
 echo "Download and unzip bbs"
-cd /tmp
+cd /tmp || echo 'Could not change directory to /tmp' #This should not happen as /tmp is a normally existend
 wget $BBSZIPFILEPATH
-unzip $BBSZIPFILE
-rm $BBSZIPFILE
+unzip "$BBSZIPFILE"
+rm "$BBSZIPFILE"
 
 DOMAIN_APP_NAME=ebooks.example.com
 echo "
 ------------------------------
 Enter a name for installation.
 It can contain the domain/subdomain name.
-Default: $DOMAIN_APP_NAME
 The base installation directory would be then e.g. $WWWPATH/$DOMAIN_APP_NAME
+
+E.g.: $DOMAIN_APP_NAME
 ------------------------------"
-read -e -i "$DOMAIN_APP_NAME" DOMAIN_APP_NAME
+read -r DOMAIN_APP_NAME
 
 # reload variables to set the $DOMAIN_APP_NAME in $WWWPATHHTML
 set_vars
@@ -2093,19 +2238,24 @@ echo "
 Enter the full path for the installation directory,
 The default is '$WWWPATH' followed by the entered name $DOMAIN_APP_NAME,
 Per default a 'public_html' directory will be created for the application.
+
 The default path would be then e.g.: $WWWPATHHTML
 ------------------------------"
-read -e -i "$WWWPATHHTML" WWWPATHHTML
+read -r WWWPATHHTML
 
-[[ ! -d $WWWPATHHTML ]] && mkdir -p $WWWPATHHTML
+if [ ! -d "$WWWPATHHTML" ]; then
+  mkdir -p "$WWWPATHHTML"
+fi
 
 echo "Copy bbs"
-cp -rT $BBSUNZIPNAME $WWWPATHHTML
-[[ -f /tmp/$BBSUNZIPNAME ]] && rm -f /tmp/$BBSUNZIPNAME
+cp -rT "$BBSUNZIPNAME" "$WWWPATHHTML"
+if [ -f /tmp/"$BBSUNZIPNAME" ]; then
+  rm -f /tmp/"$BBSUNZIPNAME"
+fi
 
 create_service_user ebooks
 
-add_user_to_group $service_user www-data,ownclouduser
+add_user_to_group "$service_user" www-data,ownclouduser
 
 install_nginx
 
@@ -2120,9 +2270,9 @@ create_php_pool
 create_nginx_vhost bbs
 
 echo "Set permissions to files and directories"
-chown -R $service_user:www-data $WWWPATHHTML/
-find $WWWPATHHTML -type d -exec chmod 750 {} \;
-find $WWWPATHHTML -type f -exec chmod 640 {} \;
+chown -R "$service_user":www-data "$WWWPATHHTML"/
+find "$WWWPATHHTML" -type d -exec chmod 750 {} \;
+find "$WWWPATHHTML" -type f -exec chmod 640 {} \;
 
 start_service "nginx php7.0-fpm"
 
@@ -2142,20 +2292,23 @@ install_components "php-common php-readline php7.0 php7.0-cli php7.0-common php7
 create_base_dirs
 
 echo "Download and unzip COPS"
-cd /tmp
+cd /tmp || echo 'Could not change directory to /tmp' #This should not happen as /tmp is a normally existend
 wget $COPSZIPFILEPATH
-unzip $COPSZIPFILE -d /tmp/cops
-[[ -f $COPSZIPFILE ]] && rm $COPSZIPFILE
+unzip "$COPSZIPFILE" -d /tmp/cops
+if [ -f "$COPSZIPFILE" ]; then
+  rm "$COPSZIPFILE"
+fi
 
 DOMAIN_APP_NAME=ebooks.example.com
 echo "
 ------------------------------
 Enter a name for installation.
 It can contain the domain/subdomain name.
-Default: $DOMAIN_APP_NAME
 The base installation directory would be then e.g. $WWWPATH/$DOMAIN_APP_NAME
+
+E.g.: $DOMAIN_APP_NAME
 ------------------------------"
-read -e -i "$DOMAIN_APP_NAME" DOMAIN_APP_NAME
+read -r DOMAIN_APP_NAME
 
 # reload variables to set the $DOMAIN_APP_NAME in $WWWPATHHTML
 set_vars
@@ -2165,19 +2318,24 @@ echo "
 Enter the full path for the installation directory,
 The default is '$WWWPATH' followed by the entered name $DOMAIN_APP_NAME,
 Per default a 'public_html' directory will be created for the application.
+
 The default path would be then e.g.: $WWWPATHHTML
 ------------------------------"
-read -e -i "$WWWPATHHTML" WWWPATHHTML
+read -r WWWPATHHTML
 
-[[ ! -d $WWWPATHHTML ]] && mkdir -p $WWWPATHHTML
+if [ ! -d "$WWWPATHHTML" ]; then
+  mkdir -p "$WWWPATHHTML"
+fi
 
 echo "Copy COPS"
-cp -rT /tmp/cops $WWWPATHHTML
-[[ -d /tmp/cops ]] && rm -rf /tmp/cops
+cp -rT /tmp/cops "$WWWPATHHTML"
+if [ -d /tmp/cops ]; then
+  rm -rf /tmp/cops
+fi
 
 create_service_user ebooks2
 
-add_user_to_group $service_user www-data,ownclouduser
+add_user_to_group "$service_user" www-data,ownclouduser
 
 install_nginx
 
@@ -2191,14 +2349,14 @@ create_php_pool
 
 create_nginx_vhost cops
 
-cp $WWWPATHHTML/config_local.php.example $WWWPATHHTML/config_local.php
-sed -i "s,.*config\['calibre_directory'\] =.*;,\$config['calibre_directory'] = '$CALIBRE_LIBRARY/';," $WWWPATHHTML/config_local.php
+cp "$WWWPATHHTML"/config_local.php.example "$WWWPATHHTML"/config_local.php
+sed -i "s,.*config\['calibre_directory'\] =.*;,\$config['calibre_directory'] = '$CALIBRE_LIBRARY/';," "$WWWPATHHTML"/config_local.php
 
 
 echo "Set permissions to files and directories"
-chown -R $service_user:www-data $WWWPATHHTML/
-find $WWWPATHHTML -type d -exec chmod 750 {} \;
-find $WWWPATHHTML -type f -exec chmod 640 {} \;
+chown -R "$service_user":www-data "$WWWPATHHTML"/
+find "$WWWPATHHTML" -type d -exec chmod 750 {} \;
+find "$WWWPATHHTML" -type f -exec chmod 640 {} \;
 
 start_service "nginx php7.0-fpm"
 
@@ -2222,92 +2380,100 @@ install_nginx
 
 install_php_fpm
 
-[[ -z $DOMAIN_APP_NAME ]] && DOMAIN_APP_NAME=monit.example.com
+if [ -z "$DOMAIN_APP_NAME" ]; then
+  DOMAIN_APP_NAME=monit.example.com
+fi
+
 echo "
 ------------------------------
 Enter a name for installation.
 It can contain the domain/subdomain name.
-Default: monit.example.com
 The base installation directory would be then e.g. $WWWPATH/$DOMAIN_APP_NAME
+
+E.g.: monit.example.com
 ------------------------------"
-read -e -i "$DOMAIN_APP_NAME" DOMAIN_APP_NAME
+read -r DOMAIN_APP_NAME
 
 create_snakeoil_certs
 
 create_dh_param
 
-echo "
-------------------------------
-Do you want to create combination of key and certificate?
-------------------------------"
-select yn in "Yes" "No"; do
-case $yn in
-Yes)
-cat $CERTS_PATH/$KEY_COMMON_NAME.key > $CERTS_PATH/${KEY_COMMON_NAME}_combined.pem
-cat $CERTS_PATH/$KEY_COMMON_NAME.crt >> $CERTS_PATH/${KEY_COMMON_NAME}_combined.pem
-chmod 600 $CERTS_PATH/${KEY_COMMON_NAME}_combined.pem
-break;
-;;
-No)
-break;
-;;
-*)
-echo "ERROR: Invalid option!"
-;;
-esac
+
+while true; do
+  echo "
+  ------------------------------
+  Do you want to create combination of key and certificate?
+  ------------------------------ [Y/n]"
+  read -r yn
+    case $yn in
+        [Yy]* )
+        cat $CERTS_PATH/"$KEY_COMMON_NAME".key > $CERTS_PATH/"${KEY_COMMON_NAME}"_combined.pem
+        cat $CERTS_PATH/"$KEY_COMMON_NAME".crt >> $CERTS_PATH/"${KEY_COMMON_NAME}"_combined.pem
+        chmod 600 $CERTS_PATH/"${KEY_COMMON_NAME}"_combined.pem
+        break;;
+        [Nn]* ) break;;
+        * ) echo "Please answer y or n.";;
+    esac
 done
 
-local USER=user
+USER=user
 echo "
 ------------------------------
 Enter a username for the web interface access.
-------------------------------"
-read -e -i "$USER" USER
 
-local PASSWORD=
+E.g.: $USER
+------------------------------"
+read -r USER
+
+PASSWORD=
 echo "
 ------------------------------
 Enter a password for the web interface access.
 ------------------------------"
-read -s PASSWORD
+stty -echo
+read -r PASSWORD
+stty echo
+printf "\n"
 
 # the PEMFILE should be a chain of the public key and cert use cat >>  to achive this
-local PEMFILE=$CERTS_PATH/${KEY_COMMON_NAME}_combined.pem
-if [ ! -f $PEMFILE ]; then
+PEMFILE=$CERTS_PATH/${KEY_COMMON_NAME}_combined.pem
+if [ ! -f "$PEMFILE" ]; then
 echo "
 ------------------------------
 Enter the full path to the combined file ob public key and certificate for the HTTPS connection to MONIT.
+
+E.g.: $PEMFILE
 ------------------------------"
-read -e -i "$PEMFILE" PEMFILE
+read -r PEMFILE
 fi
 
-local MAILSERVER=127.0.0.1
+MAILSERVER=127.0.0.1
 echo "
 ------------------------------
 Enter a mailserver to receive notifications from MONIT.
+
+E.g.: $MAILSERVER
 ------------------------------"
-read -e -i "$MAILSERVER" MAILSERVER
+read -r MAILSERVER
 
 # reload variables to set the $DOMAIN_APP_NAME in $WWWPATHHTML
 set_vars
 
-if [ -z $POSTMASTER ]; then
+if [ -z "$POSTMASTER" ]; then
 POSTMASTER=admin@$DOMAIN_APP_NAME
 echo "
 ------------------------------
 Enter the mail address for the alert receiver.
-Default: $POSTMASTER
+
+E.g.: $POSTMASTER
 ------------------------------"
-read -e -i "$POSTMASTER" POSTMASTER
+read -r POSTMASTER
 fi
 
 MONITRC=/etc/monit/monitrc
 sed -i -r -e "s/# set alert sysadm@foo.*/set alert $POSTMASTER # receive all alerts/" $MONITRC
 sed -i -r -e "s/# set httpd port 2812 and/set httpd port 2812 and/" $MONITRC
-sed -i -r -e 's/httpd port 2812 and/& \
-SSL ENABLE \
-PEMFILE  PEMFILE_REPLACE \
-ALLOWSELFCERTIFICATION/' $MONITRC
+sed -i "/httpd port 2812 and/aSSL ENABLE\nPEMFILE PEMFILE_REPLACE\nALLOWSELFCERTIFICATION" $MONITRC
 sed -i -r -e "s,PEMFILE_REPLACE,$PEMFILE," $MONITRC
 sed -i -r -e "s/#    use address localhost/use address 127.0.0.1/" $MONITRC
 sed -i -r -e "s/#    allow localhost/allow 127.0.0.1/" $MONITRC
@@ -2320,28 +2486,22 @@ echo "
 Writing default monit checks
 *********************************************"
 
-echo "
-------------------------------
-Do you want to create basic MONIT configs?
-------------------------------"
-select yn in "Yes" "No"; do
-case $yn in
-Yes)
-answer=true
-break;
-;;
-No)
-answer=false
-break;
-;;
-*)
-echo "ERROR: Invalid option!"
-;;
-esac
+
+while true; do
+  echo "
+  ------------------------------
+  Do you want to create basic MONIT configs?
+  ------------------------------ [Y/n]"
+  read -r yn
+    case $yn in
+        [Yy]* ) answer=true; break;;
+        [Nn]* ) answer=false; break;;
+        * ) echo "Please answer y or n.";;
+    esac
 done
 
 if $answer; then
-local MONIT_CONF_DIR=/etc/monit/conf.d
+MONIT_CONF_DIR=/etc/monit/conf.d
 echo "
 check process amavisd with pidfile /var/run/amavis/amavisd.pid
 every 5 cycles
@@ -2545,9 +2705,9 @@ create_php_pool
 create_nginx_vhost monit
 
 echo "Set permissions to files and directories"
-chown -R $service_user:www-data $WWWPATHHTML/
-find $WWWPATHHTML -type d -exec chmod 750 {} \;
-find $WWWPATHHTML -type f -exec chmod 640 {} \;
+chown -R "$service_user":www-data "$WWWPATHHTML"/
+find "$WWWPATHHTML" -type d -exec chmod 750 {} \;
+find "$WWWPATHHTML" -type f -exec chmod 640 {} \;
 
 start_service "monit nginx php7.0-fpm"
 }
@@ -2559,7 +2719,7 @@ Installing Mailserver
 *********************************************"
 set_hostname
 
-if [ ! -z $(which csf) ]; then
+if [ ! -z "$(which csf)" ]; then
 echo "
 ------------------------------
 Open at following ports
@@ -2588,10 +2748,11 @@ echo "
 ------------------------------
 Enter a name for installation.
 It can contain the domain/subdomain name.
-Default: $DOMAIN_APP_NAME
 The base installation directory would be then e.g. $WWWPATH/$DOMAIN_APP_NAME
+
+E.g.: $DOMAIN_APP_NAME
 ------------------------------"
-read -e -i "$DOMAIN_APP_NAME" DOMAIN_APP_NAME
+read -r DOMAIN_APP_NAME
 
 # reload variables to set the $DOMAIN_APP_NAME in $WWWPATHHTML
 set_vars
@@ -2602,11 +2763,15 @@ Enter the full path for the installation directory.
 It will be used for the POSTFIXADMIN
 The default is '$WWWPATH' followed by the entered name $DOMAIN_APP_NAME,
 Per default a 'public_html' directory will be created for the application.
+
 The default path would be then e.g.: $WWWPATHHTML
 ------------------------------"
-read -e -i "$WWWPATHHTML" WWWPATHHTML
+read -r WWWPATHHTML
+export WWWPATHHTML
 
-[[ ! -d $WWWPATHHTML ]] && mkdir -p $WWWPATHHTML
+if [ ! -d "$WWWPATHHTML" ]; then
+  mkdir -p "$WWWPATHHTML"
+fi
 
 create_service_user postfixadmin
 
@@ -2665,15 +2830,18 @@ http://www.trusteddomain.org/pipermail/opendmarc-users/2014-September/000439.htm
 
 Another thing worth mentioning is the IgnoreAuthenticatedClients setting in opendmarc.conf to prevent flagging SMTP clients as failing DMARC. You do need opendmarc 1.3.1 (from stretch) though because of http://sourceforge.net/p/opendmarc/tickets/103/"
 
-[[ ! -d $SCRIPTS_DIR ]] && mkdir -p $SCRIPTS_DIR
+if [ ! -d $SCRIPTS_DIR ]; then
+  mkdir -p $SCRIPTS_DIR
+fi
+
 echo "Write root password into file $SCRIPTS_DIR/m-r-pass.txt, delete it soon!"
-echo "MYSQL ROOT Password is $MYSQL_ROOT_PASS" >> $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
-echo "Webmail Lite MYSQL DB PASSWORD is $MYSQL_DB_PASSWORD" >> $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
-chmod 600 $SCRIPTS_DIR/$DOMAIN_APP_NAME-pass.txt
+echo "MYSQL ROOT Password is $MYSQL_ROOT_PASS" >> $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
+echo "Webmail Lite MYSQL DB PASSWORD is $MYSQL_DB_PASSWORD" >> $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
+chmod 600 $SCRIPTS_DIR/"$DOMAIN_APP_NAME"-pass.txt
 
 echo "Installation succeded...
 Press ENTER to finish"
-read
+Pause
 }
 
 configure_mail_security() {
@@ -2705,14 +2873,15 @@ sed -i "s,\$sa_tag2_level_deflt.*,\$sa_tag2_level_deflt = 5;," $AMAVIS_DEFAULTS_
 sed -i "s,\$sa_kill_level_deflt.*,\$sa_kill_level_deflt = 20;," $AMAVIS_DEFAULTS_CONF
 sed -i "s,\$sa_dsn_cutoff_level.*,\$sa_dsn_cutoff_level = 10;   # spam level beyond which a DSN is not sent," $AMAVIS_DEFAULTS_CONF
 
-if [ -z $POSTMASTER ]; then
+if [ -z "$POSTMASTER" ]; then
 POSTMASTER=admin@$DOMAIN_APP_NAME
 echo "
 ------------------------------
 Enter the mail address for the postmaster.
-Default: $POSTMASTER
+
+E.g.: $POSTMASTER
 ------------------------------"
-read -e -i "$POSTMASTER" POSTMASTER
+read -r POSTMASTER
 fi
 
 echo "amavis database connection to check for new mails"
@@ -2744,7 +2913,7 @@ echo "
    ['DBI:mysql:database=$MYSQL_DB_NAME;host=127.0.0.1;port=3306',
     '$MYSQL_DB_USER',
     '$MYSQL_DB_PASSWORD']);
-\$sql_select_policy = 'SELECT domain from domain WHERE CONCAT("@",domain) IN (%k)';
+\$sql_select_policy = 'SELECT domain from domain WHERE CONCAT(\"@\",domain) IN (%k)';
 
 # Uncomment to bump up the log level when testing.
 \$log_level = 2;
@@ -2787,7 +2956,7 @@ meta CUST_DKIM_SIGNED_INVALID DKIM_SIGNED && !(DKIM_VALID || DKIM_VALID_AU)
 score CUST_DKIM_SIGNED_INVALID 6.0
 " >> /etc/spamassassin/local.cf
 
-ESCAPED_DOMAIN_APP_NAME=$(sed 's|\.|\\\\\\.|g' <<< $DOMAIN_APP_NAME)
+ESCAPED_DOMAIN_APP_NAME=$(printf "%s" "$DOMAIN_APP_NAME" | sed 's|\.|\\\\\\.|g')
 sed -i  "s;mail\\\.example\\\.com;$ESCAPED_DOMAIN_APP_NAME;g" /etc/spamassassin/local.cf
 
 echo "Update ClamAV database"
@@ -2824,17 +2993,18 @@ policy-spf  unix  -       n       n       -       -       spawn
 configure_dkim() {
 install_components "opendkim opendkim-tools"
 
-if [ -z $POSTMASTER ]; then
+if [ -z "$POSTMASTER" ]; then
 POSTMASTER=admin@$DOMAIN_APP_NAME
 echo "
 ------------------------------
 Enter the mail address for the postmaster.
-Default: $POSTMASTER
+
+E.g.: $POSTMASTER
 ------------------------------"
-read -e -i "$POSTMASTER" POSTMASTER
+read -r POSTMASTER
 fi
 
-HOSTNAME=$(echo hostname)
+HOSTNAME=$(hostname)
 OPENDKIM_CONF=/etc/opendkim.conf
 sed -i "s,#Canonicalization.*,Canonicalization relaxed/simple," $OPENDKIM_CONF
 sed -i "s,#Mode.*,Mode sv," $OPENDKIM_CONF
@@ -2851,17 +3021,20 @@ postconf -e "milter_protocol = 2"
 postconf -e "smtpd_milters = inet:127.0.0.1:8891,inet:127.0.0.1:8892"
 postconf -e "non_smtpd_milters = inet:127.0.0.1:8891,inet:127.0.0.1:8892"
 
-opendkim-genkey -t -s dkim -d $DOMAIN_APP_NAME
+opendkim-genkey -t -s dkim -d "$DOMAIN_APP_NAME"
 mv dkim.private /etc/postfix/dkim.key
 chmod 660 /etc/postfix/dkim.key
 chown root:opendkim /etc/postfix/dkim.key
 
-[[ ! -d $SCRIPTS_DIR ]] && mkdir -p $SCRIPTS_DIR
+if [ ! -d $SCRIPTS_DIR ]; then
+  mkdir -p $SCRIPTS_DIR
+fi
+
 cp /etc/postfix/dkim.key $SCRIPTS_DIR/
 mv dkim.txt $SCRIPTS_DIR/
 chmod 600 $SCRIPTS_DIR/dkim.txt $SCRIPTS_DIR/dkim.key
 
-dkim_dns=$(echo $(cat $SCRIPTS_DIR/dkim.txt) | sed -e 's/" ) ; -----.*//' -e 's/IN //' -e 's/( "//' -e 's/"//g')
+dkim_dns=$(sed -e 's/" ) ; -----.*//' -e 's/IN //' -e 's/( "//' -e 's/"//g' < $SCRIPTS_DIR/dkim.txt )
 
 echo "
 ------------------------------
@@ -2872,8 +3045,10 @@ and an DNS TXT entry at
 _adsp._domainkey
 with content:
 dkim=all
+
+Press any key to continue.
 ------------------------------"
-read
+Pause
 }
 
 configure_dmarc() {
@@ -2882,25 +3057,32 @@ HOSTNAME=$(hostname)
 OPENDMARC_CONF=/etc/opendmarc.conf
 sed -i "s,# AuthservID.*,AuthservID $HOSTNAME," $OPENDMARC_CONF
 sed -i "s,# TrustedAuthservIDs.*,TrustedAuthservIDs HOSTNAME," $OPENDMARC_CONF
-echo "HistoryFile /var/run/opendmarc/opendmarc.dat" >> $OPENDMARC_CONF
-echo "IgnoreHosts /etc/opendmarc/ignore.hosts" >> $OPENDMARC_CONF
-echo "IgnoreMailFrom $DOMAIN_APP_NAME" >> $OPENDMARC_CONF
-echo "
+
+{
+echo "HistoryFile /var/run/opendmarc/opendmarc.dat
+IgnoreHosts /etc/opendmarc/ignore.hosts
+IgnoreMailFrom $DOMAIN_APP_NAME
+
 # For testing
-SoftwareHeader true" >> $OPENDMARC_CONF
+SoftwareHeader true"
+} >> $OPENDMARC_CONF
 
 mkdir /etc/opendmarc/
 echo "127.0.0.1" >> /etc/opendmarc/ignore.hosts
 echo "$HOSTNAME" >> /etc/opendmarc/ignore.hosts
 echo "SOCKET=\"inet:8892@127.0.0.1\"" >> /etc/default/opendmarc
 
-[[ -z $POSTMASTER ]] && POSTMASTER=dmarc@$DOMAIN_APP_NAME
+if [ -z "$POSTMASTER" ]; then
+  POSTMASTER=dmarc@$DOMAIN_APP_NAME
+fi
+
 echo "
 ------------------------------
 Enter the mail address for dmarc report receiver.
-Default: $POSTMASTER
+
+E.g.: $POSTMASTER
 ------------------------------"
-read -e -i "$POSTMASTER" DMARC_MAIL
+read -r DMARC_MAIL
 
 echo "Now create a new database with name opendmarc,
 or just choose an existing one
@@ -2908,7 +3090,7 @@ enter the usernane and the password"
 
 create_mysql_db opendmarc
 
-mysql -u$MYSQL_DB_USER -p$MYSQL_DB_PASSWORD -h$MYSQL_HOST < /usr/share/doc/opendmarc/schema.mysql
+mysql -u"$MYSQL_DB_USER" -p"$MYSQL_DB_PASSWORD" -h"$MYSQL_HOST" < /usr/share/doc/opendmarc/schema.mysql
 
 echo "
 #!/bin/bash
@@ -2942,8 +3124,10 @@ Enter an DNS TXT entry at
 _dmarc.
 with content:
 v=DMARC1; p=quarantine; rua=mailto:$POSTMASTER; ruf=mailto:$POSTMASTER; fo=0; adkim=r; aspf=r; pct=100; rf=afrf; ri=86400
+
+Press any key to continue.
 ------------------------------"
-read
+Pause
 }
 
 configure_sieve() {
@@ -2981,14 +3165,14 @@ Configuring OpenSRSD
 install_components "unzip cmake"
 
 # Download and extract source code from GitHub.
-cd /tmp
+cd /tmp || echo 'Could not change directory to /tmp' #This should not happen as /tmp is a normally existend
 curl -L -o postsrsd.zip https://github.com/roehling/postsrsd/archive/master.zip
 unzip postsrsd.zip
 
 # Build and install.
-cd postsrsd-master
+cd postsrsd-master || echo 'Could not change directory to /tmp/postsrsd-master'
 mkdir build
-cd build
+cd build  || echo 'Could not change directory to /tmp/postsrsd-master/build'
 cmake -DCMAKE_INSTALL_PREFIX=/usr ../
 make
 make install
@@ -3000,9 +3184,14 @@ postconf -e "recipient_canonical_classes = envelope_recipient,header_recipient"
 
 systemctl enable postsrsd
 
-cd /tmp
-[[ -f /tmp/postsrsd.zip ]] && rm -f /tmp/postsrsd.zip
-[[ -d /tmp/postsrsd-master ]] && rm -rf /tmp/postsrsd-master
+cd /tmp || echo 'Could not change directory to /tmp' #This should not happen as /tmp is a normally existend
+if [ -f /tmp/postsrsd.zip ]; then
+  rm -f /tmp/postsrsd.zip
+fi
+
+if [ -d /tmp/postsrsd-master ]; then
+  rm -rf /tmp/postsrsd-master
+fi
 
 start_service postsrsd
 
@@ -3150,7 +3339,7 @@ FROM mailbox WHERE username = '%u' AND active = '1'
 echo "
 # Define the query to obtain user information.
 #
-# Note that uid 150 is the "vmail" user and gid 8 is the "mail" group.
+# Note that uid 150 is the 'vmail' user and gid 8 is the 'mail' group.
 #
 user_query = \\
 SELECT '/var/vmail/%d/%n' as home, 'maildir:/var/vmail/%d/%n' as mail, \\
@@ -3220,14 +3409,15 @@ user = postfix
 group = postfix
 }/s' $DOVECOT_MASTER_CONF
 
-if [ -z $POSTMASTER ]; then
+if [ -z "$POSTMASTER" ]; then
 POSTMASTER=admin@$DOMAIN_APP_NAME
 echo "
 ------------------------------
 Enter the mail address for the postmaster.
-Default: $POSTMASTER
+
+E.g.: $POSTMASTER
 ------------------------------"
-read -e -i "$POSTMASTER" POSTMASTER
+read -r POSTMASTER
 fi
 
 echo "
@@ -3243,8 +3433,8 @@ chmod -R o-rwx /etc/dovecot
 }
 
 install_postfix_and_co() {
-debconf-set-selections <<< "postfix postfix/mailname string $HOSTNAME"
-debconf-set-selections <<< "postfix postfix/main_mailer_type string 'Internet Site'"
+echo "postfix postfix/mailname string $HOSTNAME" | debconf-set-selections
+echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-selections
 
 install_components "mutt postfix libexttextcat-data liblockfile-bin gnupg-agent libksba8 libexttextcat-2.0-0 libgpgme11 libwrap0 dovecot-imapd libassuan0 ssl-cert dovecot-pop3d dirmngr ntpdate dovecot-core tcpd gnupg2 liblockfile1 pinentry-curses libnpth0 procmail libtokyocabinet9 bsd-mailx"
 
@@ -3258,9 +3448,9 @@ echo "
 *********************************************
 Installing postfixadmin
 *********************************************"
-local SOFTWARE_URL=http://downloads.sourceforge.net/project/postfixadmin/postfixadmin/postfixadmin-2.93/postfixadmin-2.93.tar.gz
-local SOFTWARE_ZIP=$(basename $SOFTWARE_URL)
-local SOFTWARE_DIR=$(sed -e 's/.tar.gz//' <<< $SOFTWARE_ZIP)
+SOFTWARE_URL=http://downloads.sourceforge.net/project/postfixadmin/postfixadmin/postfixadmin-2.93/postfixadmin-2.93.tar.gz
+SOFTWARE_ZIP=$(basename $SOFTWARE_URL)
+SOFTWARE_DIR=$(printf "%s" "$SOFTWARE_ZIP" | sed -e 's/.tar.gz//')
 
 if [ "$1" != "skip_init" ]; then
 install_base_components
@@ -3269,34 +3459,38 @@ install_components "software-properties-common php7.0 php7.0-mcrypt php7.0-curl 
 
 create_base_dirs
 
-if [ -z $DOMAIN_APP_NAME ]; then
+if [ -z "$DOMAIN_APP_NAME" ]; then
 DOMAIN_APP_NAME=mail.example.com
 echo "
 ------------------------------
 Enter a name for installation.
 It can contain the domain/subdomain name.
-Default: $DOMAIN_APP_NAME
 The base installation directory would be then e.g. $WWWPATH/$DOMAIN_APP_NAME
+
+E.g.: $DOMAIN_APP_NAME
 ------------------------------"
-read -e -i "$DOMAIN_APP_NAME" DOMAIN_APP_NAME
+read -r DOMAIN_APP_NAME
 fi
 
 # reload variables to set the $DOMAIN_APP_NAME in $WWWPATHHTML
 set_vars
 
-if [ -z $WWWPATHHTML ]; then
+if [ -z "$WWWPATHHTML" ]; then
 echo "
 ------------------------------
 Enter the full path for the installation directory.
 It will be used for the POSTFIXADMIN
 The default is '$WWWPATH' followed by the entered name $DOMAIN_APP_NAME,
 Per default a 'public_html' directory will be created for the application.
+
 The default path would be then e.g.: $WWWPATHHTML
 ------------------------------"
-read -e -i "$WWWPATHHTML" WWWPATHHTML
+read -r WWWPATHHTML
 fi
 
-[[ ! -d $WWWPATHHTML ]] && mkdir -p $WWWPATHHTML
+if [ ! -d "$WWWPATHHTML" ];then
+  mkdir -p "$WWWPATHHTML"
+fi
 
 install_mysql
 
@@ -3318,91 +3512,86 @@ create_mysql_db postfixadmin
 start_service "mysql php7.0-fpm nginx"
 
 echo "Copy application files"
-cd /tmp
+cd /tmp || echo 'Could not change directory to /tmp' #This should not happen as /tmp is a normally existend
 wget $SOFTWARE_URL
-tar -xf /tmp/$SOFTWARE_ZIP
-mv $SOFTWARE_DIR $WWWPATHHTML/postfixadmin
-chown -R $service_user:www-data $WWWPATHHTML/postfixadmin
-[ -f /tmp/$SOFTWARE_ZIP ] && rm -f /tmp/$SOFTWARE_ZIP
+tar -xf /tmp/"$SOFTWARE_ZIP"
+mv "$SOFTWARE_DIR" "$WWWPATHHTML"/postfixadmin
+chown -R "$service_user":www-data "$WWWPATHHTML"/postfixadmin
+[ -f /tmp/"$SOFTWARE_ZIP" ] && rm -f /tmp/"$SOFTWARE_ZIP"
 
 echo "create new empty postfix local config file"
 POSTFIXADM_CONF_FILE=$WWWPATHHTML/postfixadmin/config.local.php
-touch $POSTFIXADM_CONF_FILE
-chown $service_user:www-data $POSTFIXADM_CONF_FILE
+touch "$POSTFIXADM_CONF_FILE"
+chown "$service_user":www-data "$POSTFIXADM_CONF_FILE"
 
 echo "download postfixadmin template"
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/postfixadmin.config.local.php -O $POSTFIXADM_CONF_FILE
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/postfixadmin.config.local.php -O "$POSTFIXADM_CONF_FILE"
 
-if [ -z $POSTMASTER ]; then
+if [ -z "$POSTMASTER" ]; then
 POSTMASTER=admin@$DOMAIN_APP_NAME
 echo "
 ------------------------------
 Enter the mail address for the postmaster.
-Default: $POSTMASTER
+
+E.g.: $POSTMASTER
 ------------------------------"
-read -e -i "$POSTMASTER" POSTMASTER
+read -r POSTMASTER
 fi
 
 echo "adjust postfixadmin template config"
-sed -i "s,.*'postfix_admin_url'.*,\$CONF['postfix_admin_url'] = 'https://$DOMAIN_APP_NAME/postfixadmin';," $POSTFIXADM_CONF_FILE
-sed -i "s,.*'database_user'.*,\$CONF['database_user'] = '$MYSQL_DB_USER';," $POSTFIXADM_CONF_FILE
-sed -i "s,.*'database_password'.*,\$CONF['database_password'] = '$MYSQL_DB_PASSWORD';," $POSTFIXADM_CONF_FILE
-sed -i "s,.*'database_name'.*,\$CONF['database_name'] = '$MYSQL_DB_NAME';," $POSTFIXADM_CONF_FILE
-sed -i "s,.*'admin_email'.*,\$CONF['admin_email'] = '$POSTMASTER';," $POSTFIXADM_CONF_FILE
-sed -i "s,'admin@example.com','$POSTMASTER'," $POSTFIXADM_CONF_FILE
-sed -i "s,.*'footer_text'.*,\$CONF['footer_text'] = 'Return to $DOMAIN_APP_NAME';," $POSTFIXADM_CONF_FILE
-sed -i "s,.*'footer_link'.*,\$CONF['footer_link'] = 'https://$DOMAIN_APP_NAME';," $POSTFIXADM_CONF_FILE
+sed -i "s,.*'postfix_admin_url'.*,\$CONF['postfix_admin_url'] = 'https://$DOMAIN_APP_NAME/postfixadmin';," "$POSTFIXADM_CONF_FILE"
+sed -i "s,.*'database_user'.*,\$CONF['database_user'] = '$MYSQL_DB_USER';," "$POSTFIXADM_CONF_FILE"
+sed -i "s,.*'database_password'.*,\$CONF['database_password'] = '$MYSQL_DB_PASSWORD';," "$POSTFIXADM_CONF_FILE"
+sed -i "s,.*'database_name'.*,\$CONF['database_name'] = '$MYSQL_DB_NAME';," "$POSTFIXADM_CONF_FILE"
+sed -i "s,.*'admin_email'.*,\$CONF['admin_email'] = '$POSTMASTER';," "$POSTFIXADM_CONF_FILE"
+sed -i "s,'admin@example.com','$POSTMASTER'," "$POSTFIXADM_CONF_FILE"
+sed -i "s,.*'footer_text'.*,\$CONF['footer_text'] = 'Return to $DOMAIN_APP_NAME';," "$POSTFIXADM_CONF_FILE"
+sed -i "s,.*'footer_link'.*,\$CONF['footer_link'] = 'https://$DOMAIN_APP_NAME';," "$POSTFIXADM_CONF_FILE"
 
 mysql --version | awk '{ print $5 }'
-MYSQLVERSION=`mysql --version | awk '{ print $5 }' | cut -c 1-3`
-if [ "$MYSQLVERSION" == "5.5" ];
+MYSQLVERSION=$(mysql --version | awk '{ print $5 }' | cut -c 1-3)
+if [ "$MYSQLVERSION" = "5.5" ];
         then
-        sed -i 's/"FROM_BASE64(###KEY###)"/"###KEY###"/' $WWWPATHHTML/postfixadmin/model/PFAHandler.php
+        sed -i 's/"FROM_BASE64(###KEY###)"/"###KEY###"/' "$WWWPATHHTML"/postfixadmin/model/PFAHandler.php
 fi
 
 # Read website setup generate hash
 echo "visit https://$DOMAIN_APP_NAME/postfixadmin/setup.php enter the password and copy the generated has here and press RETURN"
-read SETUP_HASH
+read -r SETUP_HASH
 echo "
 // In order to setup Postfixadmin, you MUST specify a hashed password here.
 // To create the hash, visit setup.php in a browser and type a password into the field,
 // on submission it will be echoed out to you as a hashed value.
 \$CONF['setup_password'] = '$SETUP_HASH';
-" >> $POSTFIXADM_CONF_FILE
+" >> "$POSTFIXADM_CONF_FILE"
 unset SETUP_HASH
 
 echo "Continue to create postfixadmin superuser on https://$DOMAIN/postfixadmin/setup.php and press RETURN when you finished
 The setup.php page will be inaccessible after that."
-read
+Pause
 sed -i "/.*\* \^\/postfixadmin.*/i location = \/postfixadmin\/setup.php { \
 deny all; \
 access_log off; \
 log_not_found off; \
-}" $VHOST_CONF_PATH
+}" "$VHOST_CONF_PATH"
 
 start_service nginx
 }
 
 create_basic_auth() {
-local COMPONENT_NAME=$1
-echo "
-------------------------------
-Do you want to create basic auth password for $COMPONENT_NAME? (y/n)
-------------------------------"
-select yn in "Yes" "No"; do
-case $yn in
-Yes)
-answer=true
-break;
-;;
-No)
-answer=false
-break;
-;;
-*)
-echo "ERROR: Invalid option!"
-;;
-esac
+COMPONENT_NAME=$1
+
+while true; do
+  echo "
+  ------------------------------
+  Do you want to create basic auth password for $COMPONENT_NAME? (y/n)
+  ------------------------------ [Y/n]"
+  read -r yn
+    case $yn in
+        [Yy]* ) answer=true; break;;
+        [Nn]* ) answer=false; break;;
+        * ) echo "Please answer y or n.";;
+    esac
 done
 
 if $answer; then
@@ -3411,16 +3600,16 @@ echo "
 ------------------------------
 Please enter a name for the password file, it will be written into /etc/nginx/
 ------------------------------"
-read auth_passwd_file_name
+read -r auth_passwd_file_name
 
-local auth_passwd_user=
+auth_passwd_user=
 echo "
 ------------------------------
 Please enter the username you want to use for the authentication
 ------------------------------"
-read auth_passwd_user
+read -r auth_passwd_user
 
-htpasswd -c /etc/nginx/.$auth_passwd_file_name $auth_passwd_user
+htpasswd -c /etc/nginx/."$auth_passwd_file_name" "$auth_passwd_user"
 
 BASIC_AUTH_ACTIVE="
 auth_basic \"Restricted\";
@@ -3440,12 +3629,12 @@ Enter a name for the service user,
 Typically the user will be owner of a php-fpm pool,
 and is owner of the data files in the $WWWPATHHTML directory.
 It can also be added to groups, e.g. the www-data group in the next step.
-The default is.: $service_user
+E.g.: $service_user
 ------------------------------"
-read -e -i "$service_user" service_user
+read -r service_user
 echo "create service user $service_user"
-useradd -M $service_user
-usermod -L $service_user
+useradd -M "$service_user"
+usermod -L "$service_user"
 }
 
 add_user_to_group() {
@@ -3454,14 +3643,19 @@ echo "
 Adding a user to a group
 *********************************************"
 service_user=$1
-local user_group="$2"
+user_group="$2"
 
-[[ -z $service_user ]] &&	echo "
-------------------------------
-Enter the username of the service user which should be added to a group.
-The user should already exist.
-------------------------------
-" &&	read -e -i "$service_user" service_user
+if [ -z "$service_user" ]; then
+  echo "
+  ------------------------------
+  Enter the username of the service user which should be added to a group.
+  The user should already exist.
+
+  E.g.: $service_user
+  ------------------------------
+  "
+read -r service_user
+fi
 
 echo "
 ------------------------------
@@ -3471,10 +3665,11 @@ Given the user should read files with group permissions	for another php pool,
 then add the user to that php pool.
 
 Comma separated list of groups.
+E.g.: $user_group
 ------------------------------"
-read -e -i "$user_group" user_group
+read -r user_group
 
-usermod -aG $user_group $service_user
+usermod -aG "$user_group" "$service_user"
 }
 
 create_base_dirs() {
@@ -3482,10 +3677,21 @@ echo "
 *********************************************
 Creating directory for application
 *********************************************"
-[[ ! -d $WWWLOGDIR ]] && mkdir -p $WWWLOGDIR
-[[ ! -d $CERTS_PATH ]] && mkdir -p $CERTS_PATH
-[[ ! -d $WWWPATH ]] && mkdir -p $WWWPATH
-[[ ! -d $PERMISSIONFILES ]] && mkdir -p $PERMISSIONFILES
+if [ ! -d $WWWLOGDIR ]; then
+  mkdir -p $WWWLOGDIR
+fi
+
+if [ ! -d $CERTS_PATH ]; then
+  mkdir -p $CERTS_PATH
+fi
+
+if [ ! -d $WWWPATH ]; then
+  mkdir -p $WWWPATH
+fi
+
+if [ ! -d $PERMISSIONFILES ]; then
+  mkdir -p $PERMISSIONFILES
+fi
 }
 
 create_dh_param() {
@@ -3493,16 +3699,27 @@ echo "
 *********************************************
 Creating diffie-helman key
 *********************************************"
-local DOMAIN_PART=$DOMAIN_APP_NAME
-[[ -z $DOMAIN_PART ]] && echo "
-------------------------------
-Please enter the domain for the DHPARAM
-------------------------------
-" && read -e -i "example.com" DOMAIN_PART;
-[[ ! -d $CERTS_PATH ]] && read -e -p "Create $CERTS_PATH, press return to continue." -r && mkdir -p $CERTS_PATH
-openssl dhparam -out $CERTS_PATH/${DOMAIN_PART}_dhparams.pem 2048
-read -p "Set file permission 600 for $CERTS_PATH/${DOMAIN_PART}_dhparams.pem, press return to continue"
-chmod 600 $CERTS_PATH/${DOMAIN_PART}_dhparams.pem
+DOMAIN_PART=$DOMAIN_APP_NAME
+if [ -z "$DOMAIN_PART" ]; then
+  echo "
+  ------------------------------
+  Please enter the domain for the DHPARAM
+  ------------------------------
+
+  E.g.: example.com
+  "
+  read -r DOMAIN_PART;
+fi
+
+if [ ! -d $CERTS_PATH ]; then
+  printf "Create %s, press return to continue." "$CERTS_PATH"
+  Pause
+  mkdir -p $CERTS_PATH
+fi
+openssl dhparam -out $CERTS_PATH/"${DOMAIN_PART}"_dhparams.pem 2048
+printf "Set file permission 600 for %s/%s_dhparams.pem, press return to continue" "$CERTS_PATH" "${DOMAIN_PART}"
+Pause
+chmod 600 $CERTS_PATH/"${DOMAIN_PART}"_dhparams.pem
 }
 
 create_snakeoil_certs() {
@@ -3510,39 +3727,43 @@ echo "
 *********************************************
 Creating snakeoil certificate
 *********************************************"
-echo "
-------------------------------
-Do you want to create a snakeoil certificate for testing?
-------------------------------"
-select yn in "Yes" "No"; do
-case $yn in
-Yes)
-answer=true
-break;
-;;
-No)
-answer=false
-break;
-;;
-*)
-echo "ERROR: Invalid option!"
-;;
-esac
+
+while true; do
+  echo "
+  ------------------------------
+  Do you want to create a snakeoil certificate for testing?
+  ------------------------------ [Y/n]"
+  read -r yn
+    case $yn in
+        [Yy]* ) answer=true; break;;
+        [Nn]* ) answer=false; break;;
+        * ) echo "Please answer y or n.";;
+    esac
 done
 
 if $answer; then
-[[ ! -d $SCRIPTS_DIR ]] && mkdir -p $SCRIPTS_DIR
-[[ ! -f $SCRIPTS_DIR/manage_certs.sh ]] && wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/manage_certs.sh -O $SCRIPTS_DIR/manage_certs.sh
-. $SCRIPTS_DIR/manage_certs.sh read_config
+if [ ! -d $SCRIPTS_DIR ]; then
+  mkdir -p $SCRIPTS_DIR
+fi
+if [ ! -f $SCRIPTS_DIR/manage_certs.sh ]; then
+  wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/manage_certs.sh -O $SCRIPTS_DIR/manage_certs.sh
+fi
 
-[[ ! -d $CERTS_PATH ]] && read -e -p "Create certificates directory at $CERTS_PATH, return to continue." -r && mkdir -p $CERTS_PATH
+. "${SCRIPTS_DIR}/manage_certs.sh" read_config
+
+if [ ! -d $CERTS_PATH ]; then
+  printf "Create certificates directory at %s, return to continue." "$CERTS_PATH"
+  Pause
+  mkdir -p $CERTS_PATH
+fi
 openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:4096  \
 -subj "/C=$COUNTRYNAME/ST=$PROVINCENAME/L=$KEY_LOCATION/O=$KEY_ORGANIZATION/OU=$KEY_OUN/CN=$KEY_COMMON_NAME/emailAddress=$KEY_MAIL" \
--keyout $CERTS_PATH/$KEY_COMMON_NAME.key \
--out $CERTS_PATH/$KEY_COMMON_NAME.crt
+-keyout $CERTS_PATH/"$KEY_COMMON_NAME".key \
+-out $CERTS_PATH/"$KEY_COMMON_NAME".crt
 
-read -p "Set file permission 600 for $CERTS_PATH/$KEY_COMMON_NAME.key, press return to continue"
-chmod 600 $CERTS_PATH/$KEY_COMMON_NAME.key
+printf "Set file permission 600 for %s/%s.key, press return to continue" "$CERTS_PATH" "$KEY_COMMON_NAME"
+Pause
+chmod 600 $CERTS_PATH/"$KEY_COMMON_NAME".key
 fi
 }
 
@@ -3580,68 +3801,82 @@ ssl_dhparam    		      $CERTS_PATH/${DOMAIN_PART}_dhparams.pem;
 include			            global/secure_ssl.conf;
 
 BASE_VHOST_PART
-
-[ "$?" = "0" ] && return 0
 }
 
 check_vhost_create_vars() {
-[[ -z $KEY_COMMON_NAME ]]	&& KEY_COMMON_NAM=$DOMAIN_PART
+if [ -z "$KEY_COMMON_NAME" ]; then
+  KEY_COMMON_NAME=$DOMAIN_PART
+fi
 
 WWWPATHHTML=$WWWPATH/$DOMAIN_APP_NAME/public_html
 echo "
 ------------------------------
 Please enter the web root directory for this vhost,
 it will be created in case it doesn't exist
-Default: $WWWPATHHTML
+
+E.g.: $WWWPATHHTML
 ------------------------------"
-read -e -i "$WWWPATHHTML" WWWPATHHTML;
-[[ ! -d $WWWPATHHTML ]] && mkdir -p $WWWPATHHTML
+read -r WWWPATHHTML
+
+if [ ! -d "$WWWPATHHTML" ]; then
+  mkdir -p "$WWWPATHHTML"
+fi
 
 ALL_DOMAINS=
 echo "
 ------------------------------
 Please enter all domains which this vhost should listen for (space separated):
-e.g. $DOMAIN_PART www.$DOMAIN_PART
+
+E.g.: $DOMAIN_PART www.$DOMAIN_PART
 ------------------------------"
-read -e -i "$DOMAIN_PART www.$DOMAIN_PART" ALL_DOMAINS;
+read -r ALL_DOMAINS
 
 LE_KNOWN_DIR=/var/www/letsencrypt
-[[ ! -d $LE_KNOWN_DIR ]] && mkdir $LE_KNOWN_DIR
+if [ ! -d $LE_KNOWN_DIR ]; then
+  mkdir $LE_KNOWN_DIR
+fi
 
 SSL_KEY=$CERTS_PATH/$KEY_COMMON_NAME.key
-[[ ! -f $SSL_KEY ]] && echo "
-------------------------------
-Please enter the full path for the location of the ssl certificate key.
-------------------------------
-" && read -e -i "$SSL_KEY" SSL_KEY;
+if [ ! -f "$SSL_KEY" ]; then
+  echo "
+  ------------------------------
+  Please enter the full path for the location of the ssl certificate key.
+
+  E.g.: $SSL_KEY
+  ------------------------------
+  "
+  read -r SSL_KEY;
+fi
 
 SSL_CERT=$CERTS_PATH/$KEY_COMMON_NAME.crt
-[[ ! -f $SSL_CERT ]] && echo "
-------------------------------
-Please enter the full path for the location of the ssl certificate.
-------------------------------
-" && read -e -i "$SSL_CERT" SSL_CERT;
+if [ ! -f "$SSL_CERT" ]; then
+  echo "
+  ------------------------------
+  Please enter the full path for the location of the ssl certificate.
 
-echo "
-------------------------------
-Do you want to create an upstream to a php unix socket or port?
-------------------------------"
-select yn in "Yes" "No"; do
-case $yn in
-Yes)
-create_upstream=true
-php_pool_text="php upstream pool which will be created."
-break;
-;;
-No)
-create_upstream=false
-php_pool_text="existing php upstream pool."
-break;
-;;
-*)
-echo "ERROR: Invalid option!"
-;;
-esac
+  E.g.: $SSL_CERT
+  ------------------------------
+  "
+  read -r SSL_CERT;
+fi
+
+while true; do
+  echo "
+  ------------------------------
+  Do you want to create an upstream to a php unix socket or port?
+  ------------------------------ [Y/n]"
+  read -r yn
+    case $yn in
+        [Yy]* )
+        create_upstream=true
+        php_pool_text="php upstream pool which will be created."
+        break;;
+        [Nn]* )
+        create_upstream=false
+        php_pool_text="existing php upstream pool."
+        break;;
+        * ) echo "Please answer y or n.";;
+    esac
 done
 }
 
@@ -3675,24 +3910,33 @@ fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
 }
 ADMINISTRATIVE_VHOST
 
-[ "$?" = "0" ] && return 0
 }
 
 check_vhost_base_vars() {
-[[ -z $VHOST_CONF_PATH ]] && echo "
---------------
-Enter the full path and name for your VHOST configuration file.
-$([ -d $VHOST_CONF_DIR/ ] && echo "Following VHOSTs are existing:" && ls -1 $VHOST_CONF_DIR/ | sed -e 's/.*/- &/g')
-------------------------------
-" && read -e -i "$VHOST_CONF_DIR/$VHOST_CONF_FILE" VHOST_CONF_PATH
+if [ -z "$VHOST_CONF_PATH" ]; then
+  echo "
+  --------------
+  Enter the full path and name for your VHOST configuration file.
+  $([ -d "$VHOST_CONF_DIR"/ ] && echo "Following VHOSTs are existing:" && find "$VHOST_CONF_DIR"/ -type f -printf "%f\n" | sed -e 's/.*/- &/g')
 
-[[ -z $pool_name ]] && pool_name=$service_user
+  E.g.: $VHOST_CONF_DIR/$VHOST_CONF_FILE
+  ------------------------------
+  "
+  read -r VHOST_CONF_PATH
+fi
+
+if [ -z "$pool_name" ]; then
+  pool_name=$service_user
+fi
+
 echo "
 ------------------------------
 Please enter the name of the php pool.
-$([ -d /etc/php/7.0/fpm/pool.d/ ] && echo "Following php pools are existing:" && ls -1 /etc/php/7.0/fpm/pool.d/ | sed -e 's/\(.*\)\..*/\1/' -e 's/.*/- &/g')
+$([ -d /etc/php/7.0/fpm/pool.d/ ] && echo "Following php pools are existing:" && find /etc/php/7.0/fpm/pool.d/ -type f -printf "%f\n" | sed -e 's/\(.*\)\..*/\1/' -e 's/.*/- &/g')
+
+E.g.: $pool_name
 ------------------------------"
-read -e -i "$pool_name" pool_name
+read -r pool_name
 }
 
 write_wordpress_vhost_part() {
@@ -3766,7 +4010,6 @@ fastcgi_pass $pool_name;
 }
 WP_VHOST_CREATE
 
-[ "$?" = "0" ] && return 0
 }
 
 write_bbs_vhost_part() {
@@ -3802,14 +4045,13 @@ fastcgi_pass   $pool_name;
 }
 BBS_VHOST
 
-[ "$?" = "0" ] && return 0
 }
 
 write_phpmyadmin_vhost_part() {
 
 create_basic_auth PHPMYADMIN
 
-sed -i -e '1h;1!H;$!d;g;s/\(.*\)}/\1/' $VHOST_CONF_PATH
+sed -i -e '1h;1!H;$!d;g;s/\(.*\)}/\1/' "$VHOST_CONF_PATH"
 cat << PHPMYADMIN_PART >> "$VHOST_CONF_PATH"
 location /phpmyadmin {
 $BASIC_AUTH_ACTIVE
@@ -3832,12 +4074,11 @@ rewrite ^/* /phpmyadmin last;
 }
 PHPMYADMIN_PART
 
-[ "$?" = "0" ] && return 0
 }
 
 write_monit_vhost_part() {
 
-sed -i -e '1h;1!H;$!d;g;s/\(.*\)}/\1/' $VHOST_CONF_PATH
+sed -i -e '1h;1!H;$!d;g;s/\(.*\)}/\1/' "$VHOST_CONF_PATH"
 
 cat << MONIT_PART >> "$VHOST_CONF_PATH"
 location /monit/ {
@@ -3849,14 +4090,13 @@ proxy_redirect  https://127.0.0.1:2812/ /monit;
 }
 MONIT_PART
 
-[ "$?" = "0" ] && return 0
 }
 
 write_postfixadmin_vhost_part() {
 
 create_basic_auth POSTFIXADMIN
 
-sed -i -e '1h;1!H;$!d;g;s/\(.*\)}/\1/' $VHOST_CONF_PATH
+sed -i -e '1h;1!H;$!d;g;s/\(.*\)}/\1/' "$VHOST_CONF_PATH"
 cat << POSTFIXADMIN_PART >> "$VHOST_CONF_PATH"
 location /postfixadmin {
 $BASIC_AUTH_ACTIVE
@@ -3878,7 +4118,6 @@ location ~* ^/postfixadmin/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
 }
 POSTFIXADMIN_PART
 
-[ "$?" = "0" ] && return 0
 }
 
 write_owncloud_vhost_part() {
@@ -3987,7 +4226,6 @@ access_log off;
 }
 OC_VHOST
 
-[ "$?" = "0" ] && return 0
 }
 
 write_webmail_vhost_part() {
@@ -4041,13 +4279,14 @@ location ~* ^/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
 }
 WEBMAIL_VHOST
 
-[ "$?" = "0" ] && return 0
 }
 
 write_cops_vhost_part() {
 
 CALIBRE_LIBRARY=
-read -e -p "Please enter the path to the Calibre Library: " -i "/var/www/OwnCloud/files/Calibre_Library" CALIBRE_LIBRARY
+printf "Please enter the path to the Calibre Library: "
+printf "E.g.: /var/www/OwnCloud/files/Calibre_Library "
+read -r CALIBRE_LIBRARY
 
 create_basic_auth COPS
 
@@ -4081,7 +4320,6 @@ internal;
 }
 COPS_VHOST
 
-[ "$?" = "0" ] && return 0
 }
 
 create_nginx_vhost() {
@@ -4092,86 +4330,92 @@ echo "
 *********************************************
 Creating nginx vhost for $vhost_kind
 *********************************************"
-if [ $vhost_kind != "owncloud" ] || [ $vhost_kind != "nextcloud" ] || [ $vhost_kind != "wordpress" ] || [ $vhost_kind != "bbs" ] ||  [ $vhost_kind != "cops" ] ||  [ $vhost_kind != "webmail" ]; then
-echo "
-------------------------------
-Do you want to create a new vhost or
-add a component to an existing vhost? [New/Existing]
-------------------------------"
-select new_vhost in "New" "Existing"; do
-case $new_vhost in
-New)
-vhost_create=true
-break;
-;;
-Existing)
-vhost_create=false
-break;
-;;
-*)
-echo "ERROR: Invalid option!"
-;;
-esac
+if [ "$vhost_kind" != "owncloud" ] || [ "$vhost_kind" != "nextcloud" ] || [ "$vhost_kind" != "wordpress" ] || [ "$vhost_kind" != "bbs" ] ||  [ "$vhost_kind" != "cops" ] ||  [ "$vhost_kind" != "webmail" ]; then
+
+while true; do
+  echo "
+  ------------------------------
+  Do you want to create a new vhost or
+  add a component to an existing vhost?
+  ------------------------------ [new/existing]"
+  read -r yn
+    case $yn in
+        new) vhost_create=true; break;;
+        existing) vhost_create=false; break;;
+        * ) echo "Please answer new or existing.";;
+    esac
 done
 fi
 
 DOMAIN_PART=$DOMAIN_APP_NAME
-[[ -z $DOMAIN_PART ]] && echo "
---------------
-Please enter the domain for this vhost
-------------------------------
-" && read -e -i "example.com" DOMAIN_PART;
+if [ -z "$DOMAIN_PART" ]; then
+  echo "
+  --------------
+  Please enter the domain for this vhost
 
-if [ $vhost_create == true ]; then
+  E.g.: example.com
+  ------------------------------
+  "
+  read -r DOMAIN_PART;
+fi
+
+if [ $vhost_create = true ]; then
 check_vhost_create_vars
 
-[[ -z $pool_name ]] && pool_name=$service_user
+if [ -z "$pool_name" ]; then
+  pool_name=$service_user
+fi
+
 echo "
 ------------------------------
 Please enter the name of the $php_pool_text
-$([ -d /etc/php/7.0/fpm/pool.d/ ] && echo "Following php pools are existing:" && ls -1 /etc/php/7.0/fpm/pool.d/ | sed -e 's/\(.*\)\..*/\1/' -e 's/.*/- &/g')
+$([ -d /etc/php/7.0/fpm/pool.d/ ] && echo "Following php pools are existing:" && find /etc/php/7.0/fpm/pool.d/ -type f -printf "%f\n" | sed -e 's/\(.*\)\..*/\1/' -e 's/.*/- &/g')
+
+E.g.: $pool_name
 ------------------------------"
-read -e -i "$pool_name" pool_name
+read -r pool_name
 
 else
 create_upstream=false
 fi
 
-if [ $create_upstream == true ] && [ $vhost_create == true ]; then
-local listen_pool=unix:///var/run/php/$pool_name.sock
-echo "
-------------------------------
-Please enter unix socket or port php listening pool.
-Default: $listen_pool
-------------------------------"
-read -e -i "$listen_pool" listen_pool
+if [ $create_upstream = true ] && [ $vhost_create = true ]; then
+  listen_pool=unix:///var/run/php/$pool_name.sock
+  echo "
+  ------------------------------
+  Please enter unix socket or port php listening pool.
+
+  E.g.: $listen_pool
+  ------------------------------"
+  read -r listen_pool
 fi
 
 VHOST_CONF_DIR=/etc/nginx/sites-available
 if [ ! -d $VHOST_CONF_DIR ];then
-read -e -p "Where is your nginx sites-available location? Please enter the path: " -i "$VHOST_CONF_DIR" VHOST_CONF_DIR;fi
+  printf "Where is your nginx sites-available location? Please enter the path: "
+  printf "E.g.: %s" "$VHOST_CONF_DIR"
+  read -r VHOST_CONF_DIR
+fi
 
-if [ ! -d $VHOST_CONF_DIR ];then
-echo "
-------------------------------
-The directory $VHOST_CONF_DIR does not exist, should it be created?
--- 'n' will create NO VHOST file!
-The setup might run into further errors.
-------------------------------"
-select yn in "Yes" "No"; do
-case $yn in
-Yes)
-[[ ! -d $VHOST_CONF_DIR ]] && mkdir -p $VHOST_CONF_DIR
-break;
-;;
-No)
-return 1
-break;
-;;
-*)
-echo "ERROR: Invalid option!"
-;;
-esac
+if [ ! -d "$VHOST_CONF_DIR" ];then
+
+while true; do
+  echo "
+  ------------------------------
+  The directory $VHOST_CONF_DIR does not exist, should it be created?
+  -- 'n' will create NO VHOST file!
+  The setup might run into further errors.
+  ------------------------------ [Y/n]"
+  read -r yn
+    case $yn in
+        [Yy]* )
+        if [ ! -d "$VHOST_CONF_DIR" ]; then
+          mkdir -p "$VHOST_CONF_DIR"
+        fi
+        break;;
+        [Nn]* ) return 1; break;;
+        * ) echo "Please answer y or n.";;
+    esac
 done
 fi
 
@@ -4179,23 +4423,25 @@ VHOST_CONF_FILE=$DOMAIN_PART.conf
 echo "
 ------------------------------
 Enter a name for your VHOST configuration file.
-$([ -d $VHOST_CONF_DIR/ ] && echo "Following VHOSTs are existing:" && ls -1 $VHOST_CONF_DIR/ | sed -e 's/.*/- &/g')
+$([ -d "$VHOST_CONF_DIR"/ ] && echo "Following VHOSTs are existing:" && find "$VHOST_CONF_DIR"/ -type f -printf "%f\n" | sed -e 's/.*/- &/g')
+
+E.g.:  $VHOST_CONF_FILE
 ------------------------------"
-read -e -i "$VHOST_CONF_FILE" VHOST_CONF_FILE
+read -r VHOST_CONF_FILE
 
 # Check if vhost alreay exists otherwise create it
 VHOST_CONF_PATH=$VHOST_CONF_DIR/$VHOST_CONF_FILE
-local EXISTING_VHOST_CONFIG=$(find $VHOST_CONF_DIR -type f -name "*$VHOST_CONF_FILE*")
+EXISTING_VHOST_CONFIG=$(find "$VHOST_CONF_DIR" -type f -name "*$VHOST_CONF_FILE*")
 
-if [ "$(find $VHOST_CONF_DIR -type f -name "*$VHOST_CONF_FILE*"  | wc -l)" -gt "0" ];then
+if [ "$(find "$VHOST_CONF_DIR" -type f -name "*$VHOST_CONF_FILE*"  | wc -l)" -gt "0" ];then
 for i in $EXISTING_VHOST_CONFIG
 do
 # Backup existing config file if existing
-cp $i $i.bkp
+cp "$i" "$i".bkp
 done
 fi
 
-if [ $create_upstream == true ] && [ $vhost_create == true ]; then
+if [ $create_upstream = true ] && [ $vhost_create = true ]; then
 cat << VHOST_UPSTREAM_CREATE > "$VHOST_CONF_PATH"
 upstream $pool_name {
 server $listen_pool;
@@ -4203,9 +4449,9 @@ server $listen_pool;
 VHOST_UPSTREAM_CREATE
 fi
 
-$vhost_create && write_base_vhost_part $VHOST_CONF_PATH
+$vhost_create && write_base_vhost_part "$VHOST_CONF_PATH"
 
-if [ -z $vhost_kind ]; then
+if [ -z "$vhost_kind" ]; then
 echo "
 ------------------------------
 Choose the kind for the nginx vhost. You may do some manual adjustments later.
@@ -4218,8 +4464,10 @@ Available kinds:
 - postfixadmin (web interface for postfix)
 - monit (web interface for a basic monitoring)
 - webmail (Web Mail interface )
+
+E.g.: $vhost_kind
 ------------------------------"
-read -e -i "$vhost_kind" vhost_kind
+read -r vhost_kind
 fi
 
 case "$vhost_kind" in
@@ -4270,20 +4518,25 @@ NGINX VHOST config was created at $VHOST_CONF_PATH
 ------------------------------"
 sleep 2
 
-local NGINX_ENABLE_DIR=/etc/nginx/sites-enabled
-if [ ! -d $NGINX_ENABLE_DIR ]; then read -e -p "Where is your nginx sites-enabled location? Please enter the path: " -i "$NGINX_ENABLE_DIR" NGINX_ENABLE_DIR;fi
+NGINX_ENABLE_DIR=/etc/nginx/sites-enabled
+if [ ! -d $NGINX_ENABLE_DIR ]; then
+printf "Where is your nginx sites-enabled location? Please enter the path: e.g.: %s" "$NGINX_ENABLE_DIR"
+  read -r NGINX_ENABLE_DIR;
+fi
 
 echo "
 ------------------------------
 enable vhost
 ------------------------------"
-[[ -d $NGINX_ENABLE_DIR ]] && [[ ! -f $NGINX_ENABLE_DIR/$DOMAIN_APP_NAME ]] && ln -s $VHOST_CONF_PATH $NGINX_ENABLE_DIR/$DOMAIN_APP_NAME
+if [ -d "$NGINX_ENABLE_DIR" ] && [ ! -f "$NGINX_ENABLE_DIR"/"$DOMAIN_APP_NAME" ]; then
+  ln -s "$VHOST_CONF_PATH" "$NGINX_ENABLE_DIR"/"$DOMAIN_APP_NAME"
+fi
 
 echo "
 NGINX Geo blocking is NOT active per default but included in the VHOST config.
 Comment in the allow_visit setting in the VHOST config.
 Press return to continue."
-read
+Pause
 }
 
 create_php_pool() {
@@ -4293,15 +4546,16 @@ Creating a php fpm pool
 *********************************************"
 pool_owner=$service_user
 pool_name=$pool_owner
-local size=small
-local php_tmp=/tmp
+size=small
+php_tmp=/tmp
 echo "
 ------------------------------
 Enter a name for the php pool.
 To recognize it easily give it the name of the service user.
-The default is.: $pool_name
+
+E.g.: $pool_name
 ------------------------------"
-read -e -i "$pool_name" pool_name
+read -r pool_name
 
 echo "
 ------------------------------
@@ -4310,30 +4564,33 @@ To recognize it easily give it the name of the service user.
 Make sure the user exist alreday, or has been created during previous setup steps.
 The pool owner will be the owner of files to be read and to be created
 from nginx in connection with the PHP-FPM pool.
-The default is.: $pool_owner
+
+E.g.: $pool_owner
 ------------------------------"
-read -e -i "$pool_owner" pool_owner
+read -r pool_owner
 
 
-local listen_pool=/var/run/php/$pool_name.sock
+listen_pool=/var/run/php/$pool_name.sock
 echo "
 ------------------------------
 Please enter unix socket or port php listening pool.
-Default: $listen_pool
+
+E.g.: $listen_pool
 ------------------------------"
-read -e -i "$listen_pool" listen_pool;
+read -r listen_pool;
 
 echo "
 ------------------------------
 Enter a name php tmp directory.
 The directory should already exist.
-The default is.: $php_tmp
+
+e.g.: $php_tmp
 ------------------------------"
-read -e -i "$php_tmp" php_tmp
+read -r php_tmp
 
 echo "Create basic php-fpm pool config"
 pool_conf=/etc/php/7.0/fpm/pool.d/$pool_name.conf
-cat << BASIC_POOL > $pool_conf
+cat << BASIC_POOL > "$pool_conf"
 ;; $DOMAIN_APP_NAME
 [$pool_name]
 env[HOSTNAME] = \$HOSTNAME
@@ -4369,112 +4626,106 @@ catch_workers_output = yes
 
 BASIC_POOL
 
-echo "
-------------------------------
-Choose the size for the pool. It can be changed manually later.
-Available sizes:
-- big_oc (Big size pool for e.g. Owncloud )
-- middle_oc (Middle sized pool for e.g. Owncloud )
-- big_wp (Big size pool for e.g. Wordpress )
-- middle (Middle sized pool for e.g. Wordpress and other sites)
-- small (Small sized, on demand, pool, for e.g. administrative pages or lower traffic pages )
-------------------------------"
-select size in "big_oc" "middle_oc" "big_wp" "middle" "small"; do
-case "$size" in
-big_oc)
-echo "Big Owncloud pool"
-cat << BIG_OC_POOL >> $pool_conf
-listen.backlog = 1024
-pm = dynamic
-pm.max_children = 40
-pm.start_servers = 10
-pm.min_spare_servers = 4
-pm.max_spare_servers = 10
-pm.max_requests = 1000
-pm.process_idle_timeout = 300s
-request_terminate_timeout = 300
-php_value[max_execution_time] = 300
-php_value[max_input_time] = 300
-php_value[memory_limit] = 4096M
-php_value[post_max_size] = 4096M
-php_value[upload_max_filesize] = 4096M
+while true; do
+  echo "
+  ------------------------------
+  Choose the size for the pool. It can be changed manually later.
+  Available sizes:
+  - big_oc (Big size pool for e.g. Owncloud )
+  - middle_oc (Middle sized pool for e.g. Owncloud )
+  - big_wp (Big size pool for e.g. Wordpress )
+  - middle (Middle sized pool for e.g. Wordpress and other sites)
+  - small (Small sized, on demand, pool, for e.g. administrative pages or lower traffic pages )
+  ------------------------------"
+  read -r yn
+  case $size in
+  big_oc)
+  echo "Big Owncloud pool"
+  cat <<- BIG_OC_POOL >> "$pool_conf"
+  listen.backlog = 1024
+  pm = dynamic
+  pm.max_children = 40
+  pm.start_servers = 10
+  pm.min_spare_servers = 4
+  pm.max_spare_servers = 10
+  pm.max_requests = 1000
+  pm.process_idle_timeout = 300s
+  request_terminate_timeout = 300
+  php_value[max_execution_time] = 300
+  php_value[max_input_time] = 300
+  php_value[memory_limit] = 4096M
+  php_value[post_max_size] = 4096M
+  php_value[upload_max_filesize] = 4096M
 BIG_OC_POOL
-break;
-;;
-middle_oc)
-echo "Middle Owncloud pool"
-cat << MIDDLE_OC_POOL >> $pool_conf
-listen.backlog = 1024
-pm = dynamic
-pm.max_children = 30
-pm.start_servers = 2
-pm.min_spare_servers = 2
-pm.max_spare_servers = 6
-pm.max_requests = 500
-pm.process_idle_timeout = 150s
-request_terminate_timeout = 150
-php_value[max_input_time] = 150
-php_value[max_execution_time] = 150
-php_value[memory_limit] = 1512M
-php_value[post_max_size] = 1512M
-php_value[upload_max_filesize] = 1512M
+  break;;
+  middle_oc)
+  echo "Middle Owncloud pool"
+  cat <<- MIDDLE_OC_POOL >> "$pool_conf"
+  listen.backlog = 1024
+  pm = dynamic
+  pm.max_children = 30
+  pm.start_servers = 2
+  pm.min_spare_servers = 2
+  pm.max_spare_servers = 6
+  pm.max_requests = 500
+  pm.process_idle_timeout = 150s
+  request_terminate_timeout = 150
+  php_value[max_input_time] = 150
+  php_value[max_execution_time] = 150
+  php_value[memory_limit] = 1512M
+  php_value[post_max_size] = 1512M
+  php_value[upload_max_filesize] = 1512M
 MIDDLE_OC_POOL
-break;
-;;
-big_wp)
-echo "Big WordPress pool"
-cat << BIG_WP_POOL >> $pool_conf
-listen.backlog = 1024
-pm = dynamic
-pm.max_children = 40
-pm.start_servers = 10
-pm.min_spare_servers = 4
-pm.max_spare_servers = 10
-pm.max_requests = 1000
-pm.process_idle_timeout = 300s
-request_terminate_timeout = 300
-php_value[max_input_time] = 300
-php_value[max_execution_time] = 300
-php_value[memory_limit] = 75M
-php_value[post_max_size] = 50M
-php_value[upload_max_filesize] = 50M
+  break;;
+  big_wp)
+  echo "Big WordPress pool"
+  cat <<- BIG_WP_POOL >> "$pool_conf"
+  listen.backlog = 1024
+  pm = dynamic
+  pm.max_children = 40
+  pm.start_servers = 10
+  pm.min_spare_servers = 4
+  pm.max_spare_servers = 10
+  pm.max_requests = 1000
+  pm.process_idle_timeout = 300s
+  request_terminate_timeout = 300
+  php_value[max_input_time] = 300
+  php_value[max_execution_time] = 300
+  php_value[memory_limit] = 75M
+  php_value[post_max_size] = 50M
+  php_value[upload_max_filesize] = 50M
 BIG_WP_POOL
-break;
-;;
-middle)
-echo "Middle sized pool"
-cat << MIDDLE_POOL >> $pool_conf
-listen.backlog = 512
-pm = dynamic
-pm.max_children = 30
-pm.start_servers = 2
-pm.min_spare_servers = 2
-pm.max_spare_servers = 6
-pm.max_requests = 500
-pm.process_idle_timeout = 60s
-php_value[max_input_time] = 120
-php_value[max_execution_time] = 120
-php_value[memory_limit] = 50M
-php_value[php_post_max_size] = 25M
-php_value[upload_max_filesize] = 25M
+  break;;
+  middle)
+  echo "Middle sized pool"
+  cat <<- MIDDLE_POOL >> "$pool_conf"
+  listen.backlog = 512
+  pm = dynamic
+  pm.max_children = 30
+  pm.start_servers = 2
+  pm.min_spare_servers = 2
+  pm.max_spare_servers = 6
+  pm.max_requests = 500
+  pm.process_idle_timeout = 60s
+  php_value[max_input_time] = 120
+  php_value[max_execution_time] = 120
+  php_value[memory_limit] = 50M
+  php_value[php_post_max_size] = 25M
+  php_value[upload_max_filesize] = 25M
 MIDDLE_POOL
-break;
-;;
-small)
-echo "Small size on demand"
-cat << SMALL_POOL >> $pool_conf
-listen.backlog = 64
-pm = ondemand
-pm.max_children = 5
-pm.max_requests = 200
-pm.process_idle_timeout = 10s
+  break;;
+  small)
+  echo "Small size on demand"
+  cat <<- SMALL_POOL >> "$pool_conf"
+  listen.backlog = 64
+  pm = ondemand
+  pm.max_children = 5
+  pm.max_requests = 200
+  pm.process_idle_timeout = 10s
 SMALL_POOL
-break;
-;;
-*)
-echo "ERROR: Invalid option!"
-;;
-esac
+  break;;
+  *) echo "ERROR: Invalid option!" ;;
+  esac
 done
 
 echo "
@@ -4484,7 +4735,7 @@ PHP Pool was created at $pool_conf
 }
 
 start_service() {
-local services_to_start=$1
+services_to_start=$1
 echo "
 *********************************************
 Starting service(s) $services_to_start
@@ -4493,32 +4744,27 @@ for i in $services_to_start
 do
 case $i in
 nginx)
-local SERVICE=apache2
-if ps ax | grep -v grep | grep $SERVICE > /dev/null;then
-echo "
----------------------------------------------------------------
-"$SERVICE service running, do you want to stop it in order to start $i?"
----------------------------------------------------------------"
+SERVICE=apache2
+if pgrep $SERVICE > /dev/null; then
 
-select yn in "Yes" "No"; do
-case $yn in
-Yes)
-service $SERVICE stop
-break;
-;;
-No)
-break;
-;;
-*)
-echo "ERROR: Invalid option!"
-;;
-esac
+while true; do
+  echo "
+  ----------------------------------------------------------------------
+  $SERVICE service running, do you want to stop it in order to start $i?
+  --------------------------------------------------------------- [Y/n]"
+  read -r yn
+    case $yn in
+        [Yy]* ) service $SERVICE stop; break;;
+        [Nn]* ) break;;
+        * ) echo "Please answer y or n.";;
+    esac
 done
+
 fi
 ;;
 esac
 
-service $i stop && service $i start
+service "$i" stop && service "$i" start
 done
 }
 
@@ -4596,13 +4842,13 @@ csf_config)
 csf_config
 ;;
 csf_add_syslogs)
-csf_add_syslogs
+csf_add_syslogs "$@"
 ;;
 csf_add_logfiles)
-csf_add_logfiles
+csf_add_logfiles "$@"
 ;;
 csf_add_pignore)
-csf_add_pignore
+csf_add_pignore "$@"
 ;;
 install_base_components)
 install_base_components

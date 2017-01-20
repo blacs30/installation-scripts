@@ -3,9 +3,18 @@ CERTS_PATH=/var/www/ssl
 CSR_CONFIG=$3
 CERT_CUSTOM=$2
 ADMIN_MAIL=root #is used for letsencrypt and should be a real mail address
+
+Pause() {
+  (tty_state=$(stty -g)
+  stty -icanon
+  LC_ALL=C dd bs=1 count=1 >/dev/null 2>&1
+  stty "$tty_state"
+  ) </dev/tty
+}
+
 if [ "$1" != "read_config" ]; then
     echo "Adjust the ADMIN_MAIL and CERTS_PATH and comment out this line!"
-    read -r
+    Pause
 fi
 
 usage() {
@@ -146,7 +155,7 @@ create_cert() {
 	Create Cert
 	remove testing if you are sure to request production certs
 	---------------"
-	read -r
+	Pause
 	/opt/letsencrypt/letsencrypt-auto certonly \
 	-a webroot \
 	--webroot-path /var/www/letsencrypt/ \

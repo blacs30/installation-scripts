@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 export BACKUPDIR=/mnt/backupspace/backups/config
 
 if [ -f $BACKUPDIR/installed_packages.log ]
