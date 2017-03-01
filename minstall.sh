@@ -245,7 +245,7 @@ bash /etc/init.d/hostname.sh
 
 echo "$host_name" > /etc/mailname
 
-sed -i -e 's/127.0.0.1.*/# &/' -e "/^# 127.0.0.1.*/ a 127.0.0.1 $host_name" /etc/hosts
+sed -i -e 's/127.0.0.1.*/# &/' -e "/^# 127.0.0.1.*/ a 127.0.0.1 $host_name localhost" /etc/hosts
 }
 
 ssh_server() {
@@ -892,7 +892,7 @@ fi
 PHPMYADMIN_CONF=$WWWPATHHTML/phpmyadmin/config.inc.php
 cp "$WWWPATHHTML"/phpmyadmin/config.sample.inc.php "$PHPMYADMIN_CONF"
 
-BLOWFISH_PASS=$(< /dev/urandom tr -dc "a-zA-Z0-9@#*=" | fold -w "$SHUF" | head -n 1)
+BLOWFISH_PASS=$(< /dev/urandom tr -dc "a-zA-Z0-9@#*=" | fold -w 32 | head -n 1)
 sed -i "s/.*'blowfish_secret'.*/\$cfg['blowfish_secret'] = '$BLOWFISH_PASS';/g" "$PHPMYADMIN_CONF"
 sed -i "s/localhost/127.0.0.1/g" "$PHPMYADMIN_CONF"
 sed -i "/AllowNoPassword/a \$cfg['ForceSSL'] = 'true';" "$PHPMYADMIN_CONF"
