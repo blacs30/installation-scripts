@@ -21,6 +21,16 @@ comment in and set the value as in the following lines, keep in mind that spaces
  - `}`
    Close the section, important not to forget.
 
+The full minimum required block for the backup looks then this way:  
+ ```
+ gitlab_rails['backup_keep_time'] = 604800
+ gitlab_rails['backup_upload_connection'] = {
+    'provider' => 'local',
+    'local_root' => '/tmp/mysqlbackup',
+ }
+ gitlab_rails['backup_upload_remote_directory'] = 'gitlab_backups'
+ ```
+
 Run the reconfigure command after changing the gitlab.rb file:
   - `gitlab-ctl reconfigure`
 
