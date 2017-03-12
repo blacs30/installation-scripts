@@ -1,4 +1,4 @@
-# Install Gitlab and configure it for existing NGINX with HTTPS
+# Install Gitlab and configure it for an existing NGINX with HTTPS
 
 The goal of this writing is to have an installation of Gitlab using an existing NGINX with HTTPS. The operating system is Debian 8.
 
