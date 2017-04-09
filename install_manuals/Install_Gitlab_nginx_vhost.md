@@ -79,6 +79,12 @@ server {
 
         # Additional rules go here.
 
+        
+        # This block is for GEOIP blocking / allowing
+        # if ($allow_visit = no) {
+        #    return 403;
+        # }
+
         location / {
           ## If you use HTTPS make sure you disable gzip compression
           ## to be safe against BREACH attack.

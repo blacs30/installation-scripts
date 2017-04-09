@@ -27,6 +27,12 @@ server {
         include                 global/secure_ssl.conf;
         include                 global/restrictions.conf;
 
+
+        # This block is for GEOIP blocking / allowing
+        # if ($allow_visit = no) {
+        #    return 403;
+        # }
+
         location / {
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;

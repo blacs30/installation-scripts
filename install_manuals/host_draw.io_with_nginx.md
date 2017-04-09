@@ -47,6 +47,11 @@ server {
         error_log       /var/www/log/draw.example_error.log warn;
         index           index.html;
 
+        # This block is for GEOIP blocking / allowing
+        # if ($allow_visit = no) {
+        #    return 403;
+        # }
+
         ssl                     on;
         ssl_certificate         /var/www/ssl/example.com/fullchain.pem;
         ssl_certificate_key     /var/www/ssl/example.com/privkey.pem;
