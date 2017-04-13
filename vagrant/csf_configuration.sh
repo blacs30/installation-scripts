@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 CSF_CONFIG_FILE=/etc/csf/csf.conf
+INSTALLER=aptitude
 
-
-aptitude install -y libwww-perl
+$INSTALLER install -y libwww-perl
 cd /tmp
 wget --no-check-certificate https://download.configserver.com/csf.tgz
 tar -xzf csf.tgz

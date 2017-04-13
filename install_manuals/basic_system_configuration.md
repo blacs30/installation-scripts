@@ -64,6 +64,42 @@ echo 1 > /proc/sys/net/ipv4/conf/all/log_martians
 echo 1 > /proc/sys/net/ipv4/conf/default/log_martians
 ```
 
+Disable ipv6 in the system as it is not needed at the moment
+```shell
+echo "
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+net.ipv6.conf.lo.disable_ipv6 = 1
+net.ipv6.conf.eth0.disable_ipv6 = 1
+" >> /etc/sysctl.conf
+```
+
+Enable the changes with this command:
+`sysctl -p`
+
+First add these repositories to the apt-sources:  
+```shell
+echo "deb http://mirrors.linode.com/debian/ jessie-updates main contrib non-free" >> /etc/apt/sources.list
+echo "deb-src http://mirrors.linode.com/debian/ jessie-updates main contrib non-free" >> /etc/apt/sources.list
+echo "deb-src http://security.debian.org/ jessie/updates main non-free" >> /etc/apt/sources.list
+echo "deb http://mirrors.linode.com/debian/ jessie main contrib non-free" >> /etc/apt/sources.list
+echo "deb-src http://mirrors.linode.com/debian/ jessie main contrib non-free" >> /etc/apt/sources.list
+echo "deb http://packages.dotdeb.org jessie all" >> /etc/apt/sources.list
+echo "deb-src http://packages.dotdeb.org jessie all" >> /etc/apt/sources.list
+wget http://www.dotdeb.org/dotdeb.gpg --no-check-certificate
+apt-key add dotdeb.gpg
+rm -f dotdeb.gpg
+```
+
+Set the hostname in required places:
+
+```shell
+host_name=testserver
+old_host_name=$(hostname)
+echo "$host_name" > /etc/hostname && bash /etc/init.d/hostname.sh && echo "$host_name" > /etc/mailname
+sed -i -e 's/127.0.0.1.*/# &/' -e "/^# 127.0.0.1.*/ a 127.0.0.1 $host_name localhost" -e "s/$old_host_name/$host_name/" /etc/hosts
+```
+
 To get notifications on available system updates I install apticron. It sends a mail when updates are available. A description of the change is included. That is a good overview to make a first assessment how urgent the update is.
 
 `aptitude install -y apticron`
@@ -88,10 +124,18 @@ Disable x11 forwarding:
 
 You can add some further users who should have access via ssh:  
 ```shell
-adminuser=testuser;
-adduser "$adminuser";
-AllowUsers "$adminuser" >> $SSHD_CONFIG
+adminuser=vagrant;
+/usr/sbin/useradd "$adminuser";
+echo "$adminuser" | passwd "$adminuser"
+echo "AllowUsers $adminuser" >> $SSHD_CONFIG
 ```
 
 At last restart the SSH Server:
 `systemctl restart ssh`
+
+> Run the next command on your local computer to create ssh keys
+The goal is to use ssh keys to login and no passwords
+ssh-keygen
+This commands copies your local public key to your (this) server.
+ssh-copy-id -i ~/.ssh/id_rsa.pub remote-host
+adjust the /etc/ssh/sshd_config to disable password login
