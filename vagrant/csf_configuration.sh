@@ -106,4 +106,4 @@ echo "   ******************   "
 
 sed -i -r -e "s/^TESTING[ |=].*/TESTING = \"1\"/g" "$CSF_CONFIG_FILE"
 
-csf -r
+csf -x && csf -e

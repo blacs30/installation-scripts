@@ -124,10 +124,10 @@ Disable x11 forwarding:
 
 You can add some further users who should have access via ssh:  
 ```shell
-adminuser=vagrant;
+adminuser=testuser;
 /usr/sbin/useradd "$adminuser";
-echo "$adminuser" | passwd "$adminuser"
-echo "AllowUsers $adminuser" >> $SSHD_CONFIG
+echo "$adminuser:$adminuser" | chpasswd;
+echo "AllowUsers $adminuser vagrant" >> $SSHD_CONFIG;
 ```
 
 At last restart the SSH Server:

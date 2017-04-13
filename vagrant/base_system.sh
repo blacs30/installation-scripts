@@ -3,7 +3,7 @@
 host_name=testserver
 apticron_mail=noreply@test.com
 INSTALLER=aptitude
-ssh_user=vagrant
+ssh_user=testuser
 
 apt-get update &&  apt-get install -y aptitude
 $INSTALLER install -y wget unzip rsync vim bzip2 cron rsyslog curl ed
@@ -64,7 +64,7 @@ sed -i -r -e "s/^X11Forwarding.*/X11Forwarding no/g" $SSHD_CONFIG
 
 adminuser=$ssh_user;
 /usr/sbin/useradd "$adminuser";
-echo "$adminuser" | passwd "$adminuser"
-echo "AllowUsers $adminuser" >> $SSHD_CONFIG
+echo "$adminuser:$adminuser" | chpasswd;
+echo "AllowUsers $adminuser vagrant" >> $SSHD_CONFIG
 
 systemctl restart ssh
