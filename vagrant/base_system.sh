@@ -3,7 +3,7 @@
 host_name=testserver
 apticron_mail=noreply@test.com
 INSTALLER=aptitude
-ssh_user=testuser
+ssh_user=vagrant
 
 apt-get update &&  apt-get install -y aptitude
 $INSTALLER install -y wget unzip rsync vim bzip2 cron rsyslog curl ed
