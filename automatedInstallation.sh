@@ -2051,13 +2051,6 @@ if [ -f /etc/php/7.0/fpm/pool.d/www.conf ]; then
   mv /etc/php/7.0/fpm/pool.d/www.conf /etc/php/7.0/fpm/pool.d/www.off
 fi
 
-if [ "$(grep -Fc 'cgi.fix_pathinfo = 0' "$PHP_CONFIG_FILE")" -eq "0" ];
-then
-sed -i -r -e 's/.*cgi.fix_pathinfo.*/; &/' "$PHP_CONFIG_FILE"
-awk '/cgi.fix_pathinfo/{p++} /cgi.fix_pathinfo/ && p==1 {$0= $0"\ncgi.fix_pathinfo = 0"}1' "$PHP_CONFIG_FILE" > "$PHP_CONFIG_FILE".tmp
-mv "$PHP_CONFIG_FILE".tmp "$PHP_CONFIG_FILE"
-fi
-
 if [ "$(grep -Fc "date.timezone = $PHP_TIMEZONE" "$PHP_CONFIG_FILE")" -eq "0" ];
 then
 sed -i -r -e 's/.*date.timezone =.*/; &/' "$PHP_CONFIG_FILE"
@@ -2072,44 +2065,37 @@ awk '/opcache.enable/{p++} /opcache.enable/ && p==1 {$0= $0"\nopcache.enable = 1
 mv "$PHP_CONFIG_FILE".tmp "$PHP_CONFIG_FILE"
 fi
 
-if [ "$(grep -Fc 'pid = /var/run/php/php7.0-fpm.pid' "$PHPFPM_CONFIG_FILE")" -eq "0" ]
-then
-sed -i -r -e 's/.*pid =.*/; &/' "$PHP_CONFIG_FILE"
-awk '/pid =/{p++} /pid =/ && p==1 {$0= $0"\npid = /var/run/php/php7.0-fpm.pid"}1' "$PHPFPM_CONFIG_FILE" > "$PHPFPM_CONFIG_FILE".tmp
-mv "$PHPFPM_CONFIG_FILE".tmp "$PHPFPM_CONFIG_FILE"
-fi
-
 if [ "$(grep -Fc 'events.mechanism = epoll' "$PHPFPM_CONFIG_FILE")" -eq "0" ];
 then
-sed -i -r -e 's/.*events.mechanism =.*/; &/' "$PHP_CONFIG_FILE"
+sed -i -r -e 's/.*events.mechanism =.*/; &/' "$PHPFPM_CONFIG_FILE"
 awk '/events.mechanism/{p++} /events.mechanism/ && p==1 {$0= $0"\nevents.mechanism = epoll"}1' "$PHPFPM_CONFIG_FILE" > "$PHPFPM_CONFIG_FILE".tmp
 mv "$PHPFPM_CONFIG_FILE".tmp "$PHPFPM_CONFIG_FILE"
 fi
 
 if [ "$(grep -Fc 'emergency_restart_threshold = 10' "$PHPFPM_CONFIG_FILE")" -eq "0" ];
 then
-sed -i -r -e 's/.*emergency_restart_threshold =.*/; &/' "$PHP_CONFIG_FILE"
+sed -i -r -e 's/.*emergency_restart_threshold =.*/; &/' "$PHPFPM_CONFIG_FILE"
 awk '/emergency_restart_threshold/{p++} /emergency_restart_threshold/ && p==1 {$0= $0"\nemergency_restart_threshold = 10"}1' "$PHPFPM_CONFIG_FILE" > "$PHPFPM_CONFIG_FILE".tmp
 mv "$PHPFPM_CONFIG_FILE".tmp "$PHPFPM_CONFIG_FILE"
 fi
 
 if [ "$(grep -Fc 'emergency_restart_interval = 1m' "$PHPFPM_CONFIG_FILE")" -eq "0" ];
 then
-sed -i -r -e 's/.*emergency_restart_interval =.*/; &/' "$PHP_CONFIG_FILE"
+sed -i -r -e 's/.*emergency_restart_interval =.*/; &/' "$PHPFPM_CONFIG_FILE"
 awk '/emergency_restart_interval/{p++} /emergency_restart_interval/ && p==1 {$0= $0"\nemergency_restart_interval = 1m"}1' "$PHPFPM_CONFIG_FILE" > "$PHPFPM_CONFIG_FILE".tmp
 mv "$PHPFPM_CONFIG_FILE".tmp "$PHPFPM_CONFIG_FILE"
 fi
 
 if [ "$(grep -Fc 'process_control_timeout = 10s' "$PHPFPM_CONFIG_FILE")" -eq "0" ];
 then
-sed -i -r -e 's/.*process_control_timeout =/; &/' "$PHP_CONFIG_FILE"
+sed -i -r -e 's/.*process_control_timeout =/; &/' "$PHPFPM_CONFIG_FILE"
 awk '/process_control_timeout/{p++} /process_control_timeout/ && p==1 {$0= $0"\nprocess_control_timeout = 10s"}1' "$PHPFPM_CONFIG_FILE" > "$PHPFPM_CONFIG_FILE".tmp
 mv "$PHPFPM_CONFIG_FILE".tmp "$PHPFPM_CONFIG_FILE"
 fi
 
 if [ "$(grep -Fc 'error_log = /var/log/php/php7.0-fpm.log' "$PHPFPM_CONFIG_FILE")" -eq "0" ];
 then
-sed -i -r -e 's/.*error_log =.*/; &/' "$PHP_CONFIG_FILE"
+sed -i -r -e 's/.*error_log =.*/; &/' "$PHPFPM_CONFIG_FILE"
 awk '/error_log =/{p++} /error_log =/ && p==1 {$0= $0"\nerror_log = /var/log/php/php7.0-fpm.log"}1' "$PHPFPM_CONFIG_FILE" > "$PHPFPM_CONFIG_FILE".tmp
 mv "$PHPFPM_CONFIG_FILE".tmp "$PHPFPM_CONFIG_FILE"
 fi

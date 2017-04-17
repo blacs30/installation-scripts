@@ -46,6 +46,7 @@ echo "deb-src http://packages.dotdeb.org jessie all" >> /etc/apt/sources.list
 wget http://www.dotdeb.org/dotdeb.gpg --no-check-certificate
 apt-key add dotdeb.gpg
 rm -f dotdeb.gpg
+$INSTALLER update
 
 # set the hostname
 host_name=$host_name
