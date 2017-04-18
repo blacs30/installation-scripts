@@ -33,11 +33,12 @@ Vagrant.configure("2") do |config|
   end
 
   config.vm.provision "shell", path: "bootstrap.sh"
-  config.vm.provision "shell", path: "base_system.sh"
+  config.vm.provision "shell", path: "install_base_system.sh"
   config.vm.provision "shell", path: "install_csf.sh"
   config.vm.provision "shell", path: "install_mysql.sh"
   config.vm.provision "shell", path: "install_nginx.sh"
   config.vm.provision "shell", path: "install_phpfpm.sh"
   config.vm.provision "shell", path: "create_snakeoil_certs.sh"
+  config.vm.provision "shell", path: "create_dh_key.sh"
   #config.vm.provision "shell", path: "install_phpmyadmin.sh"
 end
