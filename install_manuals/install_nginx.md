@@ -44,3 +44,42 @@ In the file `/etc/nginx/nginx.conf` set:
 
 Add the file include `geoip_settings.conf` into the global http configuration of the `nginx.conf`:  
 - `include /etc/nginx/global/geoip_settings.conf`
+
+
+
+## VHOST configurations
+I have saved the following templates:  
+- big_oc (Big size pool for e.g. Owncloud/Nextcloud)
+- middle_oc (Middle sized pool for e.g. Owncloud/Nextcloud )
+- big_wp (Big size pool for e.g. Wordpress )
+- middle (Middle sized pool for e.g. Wordpress and other sites)
+- small (Small sized, on demand, pool, for e.g. administrative pages or lower traffic pages )
+
+
+This one is the global section which goes into every of my pools, make sure to adjust it to your needs:  
+
+```
+# Additional rules go here.
+include        		      global/restrictions.conf;
+index                   index.php;
+
+# if (\$allow_visit = no) { return 403 };
+
+# Make sure files with the following extensions do not get loaded by nginx because nginx would display the source code, and these files can contain PASSWORDS!
+location ~* \.(engine|inc|info|install|make|module|profile|test|po|sh|.*sql|theme|tpl(\.php)?|xtmpl)$|^(\..*|Entries.*|Repository|Root|Tag|Template)$|\.php_ {
+deny all;
+}
+
+location ~*  \.(jpg|jpeg|png|gif|css|js|ico)$ {
+expires max;
+log_not_found off;
+}
+
+location ~ \.php$ {
+try_files \$uri =404;
+include /etc/nginx/fastcgi_params;
+fastcgi_pass MyPoolName;
+fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+}
+}
+```

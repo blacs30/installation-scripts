@@ -37,3 +37,128 @@ Here are some security background information regarding
 the setting [cgi.fix_pathinfo = 0](https://serverfault.com/questions/627903/is-the-php-option-cgi-fix-pathinfo-really-dangerous-with-nginx-php-fpm) which is not anymore required but therefore the following settings should be check and set for the pools to make sure that only .php files are executed by FPM.  
 The pool configuration should include this setting:  
 `security.limit_extensions = .php .php3 .php4 .php5 .php7`
+
+
+## Pool configurations
+I have saved the following templates:  
+- big_oc (Big size pool for e.g. Owncloud/Nextcloud)
+- middle_oc (Middle sized pool for e.g. Owncloud/Nextcloud )
+- big_wp (Big size pool for e.g. Wordpress )
+- middle (Middle sized pool for e.g. Wordpress and other sites)
+- small (Small sized, on demand, pool, for e.g. administrative pages or lower traffic pages )
+
+This one is the global section which goes into every of my pools, make sure to adjust it to your needs:  
+```
+;; MyApplicationName
+[MyPoolName]
+env[HOSTNAME] = MyHostname
+env[PATH] = /usr/local/bin:/usr/bin:/bin
+env[TMP] = /tmp
+env[TMPDIR] = /tmp
+env[TEMP] =/tmp
+listen = unix:///run/php/MyPoolName.sock
+listen.owner = pool_owner
+listen.group = www-data
+listen.mode = 0660
+user = pool_owner
+group = www-data
+request_slowlog_timeout = 5s
+slowlog = /var/log/php/slowlog-MyPoolName.log
+catch_workers_output = yes
+security.limit_extensions = .php .php3 .php4 .php5 .php7
+```
+
+Explanations  
+> The number of PHP-FPM children that should be spawned automatically  
+> pm.start_servers =  
+> The maximum number of children allowed (connection limit)  
+> pm.max_children =  
+> The minimum number of spare idle PHP-FPM servers to have available  
+> pm.min_spare_servers =  
+> The maximum number of spare idle PHP-FPM servers to have available  
+> pm.max_spare_servers =  
+> Maximum number of requests each child should handle before re-spawning  
+> pm.max_requests =  
+> Maximum amount of time to process a request (similar to max_execution_time in php.ini  
+> request_terminate_timeout =  
+
+
+This is a big sized Owncloud/Nextcloud pool:   
+```
+listen.backlog = 1024
+pm = dynamic
+pm.max_children = 40
+pm.start_servers = 10
+pm.min_spare_servers = 4
+pm.max_spare_servers = 10
+pm.max_requests = 1000
+pm.process_idle_timeout = 300s
+request_terminate_timeout = 300
+php_value[max_execution_time] = 300
+php_value[max_input_time] = 300
+php_value[memory_limit] = 4096M
+php_value[post_max_size] = 4096M
+php_value[upload_max_filesize] = 4096M
+```
+
+This is a middle sized Owncloud/Nextcloud pool:   
+```   
+listen.backlog = 1024
+pm = dynamic
+pm.max_children = 30
+pm.start_servers = 2
+pm.min_spare_servers = 2
+pm.max_spare_servers = 6
+pm.max_requests = 500
+pm.process_idle_timeout = 150s
+request_terminate_timeout = 150
+php_value[max_input_time] = 150
+php_value[max_execution_time] = 150
+php_value[memory_limit] = 1512M
+php_value[post_max_size] = 1512M
+php_value[upload_max_filesize] = 1512M
+```
+
+This is a big sized WordPress pool:   
+```
+listen.backlog = 1024
+pm = dynamic
+pm.max_children = 40
+pm.start_servers = 10
+pm.min_spare_servers = 4
+pm.max_spare_servers = 10
+pm.max_requests = 1000
+pm.process_idle_timeout = 300s
+request_terminate_timeout = 300
+php_value[max_input_time] = 300
+php_value[max_execution_time] = 300
+php_value[memory_limit] = 75M
+php_value[post_max_size] = 50M
+php_value[upload_max_filesize] = 50M
+```
+
+This is a middle sized pool:  
+```  
+listen.backlog = 512
+pm = dynamic
+pm.max_children = 30
+pm.start_servers = 2
+pm.min_spare_servers = 2
+pm.max_spare_servers = 6
+pm.max_requests = 500
+pm.process_idle_timeout = 60s
+php_value[max_input_time] = 120
+php_value[max_execution_time] = 120
+php_value[memory_limit] = 50M
+php_value[php_post_max_size] = 25M
+php_value[upload_max_filesize] = 25M
+```
+This is a small pool size which creates process managers on demand:  
+
+```
+listen.backlog = 64
+pm = ondemand
+pm.max_children = 5
+pm.max_requests = 200
+pm.process_idle_timeout = 10s
+```
