@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-INSTALLER=aptitude
-NGINX_DIR=/etc/nginx
-NGINX_CONF=$NGINX_DIR/nginx.conf
+
+source /vagrant/environment.sh
 
 $INSTALLER install -y nginx
 

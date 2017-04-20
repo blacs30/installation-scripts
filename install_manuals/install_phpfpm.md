@@ -63,7 +63,7 @@ listen.mode = 0660
 user = pool_owner
 group = www-data
 request_slowlog_timeout = 5s
-slowlog = /var/log/php/slowlog-MyPoolName.log
+slowlog = /var/log/php/MyPoolName-slowlog.log
 catch_workers_output = yes
 security.limit_extensions = .php .php3 .php4 .php5 .php7
 ```

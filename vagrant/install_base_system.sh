@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 
-host_name=testserver
-apticron_mail=noreply@test.com
-INSTALLER=aptitude
-ssh_user=testuser
+# load variables
+source /vagrant/environment.sh
 
 apt-get update &&  apt-get install -y aptitude
 $INSTALLER install -y wget unzip rsync vim bzip2 cron rsyslog curl ed
@@ -49,10 +47,10 @@ rm -f dotdeb.gpg
 $INSTALLER update
 
 # set the hostname
-host_name=$host_name
-old_host_name=$(hostname)
-echo "$host_name" > /etc/hostname && bash /etc/init.d/hostname.sh && echo "$host_name" > /etc/mailname
-sed -i -e 's/127.0.0.1.*/# &/' -e "/^# 127.0.0.1.*/ a 127.0.0.1 $host_name localhost" -e "s/$old_host_name/$host_name/" /etc/hosts
+HOST_NAME=$HOST_NAME
+old_HOST_NAME=$(hostname)
+echo "$HOST_NAME" > /etc/hostname && bash /etc/init.d/hostname.sh && echo "$HOST_NAME" > /etc/mailname
+sed -i -e 's/127.0.0.1.*/# &/' -e "/^# 127.0.0.1.*/ a 127.0.0.1 $HOST_NAME localhost" -e "s/$old_HOST_NAME/$HOST_NAME/" /etc/hosts
 
 $INSTALLER install -y apticron
 apticron_mail=$apticron_mail
@@ -63,7 +61,7 @@ $INSTALLER install -y openssh-server;
 sed -i -r -e "s/^PermitRootLogin.*/PermitRootLogin no/g" $SSHD_CONFIG
 sed -i -r -e "s/^X11Forwarding.*/X11Forwarding no/g" $SSHD_CONFIG
 
-adminuser=$ssh_user;
+adminuser=$SSH_USER;
 /usr/sbin/useradd "$adminuser";
 echo "$adminuser:$adminuser" | chpasswd;
 echo "AllowUsers $adminuser vagrant" >> $SSHD_CONFIG

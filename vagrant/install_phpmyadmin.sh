@@ -1,17 +1,53 @@
 #!/usr/bin/env bash
 
-INSTALLER=aptitude
-SERVICE_USER=phpmyadmin
-PHPOWNER=phpmyadmin
-POOL_CONF_PATH="/etc/php/7.0/fpm/pool.d/phpmyadmin.conf"
-NGINX_VHOST_PATH="/etc/sites-available/phpmyadmin.conf"
+# load variables
+source /vagrant/environment.sh
 
 $INSTALLER install -y php-common php-readline php7.0 php7.0-cli php7.0-common php7.0-mcrypt php7.0-gd php7.0-json php7.0-mysql php7.0-opcache php7.0-readline php7.0-mbstring
 
-useradd --no-create-home "$SERVICE_USER"
-usermod --lock "$SERVICE_USER"
+useradd --no-create-home "$SERVICE_USER_PHPMYADMIN"
+usermod --lock "$SERVICE_USER_PHPMYADMIN"
 
-cat << PHPMYADMIN_POOL > "$POOL_CONF_PATH"
+# create www folder
+if [ ! -d "$WWW_PATH_HTML_PHPMYADMIN" ]; then
+  mkdir -p "$WWW_PATH_HTML_PHPMYADMIN"
+fi
+
+SOFTWARE_URL=https://files.phpmyadmin.net/phpMyAdmin/4.6.4/phpMyAdmin-4.6.4-all-languages.zip
+SOFTWARE_ZIP=$(basename $SOFTWARE_URL)
+SOFTWARE_DIR=$(printf '%s' "$SOFTWARE_ZIP" | sed -e 's/.zip//')
+
+wget $SOFTWARE_URL -O /tmp/"$SOFTWARE_ZIP"
+unzip /tmp/"$SOFTWARE_ZIP"
+mkdir -p "$WWW_PATH_HTML_PHPMYADMIN"/phpmyadmin
+cp -rT "$SOFTWARE_DIR" "$WWW_PATH_HTML_PHPMYADMIN"/phpmyadmin
+if [ -d /tmp/"$SOFTWARE_DIR" ]; then
+  rm -rf /tmp/"$SOFTWARE_DIR"
+fi
+if [ -f "$SOFTWARE_ZIP" ]; then
+  rm -f "$SOFTWARE_ZIP"
+fi
+
+PHPMYADMIN_CONF="$WWW_PATH_HTML_PHPMYADMIN"/phpmyadmin/config.inc.php
+cp "$WWW_PATH_HTML_PHPMYADMIN"/phpmyadmin/config.sample.inc.php "$PHPMYADMIN_CONF"
+
+BLOWFISH_PASS=$(< /dev/urandom tr -dc "a-zA-Z0-9@#*=" | fold -w 32 | head -n 1)
+sed -i "s/.*'blowfish_secret'.*/\$cfg['blowfish_secret'] = '$BLOWFISH_PASS';/g" "$PHPMYADMIN_CONF"
+sed -i "s/localhost/127.0.0.1/g" "$PHPMYADMIN_CONF"
+sed -i "/AllowNoPassword/a \$cfg['ForceSSL'] = 'true';" "$PHPMYADMIN_CONF"
+
+# Set permissions to files and directories
+chown -R "$SERVICE_USER_PHPMYADMIN":www-data "$WWW_PATH_HTML_PHPMYADMIN"/
+find "$WWW_PATH_HTML_PHPMYADMIN" -type d -exec chmod 750 {} \;
+find "$WWW_PATH_HTML_PHPMYADMIN" -type f -exec chmod 640 {} \;
+
+# create basic auth for nginx
+htpasswd -b -c /etc/nginx/."${NGINX_BASIC_AUTH_PHPMYADMIN_FILE}" "${NGINX_BASIC_AUTH_PHPMYADMIN_USER}" "${NGINX_BASIC_AUTH_PHPMYADMIN_PW}"
+
+##########################
+# Create the php fpm pool
+##########################
+cat << PHPMYADMIN_POOL > "$POOL_CONF_PATH_PHPMYADMIN"
 ; ***********************************************************
 ; Explanations
 ; The number of PHP-FPM children that should be spawned automatically
@@ -28,21 +64,21 @@ cat << PHPMYADMIN_POOL > "$POOL_CONF_PATH"
 ; request_terminate_timeout =
 ; ***********************************************************
 
-;; $PHPOWNER
-[$PHPOWNER]
+;; $PHP_OWNER_PHPMYADMIN
+[$PHP_OWNER_PHPMYADMIN]
 env[HOSTNAME] = \$(hostname)
 env[PATH] = /usr/local/bin:/usr/bin:/bin
 env[TMP] = /tmp
 env[TMPDIR] = /tmp
 env[TEMP] =/tmp
-listen = unix:///run/php/$PHPOWNER.sock
-listen.owner = $PHPOWNER
+listen = unix:///run/php/$PHP_OWNER_PHPMYADMIN.sock
+listen.owner = $PHP_OWNER_PHPMYADMIN
 listen.group = www-data
 listen.mode = 0660
-user = $PHPOWNER
+user = $PHP_OWNER_PHPMYADMIN
 group = www-data
 request_slowlog_timeout = 5s
-slowlog = /var/log/php/slowlog-$PHPOWNER.log
+slowlog = /var/log/php/$PHP_OWNER_PHPMYADMIN-slowlog.log
 catch_workers_output = yes
 security.limit_extensions = .php .php3 .php4 .php5 .php7
 
@@ -53,20 +89,17 @@ pm.max_requests = 200
 pm.process_idle_timeout = 10s
 PHPMYADMIN_POOL
 
-
-cat << PHPMYADMIN_VHOST > "$NGINX_VHOST_PATH"
-upstream $pool_name {
-server $listen_pool;
+##########################
+# Create the nginx vhost
+##########################
+cat << PHPMYADMIN_VHOST > "$NGINX_VHOST_PATH_PHPMYADMIN"
+upstream phpmyadmin {
+server unix:///run/php/$PHP_OWNER_PHPMYADMIN.sock;
 }
 
 server {
 listen 		80;
-# enforce https
-server_name     $ALL_DOMAINS;
-location ~ .well-known/acme-challenge/ {
-root 						$LE_KNOWN_DIR;
-default_type 		text/plain;
-}
+server_name     $VHOST_SERVER_NAME_PHPMYADMIN;
 location / {
 return 301 https://\$server_name\$request_uri;
 }
@@ -75,24 +108,23 @@ return 301 https://\$server_name\$request_uri;
 server {
 listen 					443 ssl http2;
 listen          [::]:443 ssl http2;
-server_name    	$ALL_DOMAINS;
-root   					$WWWPATHHTML;
-access_log     	$WWWLOGDIR/$DOMAIN_PART-access.log;
-error_log      	$WWWLOGDIR/$DOMAIN_PART-error.log warn;
+server_name    	$VHOST_SERVER_NAME_PHPMYADMIN;
+root   					$WWW_PATH_HTML_PHPMYADMIN;
+access_log     	/var/log/nginx/phpmyadmin-access.log;
+error_log      	/var/log/nginx/phpmyadmin-error.log warn;
 
 ssl    									on;
-ssl_certificate        	$SSL_CERT;
-#ssl_certificate        $CERTS_PATH/www.$DOMAIN_PART/fullchain.pem;
-ssl_certificate_key    	$SSL_KEY;
-#ssl_certificate_key    $CERTS_PATH/www.$DOMAIN_PART/privkey.pem;
-ssl_dhparam    		      $CERTS_PATH/${DOMAIN_PART}_dhparams.pem;
+ssl_certificate        	/etc/ssl/"${KEY_COMMON_NAME}".crt;
+ssl_certificate_key    	/etc/ssl/"${KEY_COMMON_NAME}".key;
+ssl_dhparam    		      /etc/ssl/"${KEY_COMMON_NAME}"_dhparams.pem;
 
-include			            global/secure_ssl.conf;
-
-# Additional rules go here.
-include        		      global/restrictions.conf;
 index                   index.php;
 
+include			            global/secure_ssl.conf;
+include        		      global/restrictions.conf;
+
+
+# Configure GEOIP access before enabling this setting
 # if (\$allow_visit = no) { return 403 };
 
 # Make sure files with the following extensions do not get loaded by nginx because nginx would display the source code, and these files can contain PASSWORDS!
@@ -108,8 +140,37 @@ log_not_found off;
 location ~ \.php$ {
 try_files \$uri =404;
 include /etc/nginx/fastcgi_params;
-fastcgi_pass $pool_name;
+fastcgi_pass phpmyadmin;
 fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+}
+
+location /phpmyadmin {
+auth_basic                    "Restricted";
+auth_basic_user_file          /etc/nginx/."${NGINX_BASIC_AUTH_PHPMYADMIN_FILE}";
+index                         index.php index.html index.htm;
+
+location ~ ^/phpmyadmin/(.+\.php)\$ {
+try_files           \$uri =404;
+fastcgi_param       HTTPS on;
+fastcgi_pass        phpmyadmin;
+fastcgi_index       index.php;
+fastcgi_param       SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+include             fastcgi_params;
+charset             utf8;
+client_header_timeout 0;
+client_max_body_size  64m; #change this if ur export is bigger than 64mb.
+client_body_buffer_size 128k;
+}
+
+location ~* ^/phpmyadmin/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
+}
+}
+
+location /phpMyAdmin {
+rewrite ^/* /phpmyadmin last;
+}
 }
 }
 PHPMYADMIN_VHOST
+
+ln -s "$NGINX_VHOST_PATH_PHPMYADMIN" /etc/nginx/sites-enabled/"$APPNAME_PHPMYADMIN"

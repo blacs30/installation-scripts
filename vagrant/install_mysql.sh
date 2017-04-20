@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
-# Define the mysql root password as this is an unattended installation
-MYSQL_ROOT_PASS=123456
-INSTALLER=aptitude
+source /vagrant/environment.sh
 
 # install debconf-set-selections for unattended installation of mysql,
 # to define the password for the installation process

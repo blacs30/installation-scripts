@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-INSTALLER=aptitude
-PHP_CONFIG_FILE=/etc/php/7.0/fpm/php.ini
-PHPFPM_CONFIG_FILE=/etc/php/7.0/fpm/php-fpm.conf
-PHP_TIMEZONE=Europe/Berlin
+
+source /vagrant/environment.sh
 
 $INSTALLER update
 $INSTALLER install -y php7.0-fpm

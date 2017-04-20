@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-CSF_CONFIG_FILE=/etc/csf/csf.conf
-INSTALLER=aptitude
+source /vagrant/environment.sh
 
 $INSTALLER install -y libwww-perl
 cd /tmp
@@ -11,16 +10,16 @@ ufw_exe=$(which ufw)
 if [ ! -z $ufw_exe ]; then ufw disable; fi
 cd csf
 sh install.sh
+
 # prerequisite check
 perl /usr/local/csf/bin/csftest.pl
+
+# Use the below commadn to allow hosts
 #csf -a <ip address>
 
 sed -i -r -e 's/^RESTRICT_SYSLOG[ |=].*/# &/' -e '/^# RESTRICT_SYSLOG[ |=].*/ a RESTRICT_SYSLOG = "3"' "$CSF_CONFIG_FILE"
-
 sed -i -r -e 's/^RESTRICT_UI[ |=].*/# &/' -e '/^# RESTRICT_UI[ |=].*/ a RESTRICT_UI = "2"' "$CSF_CONFIG_FILE"
-
 sed -i -r -e 's/^SMTP_BLOCK[ |=].*/# &/' -e '/^# SMTP_BLOCK[ |=].*/ a SMTP_BLOCK = "1"' "$CSF_CONFIG_FILE"
-
 sed -i -r -e 's/^AT_ALERT[ |=].*/# &/' -e '/^# AT_ALERT[ |=].*/ a AT_ALERT = "1"' "$CSF_CONFIG_FILE"
 
 TCP_IN=25,53,80,110,143,443,465,587,993,995,24441
