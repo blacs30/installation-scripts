@@ -33,3 +33,30 @@ touch /etc/mysql/.my.cnf
 chown root:root /etc/mysql/.my.cnf
 chmod 400 /etc/mysql/.my.cnf
 ```
+
+
+### Create an empty database
+When I want to setup a database automatically I first check if my mysql root password is correct. This line is enough:
+
+```bash
+if echo exit | mysql -uroot -p"MYSQL_ROOT_PASS" -h"MYSQL_HOST" >/dev/null 2>&1; then echo "successfully connected"; fi
+```
+
+After that I check if the database to be created already exists with this name. If the result is __NOT__ 0 then the database exists already.
+
+```bash
+echo "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'MYSQL_DB_NAME' ;" | \
+mysql -uroot -p"MYSQL_ROOT_PASS" -h"MYSQL_HOST" | grep -c SCHEMA_NAME
+```
+
+Now let's create the database:  
+1. I create a temporaray file, you could also put the commands directly into mysql:  
+```
+echo "
+CREATE DATABASE IF NOT EXISTS $MYSQL_DB_NAME;
+GRANT ALL PRIVILEGES ON MYSQL_DB_NAME.* TO 'MYSQL_DB_USER'@'127.0.0.1' IDENTIFIED BY 'MYSQL_DB_PASSWORD';
+quit" > /tmp/createdb.sql
+```
+
+2. Run the sql file as root in mysql:  
+`mysql -uroot -p"MYSQL_ROOT_PASS" -h"MYSQL_HOST" < /tmp/createdb.sql`

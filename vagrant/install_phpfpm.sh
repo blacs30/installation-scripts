@@ -12,3 +12,5 @@ sed -i 's/.*emergency_restart_threshold =.*/emergency_restart_threshold = 10/' "
 sed -i 's/.*emergency_restart_interval =.*/emergency_restart_interval = 1m/' "$PHPFPM_CONFIG_FILE"
 sed -i 's/.*process_control_timeout =.*/process_control_timeout = 10s/' "$PHPFPM_CONFIG_FILE"
 sed -i 's,.*error_log =.*,error_log = /var/log/php/php7.0-fpm.log,' "$PHPFPM_CONFIG_FILE"
+mkdir -p /var/log/php
+rm /var/log/php7.0-fpm.log

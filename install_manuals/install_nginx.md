@@ -45,24 +45,49 @@ In the file `/etc/nginx/nginx.conf` set:
 Add the file include `geoip_settings.conf` into the global http configuration of the `nginx.conf`:  
 - `include /etc/nginx/global/geoip_settings.conf`
 
-
-
-## VHOST configurations
-I have saved the following templates:  
+## VHOST configuration
+I have saved the following templates here on github:  
 - big_oc (Big size pool for e.g. Owncloud/Nextcloud)
 - middle_oc (Middle sized pool for e.g. Owncloud/Nextcloud )
 - big_wp (Big size pool for e.g. Wordpress )
 - middle (Middle sized pool for e.g. Wordpress and other sites)
 - small (Small sized, on demand, pool, for e.g. administrative pages or lower traffic pages )
 
-
-This one is the global section which goes into every of my pools, make sure to adjust it to your needs:  
+Here is an working example for the phphmyadmin installation, per default I always use SSL, it's free and not really that difficult anymore. Some settings have to be adjust (hostname, path to root, certs, etc...):  
 
 ```
-# Additional rules go here.
-include        		      global/restrictions.conf;
+upstream phpmyadmin {
+server unix:///run/php/phpmyadmin.sock;
+}
+
+server {
+listen 		80;
+server_name     mydomain.com;
+location / {
+return 301 https://\$server_name\$request_uri;
+}
+}
+
+server {
+listen 					443 ssl http2;
+listen          [::]:443 ssl http2;
+server_name    	mydomain.com;
+root   					/var/www/html;
+access_log     	/var/log/nginx/phpmyadmin-access.log;
+error_log      	/var/log/nginx/phpmyadmin-error.log warn;
+
+ssl    									on;
+ssl_certificate        	/etc/ssl/my_ssl.crt;
+ssl_certificate_key    	/etc/ssl/my_ssl.key;
+ssl_dhparam             /etc/ssl/my_dhparams.pem;
+
 index                   index.php;
 
+include                 global/secure_ssl.conf;
+include                 global/restrictions.conf;
+client_header_timeout   3m;
+
+# Configure GEOIP access before enabling this setting
 # if (\$allow_visit = no) { return 403 };
 
 # Make sure files with the following extensions do not get loaded by nginx because nginx would display the source code, and these files can contain PASSWORDS!
@@ -78,8 +103,33 @@ log_not_found off;
 location ~ \.php$ {
 try_files \$uri =404;
 include /etc/nginx/fastcgi_params;
-fastcgi_pass MyPoolName;
+fastcgi_pass phpmyadmin;
 fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+}
+
+location /phpmyadmin {
+auth_basic                    "Restricted";
+auth_basic_user_file          /etc/nginx/.phpmyadmin;
+index                         index.php index.html index.htm;
+
+location ~ ^/phpmyadmin/(.+\.php)\$ {
+try_files           \$uri =404;
+fastcgi_param       HTTPS on;
+fastcgi_pass        phpmyadmin;
+fastcgi_index       index.php;
+fastcgi_param       SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+include             fastcgi_params;
+charset             utf8;
+client_max_body_size  64m; #change this if ur export is bigger than 64mb.
+client_body_buffer_size 128k;
+}
+
+location ~* ^/phpmyadmin/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
+}
+}
+
+location /phpMyAdmin {
+rewrite ^/* /phpmyadmin last;
 }
 }
 ```

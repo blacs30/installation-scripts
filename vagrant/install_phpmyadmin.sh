@@ -13,12 +13,12 @@ if [ ! -d "$WWW_PATH_HTML_PHPMYADMIN" ]; then
   mkdir -p "$WWW_PATH_HTML_PHPMYADMIN"
 fi
 
-SOFTWARE_URL=https://files.phpmyadmin.net/phpMyAdmin/4.6.4/phpMyAdmin-4.6.4-all-languages.zip
+SOFTWARE_URL=https://files.phpmyadmin.net/phpMyAdmin/4.7.0/phpMyAdmin-4.7.0-all-languages.zip
 SOFTWARE_ZIP=$(basename $SOFTWARE_URL)
 SOFTWARE_DIR=$(printf '%s' "$SOFTWARE_ZIP" | sed -e 's/.zip//')
 
 wget $SOFTWARE_URL -O /tmp/"$SOFTWARE_ZIP"
-unzip /tmp/"$SOFTWARE_ZIP"
+cd /tmp && unzip /tmp/"$SOFTWARE_ZIP"
 mkdir -p "$WWW_PATH_HTML_PHPMYADMIN"/phpmyadmin
 cp -rT "$SOFTWARE_DIR" "$WWW_PATH_HTML_PHPMYADMIN"/phpmyadmin
 if [ -d /tmp/"$SOFTWARE_DIR" ]; then
@@ -64,14 +64,14 @@ cat << PHPMYADMIN_POOL > "$POOL_CONF_PATH_PHPMYADMIN"
 ; request_terminate_timeout =
 ; ***********************************************************
 
-;; $PHP_OWNER_PHPMYADMIN
-[$PHP_OWNER_PHPMYADMIN]
-env[HOSTNAME] = \$(hostname)
+;; $APPNAME_PHPMYADMIN
+[$APPNAME_PHPMYADMIN]
+env[HOSTNAME] = $HOST_NAME
 env[PATH] = /usr/local/bin:/usr/bin:/bin
 env[TMP] = /tmp
 env[TMPDIR] = /tmp
 env[TEMP] =/tmp
-listen = unix:///run/php/$PHP_OWNER_PHPMYADMIN.sock
+listen = /run/php/$PHP_OWNER_PHPMYADMIN.sock
 listen.owner = $PHP_OWNER_PHPMYADMIN
 listen.group = www-data
 listen.mode = 0660
@@ -114,15 +114,15 @@ access_log     	/var/log/nginx/phpmyadmin-access.log;
 error_log      	/var/log/nginx/phpmyadmin-error.log warn;
 
 ssl    									on;
-ssl_certificate        	/etc/ssl/"${KEY_COMMON_NAME}".crt;
-ssl_certificate_key    	/etc/ssl/"${KEY_COMMON_NAME}".key;
-ssl_dhparam    		      /etc/ssl/"${KEY_COMMON_NAME}"_dhparams.pem;
+ssl_certificate        	/etc/ssl/${KEY_COMMON_NAME}.crt;
+ssl_certificate_key    	/etc/ssl/${KEY_COMMON_NAME}.key;
+ssl_dhparam             /etc/ssl/${KEY_COMMON_NAME}_dhparams.pem;
 
 index                   index.php;
 
-include			            global/secure_ssl.conf;
-include        		      global/restrictions.conf;
-
+include                 global/secure_ssl.conf;
+include                 global/restrictions.conf;
+client_header_timeout   3m;
 
 # Configure GEOIP access before enabling this setting
 # if (\$allow_visit = no) { return 403 };
@@ -146,7 +146,7 @@ fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
 
 location /phpmyadmin {
 auth_basic                    "Restricted";
-auth_basic_user_file          /etc/nginx/."${NGINX_BASIC_AUTH_PHPMYADMIN_FILE}";
+auth_basic_user_file          /etc/nginx/.${NGINX_BASIC_AUTH_PHPMYADMIN_FILE};
 index                         index.php index.html index.htm;
 
 location ~ ^/phpmyadmin/(.+\.php)\$ {
@@ -157,7 +157,6 @@ fastcgi_index       index.php;
 fastcgi_param       SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
 include             fastcgi_params;
 charset             utf8;
-client_header_timeout 0;
 client_max_body_size  64m; #change this if ur export is bigger than 64mb.
 client_body_buffer_size 128k;
 }
@@ -170,7 +169,8 @@ location /phpMyAdmin {
 rewrite ^/* /phpmyadmin last;
 }
 }
-}
 PHPMYADMIN_VHOST
 
 ln -s "$NGINX_VHOST_PATH_PHPMYADMIN" /etc/nginx/sites-enabled/"$APPNAME_PHPMYADMIN"
+
+systemctl restart php7.0-fpm && systemctl restart nginx

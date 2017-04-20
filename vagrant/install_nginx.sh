@@ -33,3 +33,5 @@ sed -i -e 's/worker_processes.*/worker_processes 4;/' "$NGINX_CONF"
 
 # set the worker_connections to 1024
 sed -i -r -e 's/.*worker_connections.*/        worker_connections 1024;/' "$NGINX_CONF"
+
+systemctl restart nginx
