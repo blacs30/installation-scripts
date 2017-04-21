@@ -1,8 +1,8 @@
 # installation-scripts
 Scripts that simplify the installation
 
-### minstall.sh
-use this way: minstall.sh function
+### automatedInstallation.sh
+use this way: automatedInstallation.sh function
 
 The file minstall.sh consists of multiple functions. 
 This is a list of callable functions:
