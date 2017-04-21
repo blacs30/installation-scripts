@@ -25,7 +25,7 @@ Vagrant.configure("2") do |config|
   # config.vm.network "public_network"
 
   config.vm.provider "virtualbox" do |vb|
-    vb.memory = "4096"
+    vb.memory = "2048"
     vb.customize ["modifyvm", :id, "--cpus", "1"]
     #vb.customize ["modifyvm", :id, "--hwvirtex", "on"]
     #vb.customize ["modifyvm", :id, "--ioapic", "on"]
@@ -40,5 +40,6 @@ Vagrant.configure("2") do |config|
   config.vm.provision "shell", path: "install_phpfpm.sh"
   config.vm.provision "shell", path: "create_snakeoil_certs.sh"
   config.vm.provision "shell", path: "create_dh_key.sh"
-  config.vm.provision "shell", path: "install_phpmyadmin.sh"
+  # config.vm.provision "shell", path: "install_phpmyadmin.sh"
+  config.vm.provision "shell", path: "install_webmail_lite.sh"
 end

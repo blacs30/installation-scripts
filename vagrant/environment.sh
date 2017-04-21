@@ -8,13 +8,15 @@
 # Global variable
 #
 INSTALLER=aptitude
+HOST_NAME=testserver
+SMTP_SERVER=localhost
+IMAP_SERVER=localhost
 
 
 #
 # used by:
 # - base installation
 #
-HOST_NAME=testserver
 apticron_mail=noreply@test.com
 SSH_USER=testuser
 
@@ -31,7 +33,7 @@ CSF_CONFIG_FILE=/etc/csf/csf.conf
 #
 # Define the mysql root password as this is an unattended installation
 MYSQL_ROOT_PASS=123456
-
+MYSQL_DB_HOST=localhost
 
 #
 # used by:
@@ -70,15 +72,27 @@ PHP_OWNER_PHPMYADMIN=phpmyadmin
 POOL_CONF_PATH_PHPMYADMIN="/etc/php/7.0/fpm/pool.d/phpmyadmin.conf"
 NGINX_VHOST_PATH_PHPMYADMIN="/etc/nginx/sites-available/phpmyadmin.conf"
 VHOST_SERVER_NAME_PHPMYADMIN=testorg.com
-WWW_PATH_HTML_PHPMYADMIN=/var/www/phpmyadmin
+HTML_ROOT_PHPMYADMIN=/var/www/phpmyadmin
 NGINX_BASIC_AUTH_PHPMYADMIN_FILE=phpmyadmin
 NGINX_BASIC_AUTH_PHPMYADMIN_USER=phpmyadmin
 NGINX_BASIC_AUTH_PHPMYADMIN_PW=123456
 
 
-
-
-
-
-
-DATA_PATH_NEXTCLOUD=
+#
+# used by:
+# - webmail
+#
+MYSQL_DB_WEBMAIL=webmail
+MYSQL_WEBMAIL_USER=webmail
+MYSQL_WEBMAIL_PASS=123456
+SERVICE_USER_WEBMAIL=webmail
+HTML_ROOT_WEBMAIL=/var/www/webmail
+APPNAME_WEBMAIL=webmail
+PHP_OWNER_WEBMAIL=webmail
+VHOST_SERVER_NAME_WEBMAIL=testorg.com
+POOL_CONF_PATH_WEBMAIL="/etc/php/7.0/fpm/pool.d/webmail.conf"
+NGINX_VHOST_PATH_WEBMAIL="/etc/nginx/sites-available/webmail.conf"
+NGINX_BASIC_AUTH_WEBMAIL_FILE=webmail
+NGINX_BASIC_AUTH_WEBMAIL_USER=webmail
+NGINX_BASIC_AUTH_WEBMAIL_PW=123456
+WEBMAIL_SITENAME="Lisowski Dev Webmail"

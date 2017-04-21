@@ -82,15 +82,15 @@ pm.max_requests = 200
 pm.process_idle_timeout = 10s
 ```
 
-As an optional step I have basic authentication activated for the phpmyadmin page, so that an additional password has to be entered.
+As an optional step I have basic authentication activated for the adminpanel page, so that an additional password has to be entered.
 This way it can be generated:  
-`htpasswd -b -c /etc/nginx/.phpmyadmin phpmyadmin myPassword123`
+`htpasswd -b -c /etc/nginx/.webmail webmail myPassword123`
 
 As last step create the nginx vhost configuration, adjust it to your needs (ssl keys, hostname, paths..):
 
 ```
 upstream webmail {
-server unix:///run/php/phpmyadmin.sock;
+server unix:///run/php/webmail.sock;
 }
 
 server {
@@ -142,7 +142,8 @@ fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
 }
 
 location /adminpanel {
-$BASIC_AUTH_ACTIVE
+auth_basic                    "Restricted";
+auth_basic_user_file          /etc/nginx/.webmail;
 }
 
 location / {
@@ -171,11 +172,10 @@ Activate the vhost configuration and restart php-fpm and nginx:
 systemctl restart php7.0-fpm
 systemctl restart nginx
 ```
+Run the installation wizard on this page:  
+http(s)://$DOMAIN_APP_NAME/install/
 
-open to install http(s)://$DOMAIN_APP_NAME/install/
-Delete the install directory
+After you finished delete the install directory.
 
-ADMINPanel: http(s)://$DOMAIN_APP_NAME/adminpanel/
-Adminuser:  mailadm Password: 12345
-
-Users login:      http(s)://$DOMAIN_APP_NAME/index.php
+You can find the admin panel in this url:
+http(s)://$DOMAIN_APP_NAME/adminpanel/

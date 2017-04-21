@@ -9,8 +9,8 @@ useradd --no-create-home "$SERVICE_USER_PHPMYADMIN"
 usermod --lock "$SERVICE_USER_PHPMYADMIN"
 
 # create www folder
-if [ ! -d "$WWW_PATH_HTML_PHPMYADMIN" ]; then
-  mkdir -p "$WWW_PATH_HTML_PHPMYADMIN"
+if [ ! -d "$HTML_ROOT_PHPMYADMIN" ]; then
+  mkdir -p "$HTML_ROOT_PHPMYADMIN"
 fi
 
 SOFTWARE_URL=https://files.phpmyadmin.net/phpMyAdmin/4.7.0/phpMyAdmin-4.7.0-all-languages.zip
@@ -19,8 +19,8 @@ SOFTWARE_DIR=$(printf '%s' "$SOFTWARE_ZIP" | sed -e 's/.zip//')
 
 wget $SOFTWARE_URL -O /tmp/"$SOFTWARE_ZIP"
 cd /tmp && unzip /tmp/"$SOFTWARE_ZIP"
-mkdir -p "$WWW_PATH_HTML_PHPMYADMIN"/phpmyadmin
-cp -rT "$SOFTWARE_DIR" "$WWW_PATH_HTML_PHPMYADMIN"/phpmyadmin
+mkdir -p "$HTML_ROOT_PHPMYADMIN"/phpmyadmin
+cp -rT "$SOFTWARE_DIR" "$HTML_ROOT_PHPMYADMIN"/phpmyadmin
 if [ -d /tmp/"$SOFTWARE_DIR" ]; then
   rm -rf /tmp/"$SOFTWARE_DIR"
 fi
@@ -28,8 +28,8 @@ if [ -f "$SOFTWARE_ZIP" ]; then
   rm -f "$SOFTWARE_ZIP"
 fi
 
-PHPMYADMIN_CONF="$WWW_PATH_HTML_PHPMYADMIN"/phpmyadmin/config.inc.php
-cp "$WWW_PATH_HTML_PHPMYADMIN"/phpmyadmin/config.sample.inc.php "$PHPMYADMIN_CONF"
+PHPMYADMIN_CONF="$HTML_ROOT_PHPMYADMIN"/phpmyadmin/config.inc.php
+cp "$HTML_ROOT_PHPMYADMIN"/phpmyadmin/config.sample.inc.php "$PHPMYADMIN_CONF"
 
 BLOWFISH_PASS=$(< /dev/urandom tr -dc "a-zA-Z0-9@#*=" | fold -w 32 | head -n 1)
 sed -i "s/.*'blowfish_secret'.*/\$cfg['blowfish_secret'] = '$BLOWFISH_PASS';/g" "$PHPMYADMIN_CONF"
@@ -37,9 +37,9 @@ sed -i "s/localhost/127.0.0.1/g" "$PHPMYADMIN_CONF"
 sed -i "/AllowNoPassword/a \$cfg['ForceSSL'] = 'true';" "$PHPMYADMIN_CONF"
 
 # Set permissions to files and directories
-chown -R "$SERVICE_USER_PHPMYADMIN":www-data "$WWW_PATH_HTML_PHPMYADMIN"/
-find "$WWW_PATH_HTML_PHPMYADMIN" -type d -exec chmod 750 {} \;
-find "$WWW_PATH_HTML_PHPMYADMIN" -type f -exec chmod 640 {} \;
+chown -R "$SERVICE_USER_PHPMYADMIN":www-data "$HTML_ROOT_PHPMYADMIN"/
+find "$HTML_ROOT_PHPMYADMIN" -type d -exec chmod 750 {} \;
+find "$HTML_ROOT_PHPMYADMIN" -type f -exec chmod 640 {} \;
 
 # create basic auth for nginx
 htpasswd -b -c /etc/nginx/."${NGINX_BASIC_AUTH_PHPMYADMIN_FILE}" "${NGINX_BASIC_AUTH_PHPMYADMIN_USER}" "${NGINX_BASIC_AUTH_PHPMYADMIN_PW}"
@@ -109,7 +109,7 @@ server {
 listen 					443 ssl http2;
 listen          [::]:443 ssl http2;
 server_name    	$VHOST_SERVER_NAME_PHPMYADMIN;
-root   					$WWW_PATH_HTML_PHPMYADMIN;
+root   					$HTML_ROOT_PHPMYADMIN;
 access_log     	/var/log/nginx/phpmyadmin-access.log;
 error_log      	/var/log/nginx/phpmyadmin-error.log warn;
 
