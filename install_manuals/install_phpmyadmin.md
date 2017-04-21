@@ -20,7 +20,7 @@ You can download the latest (at time of writing) version via this url:
 e.g. `wget  https://files.phpmyadmin.net/phpMyAdmin/4.7.0/phpMyAdmin-4.7.0-all-languages.zip`
 
 Unzip the file and copy it to the target directory.
-I run it as a subdirectory, the path where I copy it to is e.g.: `/var/www/html/phpmyadmin`
+The path where I copy it to is e.g.: `/var/www/html/phpmyadmin`
 
 Create the initial configuration file by copying the sample:
 

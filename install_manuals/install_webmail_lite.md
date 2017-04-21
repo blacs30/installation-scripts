@@ -23,7 +23,7 @@ e.g. `wget  https://www.afterlogic.org/download/webmail_php.zip`
 There you'll also find the official documentation: [afterlogic.com](https://afterlogic.com/docs/webmail-lite/installation/installation-instructions/installing-on-linux)
 
 Unzip the file and copy it to the target directory.
-I run it as a subdirectory, the path where I copy it to is e.g.: `/var/www/html/webmail`
+The path where I copy it to is e.g.: `/var/www/html/webmail`
 
 You can use a service user for a PHP-FPM pool and the owner of the files in the web root directory. It requires little bit more carefulness but increases the security as well as little.
 
