@@ -110,8 +110,8 @@ listen 					443 ssl http2;
 listen          [::]:443 ssl http2;
 server_name    	$VHOST_SERVER_NAME_PHPMYADMIN;
 root   					$HTML_ROOT_PHPMYADMIN;
-access_log     	/var/log/nginx/phpmyadmin-access.log;
-error_log      	/var/log/nginx/phpmyadmin-error.log warn;
+access_log     	/var/log/nginx/$PHP_OWNER_PHPMYADMIN-access.log;
+error_log      	/var/log/nginx/$PHP_OWNER_PHPMYADMIN-error.log warn;
 
 ssl    									on;
 ssl_certificate        	/etc/ssl/${KEY_COMMON_NAME}.crt;

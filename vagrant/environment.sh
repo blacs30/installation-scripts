@@ -30,7 +30,7 @@ CSF_CONFIG_FILE=/etc/csf/csf.conf
 #
 # used by:
 # - mysql
-#
+# - wordpress
 # Define the mysql root password as this is an unattended installation
 MYSQL_ROOT_PASS=123456
 MYSQL_DB_HOST=localhost
@@ -96,3 +96,37 @@ NGINX_BASIC_AUTH_WEBMAIL_FILE=webmail
 NGINX_BASIC_AUTH_WEBMAIL_USER=webmail
 NGINX_BASIC_AUTH_WEBMAIL_PW=123456
 WEBMAIL_SITENAME="Lisowski Dev Webmail"
+TABLE_PREFIX_WEBMAIL=alwm1_
+
+#
+# used by:
+# - redis
+# - wordpress
+#
+REDIS_CONF=/etc/redis/redis.conf
+REDIS_PASS=$(< /dev/urandom tr -dc "a-zA-Z0-9@#*=" | fold -w "$(shuf -i 13-15 -n 1)" | head -n 1)
+declare -a PLUGINS_URLS=( "https://downloads.wordpress.org/plugin/gotmls.4.16.53.zip"
+"https://downloads.wordpress.org/plugin/better-wp-security.6.2.1.zip"
+"https://downloads.wordpress.org/plugin/redis-cache.1.3.5.zip"
+"https://downloads.wordpress.org/plugin/two-factor-authentication.1.2.21.zip" )
+
+
+#
+# used by:
+# - wordpress
+#
+MYSQL_DB_WORDPRESS=wordpress
+MYSQL_WORDPRESS_USER=wordpress
+MYSQL_WORDPRESS_PASS=123456
+SERVICE_USER_WORDPRESS=wordpress
+HTML_ROOT_WORDPRESS=/var/www/wordpress
+APPNAME_WORDPRESS=wordpress
+PHP_OWNER_WORDPRESS=wordpress
+VHOST_SERVER_NAME_WORDPRESS=testorg.com
+POOL_CONF_PATH_WORDPRESS="/etc/php/7.0/fpm/pool.d/wordpress.conf"
+NGINX_VHOST_PATH_WORDPRESS="/etc/nginx/sites-available/wordpress.conf"
+NGINX_BASIC_AUTH_WORDPRESS_FILE=wordpress
+NGINX_BASIC_AUTH_WORDPRESS_USER=wordpress
+NGINX_BASIC_AUTH_WORDPRESS_PW=123456
+WORDPRESS_SITENAME="Lisowski Dev Wordpress"
+TABLE_PREFIX_WORDPRESS=wp1_

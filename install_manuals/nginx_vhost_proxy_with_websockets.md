@@ -11,6 +11,12 @@ Both include files can be found here
 [restrictions.conf](https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/restrictions.conf)  
 
 ```
+upstream backend {
+        least_conn;
+
+        server target.domain.com:6443 fail_timeout=3;
+}
+
 server {
 
         listen 443 ssl http2;
@@ -38,7 +44,8 @@ server {
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection "upgrade";
           proxy_read_timeout 86400;
-          proxy_pass https://target.domain.com:6443;
+          proxy_pass https://backend;
+          proxy_next_upstream     error timeout invalid_header http_502 http_503 http_504;
         }
 }
 ```

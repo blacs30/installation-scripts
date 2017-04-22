@@ -108,7 +108,7 @@ server {
 listen 					443 ssl http2;
 listen          [::]:443 ssl http2;
 server_name    	mydomain.com;
-root   					/var/www/html;
+root   					/var/www/html/phpmyadmin;
 access_log     	/var/log/nginx/phpmyadmin-access.log;
 error_log      	/var/log/nginx/phpmyadmin-error.log warn;
 

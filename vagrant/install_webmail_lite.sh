@@ -124,8 +124,8 @@ listen 					443 ssl http2;
 listen          [::]:443 ssl http2;
 server_name    	$VHOST_SERVER_NAME_WEBMAIL;
 root   					$HTML_ROOT_WEBMAIL;
-access_log     	/var/log/nginx/webmail-access.log;
-error_log      	/var/log/nginx/webmail-error.log warn;
+access_log     	/var/log/nginx/$PHP_OWNER_WEBMAIL-access.log;
+error_log      	/var/log/nginx/$PHP_OWNER_WEBMAIL-error.log warn;
 
 ssl    									on;
 ssl_certificate        	/etc/ssl/${KEY_COMMON_NAME}.crt;
@@ -196,7 +196,7 @@ sed -i "s|<SiteName.*|<SiteName>$WEBMAIL_SITENAME</SiteName>|" $WEBMAIL_CONFIG_F
 sed -i "s|<AdminLogin.*|<AdminLogin>admin</AdminLogin>|" $WEBMAIL_CONFIG_FILE
 
 sed -i "s|<DBType.*|<DBType>MySQL</DBType>|" $WEBMAIL_CONFIG_FILE
-sed -i "s|<DBPrefix.*|<DBPrefix>alwm_</DBPrefix>|" $WEBMAIL_CONFIG_FILE
+sed -i "s|<DBPrefix.*|<DBPrefix>${TABLE_PREFIX_WEBMAIL}</DBPrefix>|" $WEBMAIL_CONFIG_FILE
 sed -i "s|<DBHost.*|<DBHost>$MYSQL_DB_HOST</DBHost>|" $WEBMAIL_CONFIG_FILE
 sed -i "s|<DBName.*|<DBName>$MYSQL_DB_WEBMAIL</DBName>|" $WEBMAIL_CONFIG_FILE
 sed -i "s|<DBLogin.*|<DBLogin>$MYSQL_WEBMAIL_USER</DBLogin>|" $WEBMAIL_CONFIG_FILE

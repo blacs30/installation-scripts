@@ -105,7 +105,7 @@ server {
 listen 					443 ssl http2;
 listen          [::]:443 ssl http2;
 server_name    	mydomain.com;
-root   					/var/www/html;
+root   					/var/www/html/webmail;
 access_log     	/var/log/nginx/webmail-access.log;
 error_log      	/var/log/nginx/webmail-error.log warn;
 
