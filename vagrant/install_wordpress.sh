@@ -77,13 +77,12 @@ perl -i -ne '
     printf qq|%s|, $_;
 ' "$HTML_ROOT_WORDPRESS"/wp-config.php
 
-WORDPRESS_REDIS_PASS=$(grep 'requirepass ' $REDIS_CONF | cut -d " " -f 2)
 sed -i "/^\$table_prefix.*/ a\\
 \\
 /** Redis config */ \\
 define( 'WP_REDIS_CLIENT', 'pecl'); \\
 define( 'WP_REDIS_SCHEME', 'unix'); \\
-define( 'WP_REDIS_PATH', '/run/redis/redis.sock'); \\
+define( 'WP_REDIS_PATH', '$WORDPRESS_REDIS_SOCKET'); \\
 define( 'WP_REDIS_DATABASE', '0'); \\
 define( 'WP_REDIS_PASSWORD', '$WORDPRESS_REDIS_PASS'); \\
 define( 'WP_REDIS_KEY_SALT', '${SERVICE_USER_WORDPRESS}_');" "$HTML_ROOT_WORDPRESS"/wp-config.php

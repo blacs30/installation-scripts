@@ -28,7 +28,7 @@ The path where I copy it to is e.g.: `/var/www/html/webmail`
 You can use a service user for a PHP-FPM pool and the owner of the files in the web root directory. It requires little bit more carefulness but increases the security as well as little.
 
 Create the user e.g. with these commands, it will not create a home directory and disallow the login:  
-`useradd --no-create-home webmail`
+`useradd --no-create-home webmail`  
 `usermod --lock webmail`
 
 Now set the owner and permissions:

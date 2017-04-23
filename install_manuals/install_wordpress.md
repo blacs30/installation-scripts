@@ -32,7 +32,7 @@ The path where I copy it to is e.g.: `/var/www/html/wordpress`
 You can use a service user for a PHP-FPM pool and the owner of the files in the web root directory. It requires little bit more carefulness but increases the security as well as little.
 
 Create the user e.g. with these commands, it will not create a home directory and disallow the login:  
-`useradd --no-create-home wordpress`
+`useradd --no-create-home wordpress`  
 `usermod --lock wordpress`
 
 
@@ -117,7 +117,6 @@ ssl_certificate        	/etc/ssl/my_ssl.crt;
 ssl_certificate_key    	/etc/ssl/my_ssl.key;
 ssl_dhparam             /etc/ssl/my_dhparams.pem;
 
-index                   index.php;
 
 include                 global/secure_ssl.conf;
 include        	        global/restrictions.conf;

@@ -8,8 +8,8 @@ $INSTALLER install -y redis-server
 sed -i 's/^port .*/port 0/' $REDIS_CONF
 sed -i "/requirepass .*/c\requirepass $REDIS_PASS" $REDIS_CONF
 
-if ! grep -Fq "^unixsocket /run/redis/redis.sock" $REDIS_CONF; then
-  sed -i "s|# unixsocket .*|unixsocket /run/redis/redis.sock|" $REDIS_CONF
+if ! grep -Fq "^unixsocket $REDIS_SOCKET" $REDIS_CONF; then
+  sed -i "s|# unixsocket .*|unixsocket $REDIS_SOCKET|" $REDIS_CONF
 fi
 
 if ! grep -Fq "^unixsocketperm 770" $REDIS_CONF; then
