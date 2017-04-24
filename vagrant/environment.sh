@@ -189,3 +189,18 @@ if [ -f $REDIS_CONF ]; then
   NEXTCLOUD_REDIS_PASS=$(grep 'requirepass ' $REDIS_CONF | cut -d " " -f 2)
 fi
 NEXTCLOUD_REDIS_SOCKET=/run/redis/redis.sock
+
+
+#
+# used by:
+# - bbs
+#
+# initial user and password are:
+# admin:admin
+SERVICE_USER_BBS=bbs
+HTML_ROOT_BBS=/var/www/bbs
+APPNAME_BBS=BBS
+PHP_OWNER_BBS=$SERVICE_USER_BBS
+NGINX_VHOST_PATH_BBS="/etc/nginx/sites-available/bbs.conf"
+POOL_CONF_PATH_BBS="/etc/php/7.0/fpm/pool.d/bbs.conf"
+VHOST_SERVER_NAME_BBS=testorg.com
