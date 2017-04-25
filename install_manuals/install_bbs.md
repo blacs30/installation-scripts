@@ -34,7 +34,7 @@ find /var/www/html/bbs/ -type d -exec chmod 750 {} \;
 find /var/www/html/bbs/ -type f -exec chmod 640 {} \;
 ```
 
-Depending on the permissioin settings may the files be owned by a different user. To be able to access these files the bbs user has to be added to the owncloud group.  
+Depending on the permission settings may the files be owned by a different user. To be able to access these files the bbs user has to be added to the owncloud group.  
 `usermod --append --groups owncloud bbs`
 
 For the php-fpm pool here is my template which I use, save it to e.g. `/etc/php/7.0/fpm/pool.d/bbs.conf`:  

@@ -24,6 +24,21 @@ SSH_USER=testuser
 
 #
 # used by:
+# - base installation
+#
+MONIT_MAIL=$apticron_mail
+MONIT_USER=testuser
+MONIT_PASSWORD=123456
+MONIT_UNIX_SOCKET1=/run/php/php7.0-fpm.sock
+MONIT_CHECK_DOMAIN1=testorg.com
+APPNAME_MONIT=monit
+SERVICE_USER_MONIT=monit
+PHP_OWNER_MONIT=$SERVICE_USER_MONIT
+NGINX_VHOST_PATH_MONIT="/etc/nginx/sites-available/monit.conf"
+VHOST_SERVER_NAME_MONIT=testorg.com
+
+#
+# used by:
 # - unbound
 #
 # space separated name server
@@ -204,3 +219,41 @@ PHP_OWNER_BBS=$SERVICE_USER_BBS
 NGINX_VHOST_PATH_BBS="/etc/nginx/sites-available/bbs.conf"
 POOL_CONF_PATH_BBS="/etc/php/7.0/fpm/pool.d/bbs.conf"
 VHOST_SERVER_NAME_BBS=testorg.com
+
+
+#
+# used by:
+# - cops
+#
+SERVICE_USER_COPS=cops
+HTML_ROOT_COPS=/var/www/cops
+APPNAME_COPS=COPS
+PHP_OWNER_COPS=$SERVICE_USER_COPS
+NGINX_VHOST_PATH_COPS="/etc/nginx/sites-available/cops.conf"
+POOL_CONF_PATH_COPS="/etc/php/7.0/fpm/pool.d/cops.conf"
+VHOST_SERVER_NAME_COPS=testorg.com
+CALIBRE_LIBRARY=/vagrant
+NGINX_BASIC_AUTH_COPS_FILE=cops
+NGINX_BASIC_AUTH_COPS_USER=cops
+NGINX_BASIC_AUTH_COPS_PW=123456
+
+#
+# used by:
+# - postifxadmin
+#
+MYSQL_DB_PFA=pfa
+MYSQL_PFA_USER=pfa
+MYSQL_PFA_PASS=123456
+SERVICE_USER_PFA=pfa
+HTML_ROOT_PFA=/var/www/pfa
+APPNAME_PFA=POSTFIXADMIN
+PHP_OWNER_PFA=$SERVICE_USER_PFA
+NGINX_VHOST_PATH_PFA="/etc/nginx/sites-available/pfa.conf"
+POOL_CONF_PATH_PFA="/etc/php/7.0/fpm/pool.d/pfa.conf"
+VHOST_SERVER_NAME_PFA=testorg.com
+CALIBRE_LIBRARY=/vagrant
+NGINX_BASIC_AUTH_PFA_FILE=pfa
+NGINX_BASIC_AUTH_PFA_USER=pfa
+NGINX_BASIC_AUTH_PFA_PW=123456
+PFA_POSTMASTER=webmaster@testorg.com
+POSTMASTER_PASSWORD=QAWS123
