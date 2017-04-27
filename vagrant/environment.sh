@@ -9,7 +9,7 @@
 # used by multiple install files
 #
 INSTALLER=aptitude
-HOST_NAME=testserver
+HOST_NAME=mail.testorg.com
 SMTP_SERVER=localhost
 IMAP_SERVER=localhost
 MYSQL_ROOT_PASS=123456
@@ -70,6 +70,7 @@ NGINX_CONF=$NGINX_DIR/nginx.conf
 # used by:
 # - snakeoil cert
 # - dh key
+# - mailserver (dovecot)
 COUNTRYNAME=DE
 PROVINCENAME=Hamburg
 KEY_LOCATION=Hamburg
@@ -77,6 +78,7 @@ KEY_ORGANIZATION=Organisation
 KEY_OUN=IT
 KEY_MAIL=webmaster@testorg.com
 KEY_COMMON_NAME=testorg.com
+SSL_CA_WITH_CRL_FULLCHAIN=
 #TODO:alternateDNS lists and generate it for snakeoil certs
 
 #
@@ -240,7 +242,7 @@ NGINX_BASIC_AUTH_COPS_PW=123456
 #
 # used by:
 # - postifxadmin
-#
+# - mailserver (dovecot, amavis)
 MYSQL_DB_PFA=pfa
 MYSQL_PFA_USER=pfa
 MYSQL_PFA_PASS=123456
@@ -256,4 +258,44 @@ NGINX_BASIC_AUTH_PFA_FILE=pfa
 NGINX_BASIC_AUTH_PFA_USER=pfa
 NGINX_BASIC_AUTH_PFA_PW=123456
 PFA_POSTMASTER=webmaster@testorg.com
-POSTMASTER_PASSWORD=QAWS123
+PFA_POSTMASTER_PASSWORD=QAWS123
+
+#
+# used by:
+# - mailserver
+#
+POSTMASTER_EMAIL=postmaster@testorg.com #will be used by $POSTMASTER_EMAIL and $POSTMASTER_AMAVIS
+POSTFIX_MAILNAME=mail.testorg.com  #will be used by $AMAVIS_DMAIN, AMAVIS_LOCAL_DOMAINS_ACL, SPAMASSASSIN_DOMAIN
+POSTMASTER_DOVECOT=$POSTMASTER_EMAIL
+# dovecot settings
+DOVECOT_CONF=/etc/dovecot/dovecot-sql.conf.ext
+DOVECOT_AUTH_CONF=/etc/dovecot/conf.d/10-auth.conf
+DOVECOT_VMAIL_CONF=/etc/dovecot/conf.d/10-mail.conf
+DOVECOT_SSL_CONF=/etc/dovecot/conf.d/10-ssl.conf
+DOVECOT_MASTER_CONF=/etc/dovecot/conf.d/10-master.conf
+DOVECOT_MAILBOXES_CONF=/etc/dovecot/conf.d/15-mailboxes.conf
+DOVECOT_LDA_CONF=/etc/dovecot/conf.d/15-lda.conf
+#amavis settings
+AMAVIS_CONF=/etc/amavis/conf.d/15-content_filter_mode
+AMAVIS_DEFAULTS_CONF=/etc/amavis/conf.d/20-debian_defaults
+AMAVIS_USER_ACCESS_CONF=/etc/amavis/conf.d/50-user
+POSTMASTER_AMAVIS=$POSTMASTER_EMAIL
+AMAVIS_DOMAIN=$POSTFIX_MAILNAME
+
+
+#### TODO(check the result)
+AMAVIS_LOCAL_DOMAINS_ACL="\"$POSTFIX_MAILNAME\", \"wyzwaniemilosci.com\", \"localhost\"" # escape double quotes
+# spamassassin and postgrey settings
+SPAMASSASSIN_DOMAIN=$POSTFIX_MAILNAME
+SAPMASSASSIN_DEFAULT=/etc/default/spamassassin
+SPAMASSASSIN_LOCAL=/etc/spamassassin/local.cf
+POSTGREY_DEFAULT=/etc/default/postgrey
+
+#postifx configuration
+POSTFIX_MYSQL_VIRTUAL_ALIAS_DOMAIN=/etc/postfix/mysql_virtual_alias_domainaliases_maps.cf
+POSTIFX_MYSQL_VIRTUAL_ALIAS=/etc/postfix/mysql_virtual_alias_maps.cf
+POSTIFX_MYSQL_VIRTUAL_DOMAINS=/etc/postfix/mysql_virtual_domains_maps.cf
+POSTFIX_VIRTUAL_MAILBOX_DOMAIN_ALIAS=/etc/postfix/mysql_virtual_mailbox_domainaliases_maps.cf
+POSTFIX_VIRTUAL_MAILBOX=/etc/postfix/mysql_virtual_mailbox_maps.cf
+POSTFIX_VIRTUAL_SENDER=/etc/postfix/mysql_virtual_sender_login_maps.cf
+POSTIFX_HEADERS=/etc/postfix/header_checks

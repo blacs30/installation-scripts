@@ -179,4 +179,4 @@ systemctl restart php7.0-fpm && systemctl restart nginx
 
 curl https://$NGINX_BASIC_AUTH_PFA_USER:$NGINX_BASIC_AUTH_PFA_PW@localhost/pfa/setup.php --insecure
 
-bash "$HTML_ROOT_PFA"/pfa/scripts/postfixadmin-cli admin add $PFA_POSTMASTER --password $POSTMASTER_PASSWORD --password2 $POSTMASTER_PASSWORD --superadmin
+bash "$HTML_ROOT_PFA"/pfa/scripts/postfixadmin-cli admin add $PFA_POSTMASTER --password $PFA_POSTMASTER_PASSWORD --password2 $PFA_POSTMASTER_PASSWORD --superadmin
