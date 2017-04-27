@@ -11,10 +11,10 @@
 # https://community.letsencrypt.org/t/please-avoid-3-0-1-and-3-0-2-dane-tlsa-records-with-le-certificates/7022/5
 # http://www.internetsociety.org/deploy360/blog/2016/01/lets-encrypt-certificates-for-mail-servers-and-dane-part-1-of-2/
 # https://www.internetsociety.org/deploy360/blog/2016/03/lets-encrypt-certificates-for-mail-servers-and-dane-part-2-of-2/
-# https://thomas-leister.de/dane-und-tlsa-dns-records-erklaert/
-# https://thomas-leister.de/lets-encrypt-mit-hpkp-und-dane/
+# https://legacy.thomas-leister.de/dane-und-tlsa-dns-records-erklaert/
+# https://legacy.thomas-leister.de/lets-encrypt-mit-hpkp-und-dane/
 # https://www.kernel-error.de/postfix/postfix-dane-tlsa
-# https://thomas-leister.de/dovecot-sieve-manager-installieren-und-einrichten/
+# https://legacy.thomas-leister.de/dovecot-sieve-manager-installieren-und-einrichten/
 
 # "run minstall.sh" to see the usage
 Pause() {
