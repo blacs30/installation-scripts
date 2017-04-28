@@ -10,23 +10,25 @@
 #
 INSTALLER=aptitude
 HOST_NAME=mail.testorg.com
+DOMAIN_NAME=testorg.com
 SMTP_SERVER=localhost
 IMAP_SERVER=localhost
 MYSQL_ROOT_PASS=123456
 MYSQL_DB_HOST=localhost
+ARTIFACT_DIR=/vagrant
 
 #
 # used by:
 # - base installation
 #
-apticron_mail=noreply@test.com
+APTICRON_MAIL=admin@$DOMAIN_NAME
 SSH_USER=testuser
 
 #
 # used by:
 # - base installation
 #
-MONIT_MAIL=$apticron_mail
+MONIT_MAIL=admin@$DOMAIN_NAME
 MONIT_USER=testuser
 MONIT_PASSWORD=123456
 MONIT_UNIX_SOCKET1=/run/php/php7.0-fpm.sock
@@ -76,8 +78,8 @@ PROVINCENAME=Hamburg
 KEY_LOCATION=Hamburg
 KEY_ORGANIZATION=Organisation
 KEY_OUN=IT
-KEY_MAIL=webmaster@testorg.com
-KEY_COMMON_NAME=testorg.com
+KEY_MAIL=webmaster@$DOMAIN_NAME
+KEY_COMMON_NAME=$DOMAIN_NAME
 SSL_PATH=/etc/ssl
 SSL_CA_WITH_CRL_FULLCHAIN=${SSL_PATH}/${KEY_COMMON_NAME}_fullchain.crt
 TLS_CERT_FILE=${SSL_PATH}/${KEY_COMMON_NAME}.crt
@@ -261,15 +263,18 @@ CALIBRE_LIBRARY=/vagrant
 NGINX_BASIC_AUTH_PFA_FILE=pfa
 NGINX_BASIC_AUTH_PFA_USER=pfa
 NGINX_BASIC_AUTH_PFA_PW=123456
-PFA_POSTMASTER=webmaster@testorg.com
+PFA_POSTMASTER=admin@$DOMAIN_NAME
 PFA_POSTMASTER_PASSWORD=QAWS123
+PFA_DOMAIN_NAME=$DOMAIN_NAME
+PFA_DOMAIN_DESCRIPTION="$DOMAIN_NAME"
+MAIL_ADMIN_PASSWORD=QAWS123
 
 #
 # used by:
 # - mailserver
 #
-POSTMASTER_EMAIL=postmaster@testorg.com #will be used by $POSTMASTER_EMAIL and $POSTMASTER_AMAVIS
-POSTFIX_MAILNAME=mail.testorg.com  #will be used by $AMAVIS_DMAIN, AMAVIS_LOCAL_DOMAINS_ACL, SPAMASSASSIN_DOMAIN
+POSTMASTER_EMAIL=postmaster@$DOMAIN_NAME #will be used by $POSTMASTER_EMAIL and $POSTMASTER_AMAVIS
+POSTFIX_MAILNAME=$HOST_NAME  #will be used by $AMAVIS_DMAIN, AMAVIS_LOCAL_DOMAINS_ACL, SPAMASSASSIN_DOMAIN
 POSTMASTER_DOVECOT=$POSTMASTER_EMAIL
 # dovecot settings
 DOVECOT_CONF=/etc/dovecot/dovecot-sql.conf.ext
@@ -283,14 +288,14 @@ DOVECOT_LDA_CONF=/etc/dovecot/conf.d/15-lda.conf
 AMAVIS_CONF=/etc/amavis/conf.d/15-content_filter_mode
 AMAVIS_DEFAULTS_CONF=/etc/amavis/conf.d/20-debian_defaults
 AMAVIS_USER_ACCESS_CONF=/etc/amavis/conf.d/50-user
-POSTMASTER_AMAVIS=$POSTMASTER_EMAIL
-AMAVIS_DOMAIN=$POSTFIX_MAILNAME
+POSTMASTER_AMAVIS=postmaster@$DOMAIN_NAME
+AMAVIS_DOMAIN=$HOST_NAME
 
 
 #### TODO(check the result)
-AMAVIS_LOCAL_DOMAINS_ACL="\"$POSTFIX_MAILNAME\", \"wyzwaniemilosci.com\", \"localhost\"" # escape double quotes
+AMAVIS_LOCAL_DOMAINS_ACL="\"$DOMAIN_NAME\", \"wyzwaniemilosci.com\", \"localhost\"" # escape double quotes
 # spamassassin and postgrey settings
-SPAMASSASSIN_DOMAIN=$POSTFIX_MAILNAME
+SPAMASSASSIN_DOMAIN=$DOMAIN_NAME
 SAPMASSASSIN_DEFAULT=/etc/default/spamassassin
 SPAMASSASSIN_LOCAL=/etc/spamassassin/local.cf
 POSTGREY_DEFAULT=/etc/default/postgrey
@@ -305,3 +310,12 @@ POSTFIX_VIRTUAL_SENDER=/etc/postfix/mysql_virtual_sender_login_maps.cf
 POSTIFX_HEADERS=/etc/postfix/header_checks
 POSTFIX_MAIN=/etc/postfix/main.cf
 POSTFIX_MASTER=/etc/postfix/master.cf
+
+
+#spf configuration
+SPF_POLICY=/etc/postfix-policyd-spf-python/policyd-spf.conf
+
+
+#dkim configuration
+OPENDKIM_CONF=/etc/opendkim.conf
+OPENDKIM_DOMAIN=$DOMAIN_NAME

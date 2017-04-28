@@ -45,7 +45,7 @@ Vagrant.configure("2") do |config|
   # config.vm.provision "shell", path: "install_wordpress.sh"
   # config.vm.provision "shell", path: "install_bbs.sh"
   config.vm.provision "shell", path: "install_postfixadmin.sh"
-  config.vm.provision "shell", path: "install_mailserver.sh"
+  # config.vm.provision "shell", path: "install_mailserver.sh"
   # config.vm.provision "shell", path: "install_cops.sh"
   # config.vm.provision "shell", path: "install_owncloud.sh"
   # config.vm.provision "shell", path: "install_monit.sh"

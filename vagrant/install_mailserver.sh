@@ -385,3 +385,76 @@ postconf -e "smtp_tls_loglevel = 1"
 # POSTFIX_MASTER=/etc/postfix/master.cf
 mv $POSTFIX_MASTER $POSTFIX_MASTER.orig
 wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/template_master.cf --no-check-certificate -O $POSTFIX_MASTER
+
+
+
+
+# installing spf
+$INSTALLER install --assume-yes postfix-policyd-spf-python
+
+#SPF_POLICY=/etc/postfix-policyd-spf-python/policyd-spf.conf
+sed -i "s,HELO_reject =.*,HELO_reject = False," $SPF_POLICY
+sed -i "s,Mail_From_reject =.*,Mail_From_reject = False," $SPF_POLICY
+
+postconf -e "policy-spf_time_limit = 3600s"
+postconf -e "sender_bcc_maps = hash:/etc/postfix/bcc_map"
+postconf -# "sender_bcc_maps"
+postconf -e "always_bcc = $POSTMASTER_EMAIL"
+
+echo "
+# --------------------------------------
+# SPF
+# --------------------------------------" >> $POSTFIX_MASTER
+
+postconf -M policy-spf/unix="policy-spf unix - n n - - spawn user=nobody argv=/usr/bin/policyd-spf"
+
+
+
+
+# installing dkim
+$INSTALLER install --assume-yes opendkim opendkim-tools
+
+
+
+#OPENDKIM_CONF=/etc/opendkim.conf
+sed -i "s,#Canonicalization.*,Canonicalization relaxed/simple," $OPENDKIM_CONF
+sed -i "s,#Mode.*,Mode sv," $OPENDKIM_CONF
+
+echo "
+Domain *
+KeyFile /etc/postfix/dkim.key
+Selector dkim
+SOCKET inet:8891@127.0.0.1" >> $OPENDKIM_CONF
+
+echo "SOCKET=\"inet:8891@127.0.0.1\"" >> /etc/default/opendkim
+
+postconf -e "milter_default_action = accept"
+postconf -e "milter_protocol = 2"
+postconf -e "smtpd_milters = inet:127.0.0.1:8891,inet:127.0.0.1:8892"
+postconf -e "non_smtpd_milters = inet:127.0.0.1:8891,inet:127.0.0.1:8892"
+
+opendkim-genkey -t -s dkim -d "$OPENDKIM_DOMAIN"
+mv dkim.private /etc/postfix/dkim.key
+chmod 660 /etc/postfix/dkim.key
+chown root:opendkim /etc/postfix/dkim.key
+
+cp /etc/postfix/dkim.key $ARTIFACT_DIR/
+mv dkim.txt $ARTIFACT_DIR/
+chmod 600 $ARTIFACT_DIR/dkim.txt $ARTIFACT_DIR/dkim.key
+
+DKIM_DNS=$(sed -e 's/" ) ; -----.*//' -e 's/IN //' -e 's/( "//' -e 's/"//g' < $ARTIFACT_DIR/dkim.txt )
+
+echo "
+------------------------------
+DKIM
+------------------------------
+Create an DNS TXT entry at
+$DKIM_DNS
+
+Craete an DNS TXT entry at
+_adsp._domainkey
+with content:
+dkim=all
+
+https://en.wikipedia.org/wiki/Author_Domain_Signing_Practices
+------------------------------"

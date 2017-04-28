@@ -187,4 +187,11 @@ systemctl restart php7.0-fpm && systemctl restart nginx
 
 curl https://$NGINX_BASIC_AUTH_PFA_USER:$NGINX_BASIC_AUTH_PFA_PW@localhost/pfa/setup.php --insecure
 
+# create the create the user admin for the postfixadmin ui
 bash "$HTML_ROOT_PFA"/pfa/scripts/postfixadmin-cli admin add $PFA_POSTMASTER --password $PFA_POSTMASTER_PASSWORD --password2 $PFA_POSTMASTER_PASSWORD --superadmin
+
+# create the initial domain in postfixadmin
+bash "$HTML_ROOT_PFA"/pfa/scripts/postfixadmin-cli domain add $PFA_DOMAIN_NAME --description "$PFA_DOMAIN_DESCRIPTION" --aliases 100 --mailboxes 50
+
+# create the required admin mailbox
+bash "$HTML_ROOT_PFA"/pfa/scripts/postfixadmin-cli mailbox add admin@$PFA_DOMAIN_NAME --password "$MAIL_ADMIN_PASSWORD" --password2 "$MAIL_ADMIN_PASSWORD" --name Administrator --quota 0 --active 1 --welcome-mail 1

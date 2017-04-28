@@ -53,8 +53,7 @@ echo "$HOST_NAME" > /etc/hostname && bash /etc/init.d/hostname.sh && echo "$HOST
 sed -i -e 's/127.0.0.1.*/# &/' -e "/^# 127.0.0.1.*/ a 127.0.0.1 $HOST_NAME localhost" -e "s/$old_HOST_NAME/$HOST_NAME/" /etc/hosts
 
 $INSTALLER install -y apticron
-apticron_mail=$apticron_mail
-sed -i -r -e "s/^EMAIL=.*/EMAIL=\"$apticron_mail\"/g" /etc/apticron/apticron.conf
+sed -i -r -e "s/^EMAIL=.*/EMAIL=\"$APTICRON_MAIL\"/g" /etc/apticron/apticron.conf
 
 SSHD_CONFIG=/etc/ssh/sshd_config;
 $INSTALLER install -y openssh-server;
