@@ -170,6 +170,14 @@ deny all;
 location ~* ^/pfa/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
 }
 }
+
+## enable this location to forbid setup.php access
+## after the superuser has been created
+#location = /postfixadmin/setup.php {
+#        deny all;
+#        access_log off;
+#        log_not_found off;
+#}
 }
 PFA_VHOST
 

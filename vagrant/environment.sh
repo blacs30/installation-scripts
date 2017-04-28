@@ -78,7 +78,11 @@ KEY_ORGANIZATION=Organisation
 KEY_OUN=IT
 KEY_MAIL=webmaster@testorg.com
 KEY_COMMON_NAME=testorg.com
-SSL_CA_WITH_CRL_FULLCHAIN=
+SSL_PATH=/etc/ssl
+SSL_CA_WITH_CRL_FULLCHAIN=${SSL_PATH}/${KEY_COMMON_NAME}_fullchain.crt
+TLS_CERT_FILE=${SSL_PATH}/${KEY_COMMON_NAME}.crt
+TLS_KEY_FILE=${SSL_PATH}/${KEY_COMMON_NAME}.key
+DH_PARAMS_FILE=${SSL_PATH}/${KEY_COMMON_NAME}_dhparams.pem
 #TODO:alternateDNS lists and generate it for snakeoil certs
 
 #
@@ -216,7 +220,7 @@ NEXTCLOUD_REDIS_SOCKET=/run/redis/redis.sock
 # admin:admin
 SERVICE_USER_BBS=bbs
 HTML_ROOT_BBS=/var/www/bbs
-APPNAME_BBS=BBS
+APPNAME_BBS=bbs
 PHP_OWNER_BBS=$SERVICE_USER_BBS
 NGINX_VHOST_PATH_BBS="/etc/nginx/sites-available/bbs.conf"
 POOL_CONF_PATH_BBS="/etc/php/7.0/fpm/pool.d/bbs.conf"
@@ -229,7 +233,7 @@ VHOST_SERVER_NAME_BBS=testorg.com
 #
 SERVICE_USER_COPS=cops
 HTML_ROOT_COPS=/var/www/cops
-APPNAME_COPS=COPS
+APPNAME_COPS=cops
 PHP_OWNER_COPS=$SERVICE_USER_COPS
 NGINX_VHOST_PATH_COPS="/etc/nginx/sites-available/cops.conf"
 POOL_CONF_PATH_COPS="/etc/php/7.0/fpm/pool.d/cops.conf"
@@ -248,7 +252,7 @@ MYSQL_PFA_USER=pfa
 MYSQL_PFA_PASS=123456
 SERVICE_USER_PFA=pfa
 HTML_ROOT_PFA=/var/www/pfa
-APPNAME_PFA=POSTFIXADMIN
+APPNAME_PFA=postfixadmin
 PHP_OWNER_PFA=$SERVICE_USER_PFA
 NGINX_VHOST_PATH_PFA="/etc/nginx/sites-available/pfa.conf"
 POOL_CONF_PATH_PFA="/etc/php/7.0/fpm/pool.d/pfa.conf"
@@ -299,3 +303,5 @@ POSTFIX_VIRTUAL_MAILBOX_DOMAIN_ALIAS=/etc/postfix/mysql_virtual_mailbox_domainal
 POSTFIX_VIRTUAL_MAILBOX=/etc/postfix/mysql_virtual_mailbox_maps.cf
 POSTFIX_VIRTUAL_SENDER=/etc/postfix/mysql_virtual_sender_login_maps.cf
 POSTIFX_HEADERS=/etc/postfix/header_checks
+POSTFIX_MAIN=/etc/postfix/main.cf
+POSTFIX_MASTER=/etc/postfix/master.cf

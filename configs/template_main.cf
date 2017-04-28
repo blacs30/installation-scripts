@@ -53,19 +53,16 @@ smtpd_tls_security_level = may
 
 # The default snakeoil certificate. Comment if using a purchased
 # SSL certificate.
-# smtpd_tls_cert_file=/var/www/mail.example.com/ssl/mail.example.com.crt
-# smtpd_tls_key_file=/var/www/mail.example.com/ssl/mail.example.com.key
+smtpd_tls_cert_file = /var/www/mail.example.com/ssl/mail.example.com.crt
+smtpd_tls_key_file = /var/www/mail.example.com/ssl/mail.example.com.key
 
-# Uncomment if using a purchased SSL certificate.
-smtpd_tls_cert_file=/etc/letsencrypt/live/www.example.com/fullchain.pem
-smtpd_tls_key_file=/etc/letsencrypt/live/www.example.com/privkey.pem
 
 # The snakeoil self-signed certificate has no need for a CA file. But
 # if you are using your own SSL certificate, then you probably have
 # a CA certificate bundle from your provider. The path to that goes
 # here.
-smtpd_tls_CAfile=/etc/letsencrypt/live/www.example.com/chain.pem
-# smtp_tls_CAfile
+smtpd_tls_CAfile = /etc/letsencrypt/live/www.example.com/fullchain.pem
+smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
 
 smtpd_tls_mandatory_protocols = !SSLv2, !SSLv3
 smtpd_tls_protocols = !SSLv2, !SSLv3
@@ -129,21 +126,26 @@ smtpd_hard_error_limit = 12
 
 # Requirements for the HELO statement
 smtpd_helo_restrictions = permit_mynetworks, warn_if_reject reject_non_fqdn_hostname, reject_invalid_hostname, permit
+
 # Requirements for the sender details. Note that the order matters.
 # E.g. see http://jimsun.linxnet.com/misc/restriction_order_prelim-03.txt
 smtpd_sender_restrictions = permit_mynetworks, reject_authenticated_sender_login_mismatch, permit_sasl_authenticated, warn_if_reject reject_non_fqdn_sender, reject_unknown_sender_domain, reject_unauth_pipelining, permit
+
 # Requirements for the connecting server
 smtpd_client_restrictions = reject_rbl_client sbl.spamhaus.org, reject_rbl_client cbl.abuseat.org
+
 # Requirement for the recipient address. Note that the entry for
 # "check_policy_service inet:127.0.0.1:10023" enables Postgrey.
 smtpd_recipient_restrictions = reject_unauth_pipelining, permit_mynetworks, permit_sasl_authenticated, reject_non_fqdn_recipient, reject_unknown_recipient_domain, reject_unauth_destination, check_policy_service inet:127.0.0.1:10023, check_policy_service unix:private/policy-spf, permit
 smtpd_data_restrictions = reject_unauth_pipelining
+
 # This is a new option as of Postfix 2.10, and is required in addition to
 # smtpd_recipient_restrictions for things to work properly in this setup.
 smtpd_relay_restrictions = reject_unauth_pipelining, permit_mynetworks, permit_sasl_authenticated, reject_non_fqdn_recipient, reject_unknown_recipient_domain, reject_unauth_destination, check_policy_service inet:127.0.0.1:10023, permit
 
 # require proper helo at connections
 smtpd_helo_required = yes
+
 # waste spammers time before rejecting them
 smtpd_delay_reject = yes
 disable_vrfy_command = yes
@@ -154,10 +156,12 @@ disable_vrfy_command = yes
 
 myhostname = mail.example.com
 myorigin = /etc/hostname
+
 # Some people see issues when setting mydestination explicitly to the server
 # subdomain, while leaving it empty generally doesn't hurt. So it is left empty here.
 # mydestination = mail.example.com, localhost
 mydestination =
+
 # If you have a separate web server that sends outgoing mail through this
 # mailserver, you may want to add its IP address to the space-delimited list in
 # mynetworks, e.g. as 10.10.10.10/32.
@@ -170,13 +174,17 @@ message_size_limit = 20480000
 
 # This specifies where the virtual mailbox folders will be located.
 virtual_mailbox_base = /var/vmail
+
 # This is for the mailbox location for each user. The domainaliases
 # map allows us to make use of Postfix Admin's domain alias feature.
 virtual_mailbox_maps = mysql:/etc/postfix/mysql_virtual_mailbox_maps.cf, mysql:/etc/postfix/mysql_virtual_mailbox_domainaliases_maps.cf
+
 # and their user id
 virtual_uid_maps = static:150
+
 # and group id
 virtual_gid_maps = static:8
+
 # This is for aliases. The domainaliases map allows us to make
 # use of Postfix Admin's domain alias feature.
 virtual_alias_maps = mysql:/etc/postfix/mysql_virtual_alias_maps.cf, mysql:/etc/postfix/mysql_virtual_alias_domainaliases_maps.cf
@@ -184,6 +192,7 @@ alias_maps = hash:/etc/aliases
 
 # This is for domain lookups.
 virtual_mailbox_domains = mysql:/etc/postfix/mysql_virtual_domains_maps.cf
+
 # Used in conjunction with reject_authenticated_sender_login_mismatch to
 # verify that the sender is sending with their own address, or with one
 # of the aliases mapped to that address.
@@ -206,5 +215,6 @@ content_filter = smtp-amavis:[127.0.0.1]:10024
 
 # Getting rid of unwanted headers. See: https://posluns.com/guides/header-removal/
 header_checks = regexp:/etc/postfix/header_checks
+
 # getting rid of x-original-to
 enable_original_recipient = no

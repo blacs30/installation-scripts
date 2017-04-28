@@ -115,9 +115,9 @@ sed -i "s,#first_valid_uid =.*,first_valid_uid = 150," $DOVECOT_VMAIL_CONF
 # ensure that some SSL protocols that are no longer secure are not used
 # DOVECOT_SSL_CONF=/etc/dovecot/conf.d/10-ssl.conf
 sed -i "s,ssl = no.*,ssl = yes," $DOVECOT_SSL_CONF
-sed -i "s,#ssl_cert =.*,ssl_cert = </etc/ssl/${KEY_COMMON_NAME}.crt," $DOVECOT_SSL_CONF
-sed -i "s,#ssl_key =.*,ssl_key = </etc/ssl/${KEY_COMMON_NAME}.key," $DOVECOT_SSL_CONF
-sed -i "s,#ssl_ca =.*,ssl_ca = </etc/ssl/${SSL_CA_WITH_CRL_FULLCHAIN}.pem," $DOVECOT_SSL_CONF
+sed -i "s,#ssl_cert =.*,ssl_cert = <$TLS_CERT_FILE," $DOVECOT_SSL_CONF
+sed -i "s,#ssl_key =.*,ssl_key = <$TLS_KEY_FILE," $DOVECOT_SSL_CONF
+sed -i "s,#ssl_ca =.*,ssl_ca = <$SSL_CA_WITH_CRL_FULLCHAIN," $DOVECOT_SSL_CONF
 sed -i "s,#ssl_dh_parameters_length =.*,ssl_dh_parameters_length = 2048," $DOVECOT_SSL_CONF
 sed -i 's,#ssl_protocols =.*,ssl_protocols = !SSLv2 !SSLv3,' $DOVECOT_SSL_CONF
 sed -i "s,#ssl_prefer_server_ciphers =.*,ssl_prefer_server_ciphers = yes," $DOVECOT_SSL_CONF
@@ -277,7 +277,6 @@ systemctl restart postgrey
 
 
 # configure postfix
-
 #POSTFIX_MYSQL_VIRTUAL_ALIAS_DOMAIN=/etc/postfix/mysql_virtual_alias_domainaliases_maps.cf
 echo "
 user = $MYSQL_PFA_USER
@@ -361,30 +360,28 @@ echo "
 
 ## TODO(work with postconf -e as much as possible)
 # download main.cf fro postfix from github
-POSTFIX_CONF=/etc/postfix/main.cf
-mv $POSTFIX_CONF $POSTFIX_CONF.orig
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/template_main.cf --no-check-certificate -O $POSTFIX_CONF
-sed -i "s,myhostname = mail.example.com,myhostname = $DOMAIN_APP_NAME," $POSTFIX_CONF
-sed -i "s,^smtpd_tls_cert_file=.*,smtpd_tls_cert_file=$CERTS_PATH/$KEY_COMMON_NAME.crt," $POSTFIX_CONF
-sed -i "s,^smtpd_tls_key_file=.*,smtpd_tls_key_file=$CERTS_PATH/$KEY_COMMON_NAME.key," $POSTFIX_CONF
-sed -i "s,# smtpd_tls_cert_file=.*,# smtpd_tls_cert_file=$CERTS_PATH/www.$DOMAIN_PART/fullchain.pem," $POSTFIX_CONF
-sed -i "s,# smtpd_tls_key_file=.*,# smtpd_tls_key_file=$CERTS_PATH/www.$DOMAIN_PART/privkey.pem," $POSTFIX_CONF
-sed -i "s,# smtpd_tls_CAfile=.*,# smtpd_tls_CAfile=$CERTS_PATH/www.$DOMAIN_PART/chain.pem," $POSTFIX_CONF
-sed -i "s,^smtpd_tls_dh1024_param_file =.*,smtpd_tls_dh1024_param_file = $CERTS_PATH/${DOMAIN_PART}_dhparams.pem," $POSTFIX_CONF
+# POSTFIX_MAIN=/etc/postfix/main.cf
+mv $POSTFIX_MAIN $POSTFIX_MAIN.orig
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/template_main.cf --no-check-certificate -O $POSTFIX_MAIN
 
+postconf -e "smtpd_tls_cert_file = $TLS_CERT_FILE"
+postconf -e "smtpd_tls_key_file = $TLS_KEY_FILE"
+postconf -e "smtpd_tls_CAfile = $SSL_CA_WITH_CRL_FULLCHAIN"
+postconf -# "smtpd_tls_CAfile"
+postconf -e "smtpd_tls_dh1024_param_file = $DH_PARAMS_FILE"
+postconf -e "myhostname = $POSTFIX_MAILNAME"
 postconf -e "smtpd_tls_auth_only = no"
 
 # ====================
 # TLSA DANE support
 # -------------------
-postconf -# "smtp_tls_security_level"
 postconf -e "smtp_tls_security_level = dane"
 postconf -e "smtpd_use_tls = yes"
 postconf -e "smtp_use_tls = yes"
 postconf -e "smtp_dns_support_level = dnssec"
 postconf -e "smtp_tls_loglevel = 1"
 
-
 # download master.cf fro postfix from github
-mv /etc/postfix/master.cf /etc/postfix/master.cf.orig
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/template_master.cf --no-check-certificate -O /etc/postfix/master.cf
+# POSTFIX_MASTER=/etc/postfix/master.cf
+mv $POSTFIX_MASTER $POSTFIX_MASTER.orig
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/template_master.cf --no-check-certificate -O $POSTFIX_MASTER
