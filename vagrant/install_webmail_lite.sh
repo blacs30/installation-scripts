@@ -9,10 +9,11 @@ $INSTALLER install -y software-properties-common php7.0 php7.0-mcrypt php7.0-cur
 #
 # create database
 #
-echo "
+cat << EOF > /tmp/createdb.sql
 CREATE DATABASE IF NOT EXISTS $MYSQL_DB_WEBMAIL;
 GRANT ALL PRIVILEGES ON $MYSQL_DB_WEBMAIL.* TO '$MYSQL_WEBMAIL_USER'@'$MYSQL_DB_HOST' IDENTIFIED BY '$MYSQL_WEBMAIL_PASS';
-quit" > /tmp/createdb.sql
+quit
+EOF
 
 mysql -uroot -p"$MYSQL_ROOT_PASS" -h"$MYSQL_DB_HOST" < /tmp/createdb.sql
 
@@ -108,76 +109,88 @@ WEBMAIL_POOL
 ##########################
 cat << WEBMAIL_VHOST > "$NGINX_VHOST_PATH_WEBMAIL"
 upstream webmail {
-server unix:///run/php/$PHP_OWNER_WEBMAIL.sock;
+
+	server unix:///run/php/$PHP_OWNER_WEBMAIL.sock;
 }
 
 server {
-listen 		80;
-server_name     $VHOST_SERVER_NAME_WEBMAIL;
-location / {
-return 301 https://\$server_name\$request_uri;
-}
+
+	listen 80;
+	server_name $VHOST_SERVER_NAME_WEBMAIL;
+	location / {
+
+		return 301 https://\$server_name\$request_uri;
+	}
 }
 
 server {
-listen 					443 ssl http2;
-listen          [::]:443 ssl http2;
-server_name    	$VHOST_SERVER_NAME_WEBMAIL;
-root   					$HTML_ROOT_WEBMAIL;
-access_log     	/var/log/nginx/$PHP_OWNER_WEBMAIL-access.log;
-error_log      	/var/log/nginx/$PHP_OWNER_WEBMAIL-error.log warn;
 
-ssl    									on;
-ssl_certificate        	/etc/ssl/${KEY_COMMON_NAME}.crt;
-ssl_certificate_key    	/etc/ssl/${KEY_COMMON_NAME}.key;
-ssl_dhparam             /etc/ssl/${KEY_COMMON_NAME}_dhparams.pem;
+	listen 443 ssl http2;
+	listen [::]:443 ssl http2;
+	server_name $VHOST_SERVER_NAME_WEBMAIL;
+	root $HTML_ROOT_WEBMAIL;
+	access_log /var/log/nginx/${PHP_OWNER_WEBMAIL}-access.log;
+	error_log /var/log/nginx/${PHP_OWNER_WEBMAIL}-error.log warn;
 
-index                   index.php;
+	ssl on;
+	ssl_certificate $TLS_CERT_FILE;
+	ssl_certificate_key $TLS_KEY_FILE;
+	ssl_dhparam $DH_PARAMS_FILE;
 
-include                 global/secure_ssl.conf;
-include                 global/restrictions.conf;
+	index index.php;
 
-# Configure GEOIP access before enabling this setting
-# if (\$allow_visit = no) { return 403 };
+	include global/secure_ssl.conf;
+	include global/restrictions.conf;
 
-# Make sure files with the following extensions do not get loaded by nginx because nginx would display the source code, and these files can contain PASSWORDS!
-location ~* \.(engine|inc|info|install|make|module|profile|test|po|sh|.*sql|theme|tpl(\.php)?|xtmpl)$|^(\..*|Entries.*|Repository|Root|Tag|Template)$|\.php_ {
-deny all;
-}
+	# Configure GEOIP access before enabling this setting
+	# if (\$allow_visit = no) { return 403 };
 
-location ~*  \.(jpg|jpeg|png|gif|css|js|ico)$ {
-expires max;
-log_not_found off;
-}
+	# Make sure files with the following extensions do not get loaded by nginx because nginx would display the source code, and these files can contain PASSWORDS!
+	location ~* \.(engine|inc|info|install|make|module|profile|test|po|sh|.*sql|theme|tpl(\.php)?|xtmpl)$|^(\..*|Entries.*|Repository|Root|Tag|Template)$|\.php_ {
 
-location ~ \.php$ {
-try_files \$uri =404;
-include fastcgi_params;
-fastcgi_buffers 16 16k;
-fastcgi_buffer_size 32k;
-fastcgi_pass webmail;
-fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-}
+		deny all;
+	}
 
-location /adminpanel {
-auth_basic                    "Restricted";
-auth_basic_user_file          /etc/nginx/.${NGINX_BASIC_AUTH_WEBMAIL_FILE};
-}
+	location ~*  \.(jpg|jpeg|png|gif|css|js|ico)$ {
 
-location / {
-location ~ ^/(.+\.php)$ {
-try_files \$uri =404;
-fastcgi_param HTTPS on;
-fastcgi_buffers 16 16k;
-fastcgi_buffer_size 32k;
-fastcgi_pass webmail;
-fastcgi_index index.php;
-fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-include fastcgi_params;
-}
-location ~* ^/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
-}
-}
+		expires max;
+		log_not_found off;
+	}
+
+	location ~ \.php$ {
+
+		try_files \$uri =404;
+		include fastcgi_params;
+		fastcgi_buffers 16 16k;
+		fastcgi_buffer_size 32k;
+		fastcgi_pass webmail;
+		fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+	}
+
+	location /adminpanel {
+
+		auth_basic "Restricted";
+		auth_basic_user_file /etc/nginx/.${NGINX_BASIC_AUTH_WEBMAIL_FILE};
+	}
+
+	location / {
+
+		location ~ ^/(.+\.php)$ {
+
+			try_files \$uri =404;
+			fastcgi_param HTTPS on;
+			fastcgi_buffers 16 16k;
+			fastcgi_buffer_size 32k;
+			fastcgi_pass webmail;
+			fastcgi_index index.php;
+			fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+			include fastcgi_params;
+		}
+
+		location ~* ^/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
+
+		}
+	}
 }
 WEBMAIL_VHOST
 

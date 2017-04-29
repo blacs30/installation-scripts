@@ -91,55 +91,66 @@ htpasswd -b -c /etc/nginx/."${NGINX_BASIC_AUTH_COPS_FILE}" "${NGINX_BASIC_AUTH_C
 ##########################
 cat << COPS_VHOST > "$NGINX_VHOST_PATH_COPS"
 upstream cops {
-server unix:///run/php/$PHP_OWNER_COPS.sock;
+
+	server unix:///run/php/$PHP_OWNER_COPS.sock;
 }
 
 server {
-listen 		80;
-server_name     $VHOST_SERVER_NAME_COPS;
-location / {
-return 301 https://\$server_name\$request_uri;
-}
+
+	listen 80;
+	server_name $VHOST_SERVER_NAME_COPS;
+	location / {
+
+		return 301 https://\$server_name\$request_uri;
+	}
 }
 
 server {
-listen 					443 ssl http2;
-listen          [::]:443 ssl http2;
-server_name    	$VHOST_SERVER_NAME_COPS;
-root   					$HTML_ROOT_COPS;
-access_log     	/var/log/nginx/$PHP_OWNER_COPS-access.log;
-error_log      	/var/log/nginx/$PHP_OWNER_COPS-error.log warn;
 
-ssl    									on;
-ssl_certificate        	/etc/ssl/${KEY_COMMON_NAME}.crt;
-ssl_certificate_key    	/etc/ssl/${KEY_COMMON_NAME}.key;
-ssl_dhparam             /etc/ssl/${KEY_COMMON_NAME}_dhparams.pem;
+	listen 443 ssl http2;
+	listen [::]:443 ssl http2;
+	server_name $VHOST_SERVER_NAME_COPS;
+	root $HTML_ROOT_COPS;
+	access_log /var/log/nginx/${PHP_OWNER_COPS}-access.log;
+	error_log /var/log/nginx/${PHP_OWNER_COPS}-error.log warn;
 
-include                 global/secure_ssl.conf;
-include                 global/restrictions.conf;
-index 									feed.php;
+	ssl on;
+	ssl_certificate $TLS_CERT_FILE;
+	ssl_certificate_key $TLS_KEY_FILE;
+	ssl_dhparam $DH_PARAMS_FILE;
 
-# if (\$allow_visit = no) { return 403 };
+	include global/secure_ssl.conf;
+	include global/restrictions.conf;
+	index feed.php;
 
-location ~* \.(?:ico|css|js|gif|jpe?g|png|ttf|woff|svg|eot)$ {
-# Some basic cache-control for static files to be sent to the browser
-expires max;
-add_header Pragma public;
-add_header Cache-Control "public, must-revalidate, proxy-revalidate";
-}
+	# if (\$allow_visit = no) { return 403 };
 
-location ~ \.php$ {
-auth_basic                    "Restricted";
-auth_basic_user_file          /etc/nginx/.${NGINX_BASIC_AUTH_COPS_FILE};
-try_files \$uri \$uri/ /index.php;
-include fastcgi.conf;
-fastcgi_pass   cops;
-}
+	location ~* \.(?:ico|css|js|gif|jpe?g|png|ttf|woff|svg|eot)$ {
 
-location /Calibre {
-root $CALIBRE_LIBRARY;
-internal;
-}
+		# Some basic cache-control for static files to be sent to the browser
+		expires max;
+		add_header Pragma public;
+		add_header Cache-Control "public, must-revalidate, proxy-revalidate";
+	}
+
+	location ~ \.php$ {
+
+		auth_basic "Restricted";
+		auth_basic_user_file /etc/nginx/.$ {
+
+			NGINX_BASIC_AUTH_COPS_FIL
+		}
+		;
+		try_files \$uri \$uri/ /index.php;
+		include fastcgi.conf;
+		fastcgi_pass cops;
+	}
+
+	location /Calibre {
+
+		root $CALIBRE_LIBRARY;
+		internal;
+	}
 }
 COPS_VHOST
 

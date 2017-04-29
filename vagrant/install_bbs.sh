@@ -89,58 +89,66 @@ BBS_POOL
 ##########################
 cat << BBS_VHOST > "$NGINX_VHOST_PATH_BBS"
 upstream bbs {
-server unix:///run/php/$PHP_OWNER_BBS.sock;
+
+	server unix:///run/php/$PHP_OWNER_BBS.sock;
 }
 
 server {
-listen 		80;
-server_name     $VHOST_SERVER_NAME_BBS;
-location / {
-return 301 https://\$server_name\$request_uri;
-}
+
+	listen 80;
+	server_name $VHOST_SERVER_NAME_BBS;
+	location / {
+
+		return 301 https://\$server_name\$request_uri;
+	}
 }
 
 server {
-listen 					443 ssl http2;
-listen          [::]:443 ssl http2;
-server_name    	$VHOST_SERVER_NAME_BBS;
-root   					$HTML_ROOT_BBS;
-access_log     	/var/log/nginx/$PHP_OWNER_BBS-access.log;
-error_log      	/var/log/nginx/$PHP_OWNER_BBS-error.log warn;
 
-ssl    									on;
-ssl_certificate        	/etc/ssl/${KEY_COMMON_NAME}.crt;
-ssl_certificate_key    	/etc/ssl/${KEY_COMMON_NAME}.key;
-ssl_dhparam             /etc/ssl/${KEY_COMMON_NAME}_dhparams.pem;
+	listen 443 ssl http2;
+	listen [::]:443 ssl http2;
+	server_name $VHOST_SERVER_NAME_BBS;
+	root $HTML_ROOT_BBS;
+	access_log /var/log/nginx/${PHP_OWNER_BBS}-access.log;
+	error_log /var/log/nginx/${PHP_OWNER_BBS}-error.log warn;
 
-index                   index.php;
+	ssl on;
+	ssl_certificate $TLS_CERT_FILE;
+	ssl_certificate_key $TLS_KEY_FILE;
+	ssl_dhparam $DH_PARAMS_FILE;
 
-include                 global/secure_ssl.conf;
-include                 global/restrictions.conf;
+	index index.php;
 
-# if (\$allow_visit = no) { return 403 };
+	include global/secure_ssl.conf;
+	include global/restrictions.conf;
 
-location / {
-rewrite ^/(img/.*)$ /\$1 break;
-rewrite ^/(js/.*)$ /\$1 break;
-rewrite ^/(style/.*)$ /\$1 break;
-rewrite ^/$ /index.php last;
-rewrite ^/(admin|authors|authorslist|login|logout|metadata|search|series|serieslist|tags|tagslist|titles|titleslist|opds)/.*$ /index.php last;
+	# if (\$allow_visit = no) { return 403 };
+
+	location / {
+
+		rewrite ^/(img/.*)$ /\$1 break;
+		rewrite ^/(js/.*)$ /\$1 break;
+		rewrite ^/(style/.*)$ /\$1 break;
+		rewrite ^/$ /index.php last;
+		rewrite ^/(admin|authors|authorslist|login|logout|metadata|search|series|serieslist|tags|tagslist|titles|titleslist|opds)/.*$ /index.php last;
+	}
+
+	location ~* \.(?:ico|css|js|gif|jpe?g|png|ttf|woff|svg|eot)$ {
+
+		# Some basic cache-control for static files to be sent to the browser
+		expires max;
+		add_header Pragma public;
+		add_header Cache-Control "public, must-revalidate, proxy-revalidate";
+	}
+
+	location ~ \.php$ {
+
+		try_files \$uri \$uri/ /index.php;
+		include fastcgi.conf;
+		fastcgi_pass bbs;
+	}
 }
 
-location ~* \.(?:ico|css|js|gif|jpe?g|png|ttf|woff|svg|eot)$ {
-# Some basic cache-control for static files to be sent to the browser
-expires max;
-add_header Pragma public;
-add_header Cache-Control "public, must-revalidate, proxy-revalidate";
-}
-
-location ~ \.php$ {
-try_files \$uri \$uri/ /index.php;
-include fastcgi.conf;
-fastcgi_pass   bbs;
-}
-}
 BBS_VHOST
 
 ln -s "$NGINX_VHOST_PATH_BBS" /etc/nginx/sites-enabled/"$APPNAME_BBS"

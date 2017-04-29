@@ -25,22 +25,25 @@ echo 1 > /proc/sys/net/ipv4/conf/all/log_martians
 echo 1 > /proc/sys/net/ipv4/conf/default/log_martians
 
 # Disable ipv6 in the system as it is not needed at the moment
-echo "
+cat << EOF >> /etc/sysctl.conf
 net.ipv6.conf.all.disable_ipv6 = 1
 net.ipv6.conf.default.disable_ipv6 = 1
 net.ipv6.conf.lo.disable_ipv6 = 1
 net.ipv6.conf.eth0.disable_ipv6 = 1
-" >> /etc/sysctl.conf
+EOF
 sysctl -p
 
 # update the apt rep
-echo "deb http://mirrors.linode.com/debian/ jessie-updates main contrib non-free" >> /etc/apt/sources.list
-echo "deb-src http://mirrors.linode.com/debian/ jessie-updates main contrib non-free" >> /etc/apt/sources.list
-echo "deb-src http://security.debian.org/ jessie/updates main non-free" >> /etc/apt/sources.list
-echo "deb http://mirrors.linode.com/debian/ jessie main contrib non-free" >> /etc/apt/sources.list
-echo "deb-src http://mirrors.linode.com/debian/ jessie main contrib non-free" >> /etc/apt/sources.list
-echo "deb http://packages.dotdeb.org jessie all" >> /etc/apt/sources.list
-echo "deb-src http://packages.dotdeb.org jessie all" >> /etc/apt/sources.list
+cat << EOF >> /etc/apt/sources.list
+deb http://mirrors.linode.com/debian/ jessie-updates main contrib non-free
+deb-src http://mirrors.linode.com/debian/ jessie-updates main contrib non-free
+deb-src http://security.debian.org/ jessie/updates main non-free
+deb http://mirrors.linode.com/debian/ jessie main contrib non-free
+deb-src http://mirrors.linode.com/debian/ jessie main contrib non-free
+deb http://packages.dotdeb.org jessie all
+deb-src http://packages.dotdeb.org jessie all
+EOF
+
 wget http://www.dotdeb.org/dotdeb.gpg --no-check-certificate
 apt-key add dotdeb.gpg
 rm -f dotdeb.gpg

@@ -9,10 +9,11 @@ $INSTALLER install -y php7.0-redis
 #
 # create database
 #
-echo "
+cat << EOF > /tmp/createdb.sql
 CREATE DATABASE IF NOT EXISTS $MYSQL_DB_WORDPRESS;
 GRANT ALL PRIVILEGES ON $MYSQL_DB_WORDPRESS.* TO '$MYSQL_WORDPRESS_USER'@'$MYSQL_DB_HOST' IDENTIFIED BY '$MYSQL_WORDPRESS_PASS';
-quit" > /tmp/createdb.sql
+quit
+EOF
 
 mysql -uroot -p"$MYSQL_ROOT_PASS" -h"$MYSQL_DB_HOST" < /tmp/createdb.sql
 
@@ -54,14 +55,16 @@ sed -i "s/^define('DB_USER', '.*');/define('DB_USER', '$MYSQL_DB_WORDPRESS');/g"
 sed -i "s/^define('DB_NAME', '.*');/define('DB_NAME', '$MYSQL_WORDPRESS_USER');/g" "$HTML_ROOT_WORDPRESS"/wp-config.php
 sed -i "s/^define('DB_PASSWORD', '.*');/define('DB_PASSWORD', '$MYSQL_WORDPRESS_PASS');/g" "$HTML_ROOT_WORDPRESS"/wp-config.php
 
-echo "
+cat << EOF >> "$HTML_ROOT_WORDPRESS"/wp-config.php
 /** Disallow theme editor for WordPress. */
-define( 'DISALLOW_FILE_EDIT', true );" >> "$HTML_ROOT_WORDPRESS"/wp-config.php
+define( 'DISALLOW_FILE_EDIT', true );
+EOF
 
-echo "
+cat << EOF >> "$HTML_ROOT_WORDPRESS"/wp-config.php
 /** Disallow error reportin for php. */
 error_reporting(0);
-@ini_set(‘display_errors’, 0);" >> "$HTML_ROOT_WORDPRESS"/wp-config.php
+@ini_set(‘display_errors’, 0);
+EOF
 
 
 perl -i -ne '
@@ -175,96 +178,104 @@ WORDPRESS_POOL
 #
 cat << WORDORESS_VHOST > "$NGINX_VHOST_PATH_WORDPRESS"
 upstream wordpress {
-server unix:///run/php/$PHP_OWNER_WORDPRESS.sock;
+
+	server unix:///run/php/$PHP_OWNER_WORDPRESS.sock;
 }
 
 server {
-listen 		80;
-server_name     $VHOST_SERVER_NAME_WORDPRESS;
-location / {
-return 301 https://\$server_name\$request_uri;
-}
+
+	listen 80;
+	server_name $VHOST_SERVER_NAME_WORDPRESS;
+	location / {
+
+		return 301 https://\$server_name\$request_uri;
+	}
 }
 
 server {
-listen 					443 ssl http2;
-listen          [::]:443 ssl http2;
-server_name    	$VHOST_SERVER_NAME_WORDPRESS;
-root   					$HTML_ROOT_WORDPRESS;
-access_log     	/var/log/nginx/$PHP_OWNER_WORDPRESS-access.log;
-error_log      	/var/log/nginx/$PHP_OWNER_WORDPRESS-error.log warn;
 
-ssl    									on;
-ssl_certificate        	/etc/ssl/${KEY_COMMON_NAME}.crt;
-ssl_certificate_key    	/etc/ssl/${KEY_COMMON_NAME}.key;
-ssl_dhparam             /etc/ssl/${KEY_COMMON_NAME}_dhparams.pem;
+	listen 443 ssl http2;
+	listen [::]:443 ssl http2;
+	server_name $VHOST_SERVER_NAME_WORDPRESS;
+	root $HTML_ROOT_WORDPRESS;
+	access_log /var/log/nginx/${PHP_OWNER_WORDPRESS}-access.log;
+	error_log /var/log/nginx/${PHP_OWNER_WORDPRESS}-error.log warn;
 
-index                   index.php;
+	ssl on;
+	ssl_certificate $TLS_CERT_FILE;
+	ssl_certificate_key $TLS_KEY_FILE;
+	ssl_dhparam $DH_PARAMS_FILE;
 
-include                 global/secure_ssl.conf;
-include        	        global/restrictions.conf;
-include        	        global/wordpress.conf;
+	index index.php;
 
-client_max_body_size    40M;
-index  									index.php;
+	include global/secure_ssl.conf;
+	include global/restrictions.conf;
+	include global/wordpress.conf;
 
-location = /xmlrpc.php {
-deny all;
-access_log off;
-log_not_found off;
-}
+	client_max_body_size 40M;
+	index index.php;
 
-# Pass all .php files onto a php-fpm/php-fcgi server.
-location ~ [^/]\.php(/|$) {
-fastcgi_split_path_info ^(.+?\.php)(/.*)$;
-try_files \$uri \$uri/ /index.php?args;
-include fastcgi.conf;
-fastcgi_index index.php;
-#      fastcgi_intercept_errors on;
-fastcgi_pass wordpress;
-}
+	location = /xmlrpc.php {
+
+		deny all;
+		access_log off;
+		log_not_found off;
+	}
+
+	# Pass all .php files onto a php-fpm/php-fcgi server.
+	location ~ [^/]\.php(/|$) {
+
+		fastcgi_split_path_info ^(.+?\.php)(/.*)$;
+		try_files \$uri \$uri/ /index.php?args;
+		include fastcgi.conf;
+		fastcgi_index index.php;
+		#      fastcgi_intercept_errors on;
+		fastcgi_pass wordpress;
+	}
 
 
-# Secure wp-login.php requests
-location = /wp-login.php {
-# if (\$allow_visit = no) { return 403 };
+	# Secure wp-login.php requests
+	location = /wp-login.php {
 
-fastcgi_split_path_info ^(.+?\.php)(/.*)$;
-try_files \$uri \$uri/ /index.php?args;
-include fastcgi.conf;
-fastcgi_index index.php;
-#      fastcgi_intercept_errors on;
-fastcgi_pass wordpress;
-}
+		# if (\$allow_visit = no) { return 403 };
 
-# Secure /wp-admin requests
-location ~ ^wp-admin {
-# if (\$allow_visit = no) { return 403 };
-}
+		fastcgi_split_path_info ^(.+?\.php)(/.*)$;
+		try_files \$uri \$uri/ /index.php?args;
+		include fastcgi.conf;
+		fastcgi_index index.php;
+		#      fastcgi_intercept_errors on;
+		fastcgi_pass wordpress;
+	}
 
-# Secure /wp-admin requests (allow admin-ajax.php)
-location ~* ^/wp-admin/admin-ajax.php$ {
+	# Secure /wp-admin requests
+	location ~ ^wp-admin {
 
-fastcgi_split_path_info ^(.+?\.php)(/.*)$;
-try_files \$uri \$uri/ /index.php?args;
-include fastcgi.conf;
-fastcgi_index index.php;
-#      fastcgi_intercept_errors on;
-fastcgi_pass wordpress;
-}
+		# if (\$allow_visit = no) { return 403 };
+	}
 
-# Secure /wp-admin requests (.php files)
-location ~* ^/wp-admin/.*\.php {
+	# Secure /wp-admin requests (allow admin-ajax.php)
+	location ~* ^/wp-admin/admin-ajax.php$ {
 
-# if (\$allow_visit = no) { return 403 };
+		fastcgi_split_path_info ^(.+?\.php)(/.*)$;
+		try_files \$uri \$uri/ /index.php?args;
+		include fastcgi.conf;
+		fastcgi_index index.php;
+		#      fastcgi_intercept_errors on;
+		fastcgi_pass wordpress;
+	}
 
-fastcgi_split_path_info ^(.+?\.php)(/.*)$;
-try_files \$uri \$uri/ /index.php?args;
-include fastcgi.conf;
-fastcgi_index index.php;
-#      fastcgi_intercept_errors on;
-fastcgi_pass wordpress;
-}
+	# Secure /wp-admin requests (.php files)
+	location ~* ^/wp-admin/.*\.php {
+
+	# if (\$allow_visit = no) { return 403 };
+
+		fastcgi_split_path_info ^(.+?\.php)(/.*)$;
+		try_files \$uri \$uri/ /index.php?args;
+		include fastcgi.conf;
+		fastcgi_index index.php;
+		#      fastcgi_intercept_errors on;
+		fastcgi_pass wordpress;
+	}
 }
 WORDORESS_VHOST
 

@@ -11,6 +11,7 @@
 INSTALLER=aptitude
 HOST_NAME=mail.testorg.com
 DOMAIN_NAME=testorg.com
+DOMAIN_NAME2=
 SMTP_SERVER=localhost
 IMAP_SERVER=localhost
 MYSQL_ROOT_PASS=123456
@@ -274,7 +275,7 @@ MAIL_ADMIN_PASSWORD=QAWS123
 # - mailserver
 #
 POSTMASTER_EMAIL=postmaster@$DOMAIN_NAME #will be used by $POSTMASTER_EMAIL and $POSTMASTER_AMAVIS
-POSTFIX_MAILNAME=$HOST_NAME  #will be used by $AMAVIS_DMAIN, AMAVIS_LOCAL_DOMAINS_ACL, SPAMASSASSIN_DOMAIN
+POSTFIX_MAILNAME=$HOST_NAME
 POSTMASTER_DOVECOT=$POSTMASTER_EMAIL
 # dovecot settings
 DOVECOT_CONF=/etc/dovecot/dovecot-sql.conf.ext
@@ -293,7 +294,7 @@ AMAVIS_DOMAIN=$HOST_NAME
 
 
 #### TODO(check the result)
-AMAVIS_LOCAL_DOMAINS_ACL="\"$DOMAIN_NAME\", \"wyzwaniemilosci.com\", \"localhost\"" # escape double quotes
+AMAVIS_LOCAL_DOMAINS_ACL="\"$DOMAIN_NAME\", \"$DOMAIN_NAME2\", \"localhost\"" # escape double quotes
 # spamassassin and postgrey settings
 SPAMASSASSIN_DOMAIN=$DOMAIN_NAME
 SAPMASSASSIN_DEFAULT=/etc/default/spamassassin
@@ -319,3 +320,31 @@ SPF_POLICY=/etc/postfix-policyd-spf-python/policyd-spf.conf
 #dkim configuration
 OPENDKIM_CONF=/etc/opendkim.conf
 OPENDKIM_DOMAIN=$DOMAIN_NAME
+OPENDKIM_DEFAULTS=/etc/default/opendkim
+
+
+#dmarc configuration
+DMARC_CONF=/etc/opendmarc.conf
+DMARC_EMAIL=$POSTMASTER_EMAIL
+DMARC_ID=$HOST_NAME
+#fixed name by opendmarc sql scripts
+MYSQL_DB_DMARC=opendmarc
+MYSQL_DMARC_USER=dmarc
+MYSQL_DMARC_PASS=123456
+DMARC_IGNORE_DOMAINS=$DOMAIN_NAME,${DOMAIN_NAME2}
+DMARC_IGNORE_HOSTS=/etc/opendmarc/ignore.hosts
+DMARC_DEFAULTS=/etc/default/opendmarc
+DMARC_REPORT_SCRIPT=/etc/opendmarc/report_script
+
+
+#sieve configuration
+DOVECOT_SIEVE=/etc/dovecot/conf.d/90-sieve.conf
+SIEVE_VMAIL_DIR=/var/vmail/sieve
+
+
+#gitlab configuration
+GITLAB_CONFIG=/etc/gitlab/gitlab.rb
+NGINX_VHOST_PATH_GITLAB="/etc/nginx/sites-available/gitlab.conf"
+VHOST_SERVER_NAME_GITLAB=testorg.com
+APPNAME_GITLAB=gitlab
+GITLAB_URL=https://$VHOST_SERVER_NAME_GITLAB/
