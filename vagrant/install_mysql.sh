@@ -35,7 +35,6 @@ expect eof
 export SECURE_MYSQL
 echo "$SECURE_MYSQL"
 unset SECURE_MYSQL
-unset MYSQL_ROOT_PASS
 
 # Remove expect and config files
 $INSTALLER -y purge expect
@@ -44,3 +43,8 @@ $INSTALLER -y purge expect
 touch /etc/mysql/.my.cnf
 chown root:root /etc/mysql/.my.cnf
 chmod 400 /etc/mysql/.my.cnf
+
+
+sed -i "s/^bind-address.*/bind-address            = $MYSQL_BIND_NAME_IP/" /etc/mysql/my.cnf
+
+systemctl restart mysql

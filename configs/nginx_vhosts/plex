@@ -1,0 +1,65 @@
+upstream plex-upstream {
+    server lisowski-development.de:32400;
+}
+
+server {
+        listen          80;
+        # enforce https
+        server_name     plex.lisowski-development.com;
+        location ~ .well-known/acme-challenge/ {
+          root /var/www/letsencrypt;
+          default_type text/plain;
+        }
+    location / {
+        return 301 https://plex.lisowski-development.com$request_uri;
+    }
+}
+
+server {
+
+        listen 443 ssl http2;
+        listen          [::]:443 ssl http2;
+        server_name plex.lisowski-development.com;
+        access_log /var/www/log/ssllisdev_access.log;
+        error_log /var/www/log/ssllisdev_error.log;
+
+        ssl                     on;
+        ssl_certificate         /var/www/ssl/lisowski-development.com/fullchain.pem;
+        ssl_certificate_key     /var/www/ssl/lisowski-development.com/privkey.pem;
+        ssl_dhparam             /var/www/ssl/wplisdev_dhparams.pem;
+
+        include                 global/secure_ssl.conf;
+        include                 global/restrictions.conf;
+
+if ($allow_visit = no) {
+    return 403;
+}
+
+#    location / {
+  # if a request to / comes in, 301 redirect to the main plex page.
+  # but only if it doesn't contain the X-Plex-Device-Name header
+  # this fixes a bug where you get permission issues when accessing the web dashboard
+#  if ($http_x_plex_device_name = '') {
+#     rewrite ^/$ https://$http_host/web/index.html;
+#  }
+
+#    proxy_set_header    Host            $http_host;
+#    proxy_set_header    X-Real-IP       $remote_addr;
+#    proxy_set_header    X-Forwarded-For $proxy_add_x_forwarded_for;
+
+#    # Plex proxy settings.
+#    proxy_redirect      off;
+#    proxy_buffering     off;
+#
+#    ## Required for Plex WebSockets
+#    proxy_http_version 1.1;
+#    proxy_set_header Upgrade $http_upgrade;
+#    proxy_set_header Connection "upgrade";
+#
+#    proxy_read_timeout 86400;
+#    proxy_pass          https://plex-upstream;
+#    proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+#    proxy_set_header X-Forwarded-Proto https;
+#   }
+
+}
