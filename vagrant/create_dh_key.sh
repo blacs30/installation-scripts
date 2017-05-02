@@ -2,5 +2,5 @@
 
 source /vagrant/environment.sh
 
-openssl dhparam -out /etc/ssl/"${KEY_COMMON_NAME}"_dhparams.pem 512 #TODO(Change back to 2048)
-chmod 400 /etc/ssl/"${KEY_COMMON_NAME}"_dhparams.pem
+openssl dhparam -out ${DH_PARAMS_FILE} 512 #TODO(Change back to 2048)
+chmod 400 ${DH_PARAMS_FILE}

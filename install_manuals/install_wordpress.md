@@ -93,95 +93,103 @@ The next step is to create the nginx vhost configuration, adjust it to your need
 
 ```
 upstream wordpress {
-server unix:///run/php/wordpress.sock;
+
+	server unix:///run/php/wordpress.sock;
 }
 
 server {
-listen 		80;
-server_name     mydomain.com;
-location / {
-return 301 https://\$server_name\$request_uri;
-}
+
+	listen 80;
+	server_name mydomain.com;
+	location / {
+
+		return 301 https://\$server_name\$request_uri;
+	}
 }
 
 server {
-listen 					443 ssl http2;
-listen          [::]:443 ssl http2;
-server_name    	mydomain.com;
-root   					/var/www/html/wordpress;
-access_log     	/var/log/nginx/wordpress-access.log;
-error_log      	/var/log/nginx/wordpress-error.log warn;
 
-ssl    									on;
-ssl_certificate        	/etc/ssl/my_ssl.crt;
-ssl_certificate_key    	/etc/ssl/my_ssl.key;
-ssl_dhparam             /etc/ssl/my_dhparams.pem;
+	listen 443 ssl http2;
+	listen [::]:443 ssl http2;
+	server_name mydomain.com;
+	root /var/www/html/wordpress;
+	access_log /var/log/nginx/wordpress-access.log;
+	error_log /var/log/nginx/wordpress-error.log warn;
 
-
-include                 global/secure_ssl.conf;
-include        	        global/restrictions.conf;
-include        	        global/wordpress.conf;
-
-client_max_body_size    40M;
-index  									index.php;
-
-location = /xmlrpc.php {
-deny all;
-access_log off;
-log_not_found off;
-}
-
-# Pass all .php files onto a php-fpm/php-fcgi server.
-location ~ [^/]\.php(/|$) {
-fastcgi_split_path_info ^(.+?\.php)(/.*)$;
-try_files \$uri \$uri/ /index.php?args;
-include fastcgi.conf;
-fastcgi_index index.php;
-#      fastcgi_intercept_errors on;
-fastcgi_pass wordpress;
-}
+	ssl on;
+	ssl_certificate /etc/ssl/my_ssl.crt;
+	ssl_certificate_key /etc/ssl/my_ssl.key;
+	ssl_dhparam /etc/ssl/my_dhparams.pem;
 
 
-# Secure wp-login.php requests
-location = /wp-login.php {
-# if (\$allow_visit = no) { return 403 };
+	include global/secure_ssl.conf;
+	include global/restrictions.conf;
+	include global/wordpress.conf;
 
-fastcgi_split_path_info ^(.+?\.php)(/.*)$;
-try_files \$uri \$uri/ /index.php?args;
-include fastcgi.conf;
-fastcgi_index index.php;
-#      fastcgi_intercept_errors on;
-fastcgi_pass wordpress;
-}
+	client_max_body_size 40M;
+	index index.php;
 
-# Secure /wp-admin requests
-location ~ ^wp-admin {
-# if (\$allow_visit = no) { return 403 };
-}
+	location = /xmlrpc.php {
 
-# Secure /wp-admin requests (allow admin-ajax.php)
-location ~* ^/wp-admin/admin-ajax.php$ {
+		deny all;
+		access_log off;
+		log_not_found off;
+	}
 
-fastcgi_split_path_info ^(.+?\.php)(/.*)$;
-try_files \$uri \$uri/ /index.php?args;
-include fastcgi.conf;
-fastcgi_index index.php;
-#      fastcgi_intercept_errors on;
-fastcgi_pass wordpress;
-}
+	# Pass all .php files onto a php-fpm/php-fcgi server.
+	location ~ [^/]\.php(/|$) {
 
-# Secure /wp-admin requests (.php files)
-location ~* ^/wp-admin/.*\.php {
+		fastcgi_split_path_info ^(.+?\.php)(/.*)$;
+		try_files \$uri \$uri/ /index.php?args;
+		include fastcgi.conf;
+		fastcgi_index index.php;
+		# fastcgi_intercept_errors on;
+		fastcgi_pass wordpress;
+	}
 
-# if (\$allow_visit = no) { return 403 };
 
-fastcgi_split_path_info ^(.+?\.php)(/.*)$;
-try_files \$uri \$uri/ /index.php?args;
-include fastcgi.conf;
-fastcgi_index index.php;
-#      fastcgi_intercept_errors on;
-fastcgi_pass wordpress;
-}
+	# Secure wp-login.php requests
+	location = /wp-login.php {
+
+		# if (\$allow_visit = no) { return 403 };
+
+		fastcgi_split_path_info ^(.+?\.php)(/.*)$;
+		try_files \$uri \$uri/ /index.php?args;
+		include fastcgi.conf;
+		fastcgi_index index.php;
+		# fastcgi_intercept_errors on;
+		fastcgi_pass wordpress;
+	}
+
+	# Secure /wp-admin requests
+	location ~ ^wp-admin {
+
+		# if (\$allow_visit = no) { return 403 };
+	}
+
+	# Secure /wp-admin requests (allow admin-ajax.php)
+	location ~* ^/wp-admin/admin-ajax.php$ {
+
+		fastcgi_split_path_info ^(.+?\.php)(/.*)$;
+		try_files \$uri \$uri/ /index.php?args;
+		include fastcgi.conf;
+		fastcgi_index index.php;
+		# fastcgi_intercept_errors on;
+		fastcgi_pass wordpress;
+	}
+
+	# Secure /wp-admin requests (.php files)
+	location ~* ^/wp-admin/.*\.php {
+
+		# if (\$allow_visit = no) { return 403 };
+
+		fastcgi_split_path_info ^(.+?\.php)(/.*)$;
+		try_files \$uri \$uri/ /index.php?args;
+		include fastcgi.conf;
+		fastcgi_index index.php;
+		# fastcgi_intercept_errors on;
+		fastcgi_pass wordpress;
+	}
 }
 ```
 

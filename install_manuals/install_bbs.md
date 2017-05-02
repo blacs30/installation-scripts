@@ -85,59 +85,66 @@ As next step create the nginx vhost configuration, adjust it to your needs (ssl 
 
 ```
 upstream bbs {
-server unix:///run/php/bbs.sock;
+
+	server unix:///run/php/bbs.sock;
 }
 
 server {
-listen 		80;
-server_name     mydomain.com;
-location / {
-return 301 https://\$server_name\$request_uri;
-}
+
+	listen 80;
+	server_name mydomain.com;
+	location / {
+
+		return 301 https://\$server_name\$request_uri;
+	}
 }
 
 server {
-listen 					443 ssl http2;
-listen          [::]:443 ssl http2;
-server_name    	mydomain.com;
-root   					/var/www/html/bbs;
-access_log     	/var/log/nginx/bbs-access.log;
-error_log      	/var/log/nginx/bbs-error.log warn;
 
-ssl    									on;
-ssl_certificate        	/etc/ssl/my_ssl.crt;
-ssl_certificate_key    	/etc/ssl/my_ssl.key;
-ssl_dhparam             /etc/ssl/my_dhparams.pem;
+	listen 443 ssl http2;
+	listen [::]:443 ssl http2;
+	server_name mydomain.com;
+	root /var/www/html/bbs;
+	access_log /var/log/nginx/bbs-access.log;
+	error_log /var/log/nginx/bbs-error.log warn;
 
-index                   index.php;
+	ssl on;
+	ssl_certificate /etc/ssl/my_ssl.crt;
+	ssl_certificate_key /etc/ssl/my_ssl.key;
+	ssl_dhparam /etc/ssl/my_dhparams.pem;
 
-include                 global/secure_ssl.conf;
+	index index.php;
 
-# Additional rules go here.
-include                 global/restrictions.conf;
+	include global/secure_ssl.conf;
 
-# if (\$allow_visit = no) { return 403 };
+	# Additional rules go here.
+	include global/restrictions.conf;
 
-location / {
-rewrite ^/(img/.*)$ /\$1 break;
-rewrite ^/(js/.*)$ /\$1 break;
-rewrite ^/(style/.*)$ /\$1 break;
-rewrite ^/$ /index.php last;
-rewrite ^/(admin|authors|authorslist|login|logout|metadata|search|series|serieslist|tags|tagslist|titles|titleslist|opds)/.*$ /index.php last;
-}
+	# if (\$allow_visit = no) { return 403 };
 
-location ~* \.(?:ico|css|js|gif|jpe?g|png|ttf|woff|svg|eot)$ {
-# Some basic cache-control for static files to be sent to the browser
-expires max;
-add_header Pragma public;
-add_header Cache-Control "public, must-revalidate, proxy-revalidate";
-}
+	location / {
 
-location ~ \.php$ {
-try_files \$uri \$uri/ /index.php;
-include fastcgi.conf;
-fastcgi_pass   bbs;
-}
+		rewrite ^/(img/.*)$ /\$1 break;
+		rewrite ^/(js/.*)$ /\$1 break;
+		rewrite ^/(style/.*)$ /\$1 break;
+		rewrite ^/$ /index.php last;
+		rewrite ^/(admin|authors|authorslist|login|logout|metadata|search|series|serieslist|tags|tagslist|titles|titleslist|opds)/.*$ /index.php last;
+	}
+
+	location ~* \.(?:ico|css|js|gif|jpe?g|png|ttf|woff|svg|eot)$ {
+
+		# Some basic cache-control for static files to be sent to the browser
+		expires max;
+		add_header Pragma public;
+		add_header Cache-Control "public, must-revalidate, proxy-revalidate";
+	}
+
+	location ~ \.php$ {
+
+		try_files \$uri \$uri/ /index.php;
+		include fastcgi.conf;
+		fastcgi_pass bbs;
+	}
 }
 ```
 

@@ -26,41 +26,45 @@ After installing monit create the nginx vhost, adjust it to your needs (ssl keys
 
 ```
 server {
-listen 		80;
-server_name     mydomain.com;
-location / {
-return 301 https://\$server_name\$request_uri;
-}
+
+	listen 80;
+	server_name mydomain.com;
+	location / {
+
+		return 301 https://\$server_name\$request_uri;
+	}
 }
 
 server {
-listen 					443 ssl http2;
-listen          [::]:443 ssl http2;
-server_name    	mydomain.com;
-root   					/var/www/html/monit;
-access_log     	/var/log/nginx/monit-access.log;
-error_log      	/var/log/nginx/monit-error.log warn;
 
-ssl    									on;
-ssl_certificate        	/etc/ssl/my_ssl.crt;
-ssl_certificate_key    	/etc/ssl/my_ssl.key;
-ssl_dhparam             /etc/ssl/my_dhparams.pem;
+	listen 443 ssl http2;
+	listen [::]:443 ssl http2;
+	server_name mydomain.com;
+	root /var/www/html/monit;
+	access_log /var/log/nginx/monit-access.log;
+	error_log /var/log/nginx/monit-error.log warn;
 
-index                   index.php;
+	ssl on;
+	ssl_certificate /etc/ssl/my_ssl.crt;
+	ssl_certificate_key /etc/ssl/my_ssl.key;
+	ssl_dhparam /etc/ssl/my_dhparams.pem;
 
-include                 global/secure_ssl.conf;
-include                 global/restrictions.conf;
-client_header_timeout   3m;
+	index index.php;
 
-# Configure GEOIP access before enabling this setting
-# if (\$allow_visit = no) { return 403 };
+	include global/secure_ssl.conf;
+	include global/restrictions.conf;
+	client_header_timeout 3m;
 
-location / {
-rewrite ^/(.*) /\$1 break;
-proxy_ignore_client_abort on;
-proxy_pass   https://127.0.0.1:2812/;
-proxy_redirect  https://127.0.0.1:2812/ /;
-}
+	# Configure GEOIP access before enabling this setting
+	# if (\$allow_visit = no) { return 403 };
+
+	location / {
+
+		rewrite ^/(.*) /\$1 break;
+		proxy_ignore_client_abort on;
+		proxy_pass https://127.0.0.1:2812/;
+		proxy_redirect https://127.0.0.1:2812/ /;
+	}
 }
 ```
 

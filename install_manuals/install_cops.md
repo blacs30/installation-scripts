@@ -93,58 +93,65 @@ As next step create the nginx vhost configuration, adjust it to your needs (ssl 
 
 ```
 upstream cops {
-server unix:///run/php/cops.sock;
+
+	server unix:///run/php/cops.sock;
 }
 
 server {
-listen 		80;
-server_name     mydomain.com;
-location / {
-return 301 https://\$server_name\$request_uri;
-}
+
+	listen 80;
+	server_name mydomain.com;
+	location / {
+
+		return 301 https://\$server_name\$request_uri;
+	}
 }
 
 server {
-listen 					443 ssl http2;
-listen          [::]:443 ssl http2;
-server_name    	mydomain.com;
-root   					/var/www/html/cops;
-access_log     	/var/log/nginx/cops-access.log;
-error_log      	/var/log/nginx/cops-error.log warn;
 
-ssl    									on;
-ssl_certificate        	/etc/ssl/my_ssl.crt;
-ssl_certificate_key    	/etc/ssl/my_ssl.key;
-ssl_dhparam             /etc/ssl/my_dhparams.pem;
+	listen 443 ssl http2;
+	listen [::]:443 ssl http2;
+	server_name mydomain.com;
+	root /var/www/html/cops;
+	access_log /var/log/nginx/cops-access.log;
+	error_log /var/log/nginx/cops-error.log warn;
 
-include                 global/secure_ssl.conf;
-include                 global/restrictions.conf;
+	ssl on;
+	ssl_certificate /etc/ssl/my_ssl.crt;
+	ssl_certificate_key /etc/ssl/my_ssl.key;
+	ssl_dhparam /etc/ssl/my_dhparams.pem;
 
-# if (\$allow_visit = no) { return 403 };
+	include global/secure_ssl.conf;
+	include global/restrictions.conf;
 
-index 									feed.php;
+	# if (\$allow_visit = no) { return 403 };
 
-# if (\$allow_visit = no) { return 403 };
+	index feed.php;
 
-location ~* \.(?:ico|css|js|gif|jpe?g|png|ttf|woff|svg|eot)$ {
-# Some basic cache-control for static files to be sent to the browser
-expires max;
-add_header Pragma public;
-add_header Cache-Control "public, must-revalidate, proxy-revalidate";
-}
+	# if (\$allow_visit = no) { return 403 };
 
-location ~ \.php$ {
-auth_basic                    "Restricted";
-auth_basic_user_file          /etc/nginx/.cops;
-try_files \$uri \$uri/ /index.php;
-include fastcgi.conf;
-fastcgi_pass   cops;
-}
+	location ~* \.(?:ico|css|js|gif|jpe?g|png|ttf|woff|svg|eot)$ {
 
-location /Calibre {
-root /path/to/calibre;
-internal;
-}
+		# Some basic cache-control for static files to be sent to the browser
+		expires max;
+		add_header Pragma public;
+		add_header Cache-Control "public, must-revalidate, proxy-revalidate";
+	}
+
+	location ~ \.php$ {
+
+		auth_basic "Restricted";
+		auth_basic_user_file /etc/nginx/.cops;
+		try_files \$uri \$uri/ /index.php;
+		include fastcgi.conf;
+		fastcgi_pass cops;
+	}
+
+	location /Calibre {
+
+		root /path/to/calibre;
+		internal;
+	}
 }
 ```
 

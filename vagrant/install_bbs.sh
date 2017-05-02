@@ -3,7 +3,8 @@
 # load variables
 source /vagrant/environment.sh
 
-$INSTALLER install -y php-common php-readline php7.0 php7.0-cli php7.0-common php7.0-gd php7.0-intl php7.0-json php7.0-mcrypt php7.0-opcache php7.0-sqlite3 php7.0-xml
+$INSTALLER install --assume-yes php7.0-readline php7.0 php7.0-cli php7.0-common php7.0-gd php7.0-intl php7.0-json php7.0-mcrypt php7.0-opcache php7.0-sqlite3 php7.0-xml
+# $INSTALLER install -y php-common php-readline php7.0 php7.0-cli php7.0-common php7.0-gd php7.0-intl php7.0-json php7.0-mcrypt php7.0-opcache php7.0-sqlite3 php7.0-xml
 
 useradd --no-create-home "$SERVICE_USER_BBS"
 usermod --lock "$SERVICE_USER_BBS"
@@ -26,8 +27,8 @@ unzip "$BBSZIPFILE"
 rm "$BBSZIPFILE"
 
 cp -rT "$BBSUNZIPNAME" "$HTML_ROOT_BBS"
-if [ -f /tmp/"$BBSUNZIPNAME" ]; then
-  rm -f /tmp/"$BBSUNZIPNAME"
+if [ -d /tmp/"$BBSUNZIPNAME" ]; then
+	rm -rf /tmp/"$BBSUNZIPNAME"
 fi
 
 
@@ -109,8 +110,8 @@ server {
 	listen [::]:443 ssl http2;
 	server_name $VHOST_SERVER_NAME_BBS;
 	root $HTML_ROOT_BBS;
-	access_log /var/log/nginx/${PHP_OWNER_BBS}-access.log;
-	error_log /var/log/nginx/${PHP_OWNER_BBS}-error.log warn;
+	access_log /var/log/nginx/${APPNAME_BBS}-access.log;
+	error_log /var/log/nginx/${APPNAME_BBS}-error.log warn;
 
 	ssl on;
 	ssl_certificate $TLS_CERT_FILE;
@@ -154,4 +155,5 @@ BBS_VHOST
 ln -s "$NGINX_VHOST_PATH_BBS" /etc/nginx/sites-enabled/"$APPNAME_BBS"
 
 
-systemctl restart php7.0-fpm && systemctl restart nginx
+systemctl restart php7.0-fpm
+nginx -t && systemctl restart nginx

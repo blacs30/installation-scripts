@@ -46,7 +46,7 @@ This is the vhost configuration which I use for my gitlab instance. It is very i
 ```
 upstream gitlab-workhorse {
 
-  server unix:/var/opt/gitlab/gitlab-workhorse/socket;
+	server unix:/var/opt/gitlab/gitlab-workhorse/socket;
 }
 
 server {
@@ -85,12 +85,10 @@ server {
 
 	# Additional rules go here.
 
-
 	# This block is for GEOIP blocking / allowing
 	# if ($allow_visit = no) {
 	#    return 403;
 	# }
-
 	location / {
 
 		## If you use HTTPS make sure you disable gzip compression

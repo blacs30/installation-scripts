@@ -50,7 +50,7 @@ server {
 		try_files \$uri \$uri/ /index.php?args;
 		include fastcgi.conf;
 		fastcgi_index index.php;
-		#      fastcgi_intercept_errors on;
+		# fastcgi_intercept_errors on;
 		fastcgi_pass wordpress;
 	}
 
@@ -64,7 +64,7 @@ server {
 		try_files \$uri \$uri/ /index.php?args;
 		include fastcgi.conf;
 		fastcgi_index index.php;
-		#      fastcgi_intercept_errors on;
+		# fastcgi_intercept_errors on;
 		fastcgi_pass wordpress;
 	}
 
@@ -81,7 +81,7 @@ server {
 		try_files \$uri \$uri/ /index.php?args;
 		include fastcgi.conf;
 		fastcgi_index index.php;
-		#      fastcgi_intercept_errors on;
+		# fastcgi_intercept_errors on;
 		fastcgi_pass wordpress;
 	}
 
@@ -94,7 +94,7 @@ server {
 		try_files \$uri \$uri/ /index.php?args;
 		include fastcgi.conf;
 		fastcgi_index index.php;
-		#      fastcgi_intercept_errors on;
+		# fastcgi_intercept_errors on;
 		fastcgi_pass wordpress;
 	}
 }

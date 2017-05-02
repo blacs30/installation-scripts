@@ -108,66 +108,73 @@ As last step create the nginx vhost configuration, adjust it to your needs (ssl 
 
 ```
 upstream pfa {
-server unix:///run/php/pfa.sock;
+
+	server unix:///run/php/pfa.sock;
 }
 
 server {
-listen 		80;
-server_name     mydomain.com;
-location / {
-return 301 https://\$server_name\$request_uri;
-}
+
+	listen 80;
+	server_name mydomain.com;
+	location / {
+
+		return 301 https://\$server_name\$request_uri;
+	}
 }
 
 server {
-listen 					443 ssl http2;
-listen          [::]:443 ssl http2;
-server_name    	mydomain.com;
-root   					/var/www/html/pfa;
-access_log     	/var/log/nginx/pfa-access.log;
-error_log      	/var/log/nginx/pfa-error.log warn;
 
-ssl    									on;
-ssl_certificate        	/etc/ssl/my_ssl.crt;
-ssl_certificate_key    	/etc/ssl/my_ssl.key;
-ssl_dhparam             /etc/ssl/my_dhparams.pem;
+	listen 443 ssl http2;
+	listen [::]:443 ssl http2;
+	server_name mydomain.com;
+	root /var/www/html/pfa;
+	access_log /var/log/nginx/pfa-access.log;
+	error_log /var/log/nginx/pfa-error.log warn;
 
-index                   index.php;
+	ssl on;
+	ssl_certificate /etc/ssl/my_ssl.crt;
+	ssl_certificate_key /etc/ssl/my_ssl.key;
+	ssl_dhparam /etc/ssl/my_dhparams.pem;
 
-include                 global/secure_ssl.conf;
-include                 global/restrictions.conf;
-client_header_timeout   3m;
+	index index.php;
+
+	include global/secure_ssl.conf;
+	include global/restrictions.conf;
+	client_header_timeout 3m;
 
 
-# Configure GEOIP access before enabling this setting
-# if (\$allow_visit = no) { return 403 };
+	# Configure GEOIP access before enabling this setting
+	# if (\$allow_visit = no) { return 403 };
+	location /pfa {
 
-location /pfa {
-auth_basic                    "Restricted";
-auth_basic_user_file          /etc/nginx/.pfa;
-index index.php index.html index.htm;
-location ~ ^/pfa/(.+\.php)$ {
-try_files \$uri =404;
-fastcgi_param HTTPS on;
-fastcgi_pass pfa;
-fastcgi_index index.php;
-fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-include /etc/nginx/fastcgi_params;
-}
-location ~* \.(engine|inc|info|install|make|module|profile|test|po|sh|.*sql|theme|tpl(\.php)?|xtmpl)$|^(\..*|Entries.*|Repository|Root|Tag|Template)$|\.php_ {
-deny all;
-}
-location ~* ^/pfa/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
-}
-}
+		auth_basic "Restricted";
+		auth_basic_user_file /etc/nginx/.pfa;
+		index index.php index.html index.htm;
+		location ~ ^/pfa/(.+\.php)$ {
 
-## enable this location to forbid setup.php access
-## after the superuser has been created
-#location = /postfixadmin/setup.php {
-#        deny all;
-#        access_log off;
-#        log_not_found off;
-#}
+			try_files \$uri =404;
+			fastcgi_param HTTPS on;
+			fastcgi_pass pfa;
+			fastcgi_index index.php;
+			fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+			include /etc/nginx/fastcgi_params;
+		}
+		location ~* \.(engine|inc|info|install|make|module|profile|test|po|sh|.*sql|theme|tpl(\.php)?|xtmpl)$|^(\..*|Entries.*|Repository|Root|Tag|Template)$|\.php_ {
+
+			deny all;
+		}
+		location ~* ^/pfa/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
+
+		}
+	}
+
+	## enable this location to forbid setup.php access
+	## after the superuser has been created
+	#location = /postfixadmin/setup.php {
+	#        deny all;
+	#        access_log off;
+	#        log_not_found off;
+	#}
 }
 ```
 

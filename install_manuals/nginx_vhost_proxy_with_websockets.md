@@ -12,40 +12,40 @@ Both include files can be found here
 
 ```
 upstream backend {
-        least_conn;
 
-        server target.domain.com:6443 fail_timeout=3;
+	least_conn;
+	server target.domain.com:6443 fail_timeout=3;
 }
 
 server {
 
-        listen 443 ssl http2;
-        listen          [::]:443 ssl http2;
-        server_name ssl.domain.com;
-        access_log /var/www/log/domain.com_access.log;
-        error_log /var/www/log/domain.com_error.log;
+	listen 443 ssl http2;
+	listen [::]:443 ssl http2;
+	server_name ssl.domain.com;
+	access_log /var/www/log/domain.com_access.log;
+	error_log /var/www/log/domain.com_error.log;
 
-        ssl                     on;
-        ssl_certificate         /var/www/ssl/domain.com/fullchain.pem;
-        ssl_certificate_key     /var/www/ssl/domain.com/privkey.pem;
-        ssl_dhparam             /var/www/ssl/domain.com_dhparams.pem;
+	ssl on;
+	ssl_certificate /var/www/ssl/domain.com/fullchain.pem;
+	ssl_certificate_key /var/www/ssl/domain.com/privkey.pem;
+	ssl_dhparam /var/www/ssl/domain.com_dhparams.pem;
 
-        include                 global/secure_ssl.conf;
-        include                 global/restrictions.conf;
+	include global/secure_ssl.conf;
+	include global/restrictions.conf;
 
 
-        # This block is for GEOIP blocking / allowing
-        # if ($allow_visit = no) {
-        #    return 403;
-        # }
+	# This block is for GEOIP blocking / allowing
+	# if ($allow_visit = no) {
+	#    return 403;
+	# }
 
-        location / {
-          proxy_http_version 1.1;
-          proxy_set_header Upgrade $http_upgrade;
-          proxy_set_header Connection "upgrade";
-          proxy_read_timeout 86400;
-          proxy_pass https://backend;
-          proxy_next_upstream     error timeout invalid_header http_502 http_503 http_504;
-        }
+	location / {
+		proxy_http_version 1.1;
+		proxy_set_header Upgrade $http_upgrade;
+		proxy_set_header Connection "upgrade";
+		proxy_read_timeout 86400;
+		proxy_pass https://backend;
+		proxy_next_upstream error timeout invalid_header http_502 http_503 http_504;
+	}
 }
 ```

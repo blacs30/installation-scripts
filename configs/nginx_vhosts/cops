@@ -44,11 +44,7 @@ server {
 	location ~ \.php$ {
 
 		auth_basic "Restricted";
-		auth_basic_user_file /etc/nginx/.$ {
-
-			NGINX_BASIC_AUTH_COPS_FIL
-		}
-		;
+		auth_basic_user_file /etc/nginx/.${NGINX_BASIC_AUTH_COPS_FILE};
 		try_files \$uri \$uri/ /index.php;
 		include fastcgi.conf;
 		fastcgi_pass cops;

@@ -20,9 +20,13 @@ SOFTWARE_DIR=$(printf "%s" "$SOFTWARE_ZIP" | sed -e 's/.tar.gz//')
 cd /tmp
 wget $SOFTWARE_URL
 tar -xf /tmp/"$SOFTWARE_ZIP"
-mv "$SOFTWARE_DIR" "$HTML_ROOT_PFA"/pfa
+cp -r "$SOFTWARE_DIR"/* "$HTML_ROOT_PFA"
 if [ -f /tmp/"$SOFTWARE_ZIP" ]; then
   rm -f /tmp/"$SOFTWARE_ZIP"
+fi
+
+if [ -d /tmp/"$SOFTWARE_DIR" ]; then
+  rm -rf /tmp/"$SOFTWARE_DIR"
 fi
 
 #
@@ -42,17 +46,18 @@ fi
 
 
 #create new empty postfix local config file
-POSTFIXADM_CONF_FILE=$HTML_ROOT_PFA/pfa/config.local.php
+POSTFIXADM_CONF_FILE=$HTML_ROOT_PFA/config.local.php
 touch "$POSTFIXADM_CONF_FILE"
 
 #download postfixadmin template
 wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/postfixadmin.config.local.php --no-check-certificate -O "$POSTFIXADM_CONF_FILE"
 
-chown -R "$SERVICE_USER_PFA":www-data "$HTML_ROOT_PFA"/pfa
-find "$HTML_ROOT_PFA"/pfa -type d -exec chmod 750 {} \;
-find "$HTML_ROOT_PFA"/pfa -type f -exec chmod 640 {} \;
+chown -R "$SERVICE_USER_PFA":www-data "$HTML_ROOT_PFA"
+find "$HTML_ROOT_PFA" -type d -exec chmod 750 {} \;
+find "$HTML_ROOT_PFA" -type f -exec chmod 640 {} \;
 
-sed -i "s,.*'postfix_admin_url'.*,\$CONF['postfix_admin_url'] = 'https://$VHOST_SERVER_NAME_PFA/pfa';," "$POSTFIXADM_CONF_FILE"
+sed -i "s,.*'postfix_admin_url'.*,\$CONF['postfix_admin_url'] = 'https://$VHOST_SERVER_NAME_PFA';," "$POSTFIXADM_CONF_FILE"
+sed -i "s,.*'database_host'.*,\$CONF['database_host'] = '$MYSQL_DB_HOST';," "$POSTFIXADM_CONF_FILE"
 sed -i "s,.*'database_user'.*,\$CONF['database_user'] = '$MYSQL_PFA_USER';," "$POSTFIXADM_CONF_FILE"
 sed -i "s,.*'database_password'.*,\$CONF['database_password'] = '$MYSQL_PFA_PASS';," "$POSTFIXADM_CONF_FILE"
 sed -i "s,.*'database_name'.*,\$CONF['database_name'] = '$MYSQL_DB_PFA';," "$POSTFIXADM_CONF_FILE"
@@ -63,7 +68,7 @@ sed -i "s,.*'footer_link'.*,\$CONF['footer_link'] = 'https://$VHOST_SERVER_NAME_
 
 MYSQLVERSION=$(mysql --version | awk '{ print $5 }' | cut -c 1-3)
 if [ "$MYSQLVERSION" = "5.5" ]; then
-  sed -i 's/"FROM_BASE64(###KEY###)"/"###KEY###"/' "$HTML_ROOT_PFA"/pfa/model/PFAHandler.php
+  sed -i 's/"FROM_BASE64(###KEY###)"/"###KEY###"/' "$HTML_ROOT_PFA"/model/PFAHandler.php
 fi
 
 
@@ -140,8 +145,8 @@ server {
 	listen [::]:443 ssl http2;
 	server_name $VHOST_SERVER_NAME_PFA;
 	root $HTML_ROOT_PFA;
-	access_log /var/log/nginx/${PHP_OWNER_PFA}-access.log;
-	error_log /var/log/nginx/${PHP_OWNER_PFA}-error.log warn;
+	access_log /var/log/nginx/${APPNAME_PFA}-access.log;
+	error_log /var/log/nginx/${APPNAME_PFA}-error.log warn;
 
 	ssl on;
 	ssl_certificate $TLS_CERT_FILE;
@@ -157,12 +162,12 @@ server {
 	# Configure GEOIP access before enabling this setting
 	# if (\$allow_visit = no) { return 403 };
 
-	location /pfa {
+	location / {
 
 		auth_basic "Restricted";
 		auth_basic_user_file /etc/nginx/.${NGINX_BASIC_AUTH_PFA_FILE};
 		index index.php index.html index.htm;
-		location ~ ^/pfa/(.+\.php)$ {
+		location ~ ^/(.+\.php)$ {
 
 			try_files \$uri =404;
 			fastcgi_param HTTPS on;
@@ -177,14 +182,14 @@ server {
 			deny all;
 		}
 
-		location ~* ^/pfa/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
+		location ~* ^/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
 
 		}
 	}
 
 	## enable this location to forbid setup.php access
 	## after the superuser has been created
-	#location = /postfixadmin/setup.php {
+	#location = /setup.php {
 	#
 	#	deny all;
 	#	access_log off;
@@ -197,13 +202,23 @@ ln -s "$NGINX_VHOST_PATH_PFA" /etc/nginx/sites-enabled/"$APPNAME_PFA"
 
 systemctl restart php7.0-fpm && systemctl restart nginx
 
-curl https://$NGINX_BASIC_AUTH_PFA_USER:$NGINX_BASIC_AUTH_PFA_PW@localhost/pfa/setup.php --insecure
+# check the response code of the url call
+response=$(curl --write-out %{http_code} --silent --output /dev/null https://"$NGINX_BASIC_AUTH_PFA_USER":"$NGINX_BASIC_AUTH_PFA_PW"@"$VHOST_SERVER_NAME_PFA"/setup.php --insecure)
+
+# if response is not 200 (OK) then add the server domain name into the hosts.
+# remove it after run the curl again
+if [ "$response" != "200" ]; then
+ 	echo "127.0.0.1 $VHOST_SERVER_NAME_PFA" >> /etc/hosts
+	curl https://"$NGINX_BASIC_AUTH_PFA_USER":"$NGINX_BASIC_AUTH_PFA_PW"@"$VHOST_SERVER_NAME_PFA"/setup.php --insecure
+	sed -i "/$VHOST_SERVER_NAME_PFA/d" /etc/hosts
+fi
+
 
 # create the create the user admin for the postfixadmin ui
-bash "$HTML_ROOT_PFA"/pfa/scripts/postfixadmin-cli admin add $PFA_POSTMASTER --password $PFA_POSTMASTER_PASSWORD --password2 $PFA_POSTMASTER_PASSWORD --superadmin
+bash "$HTML_ROOT_PFA"/scripts/postfixadmin-cli admin add "$PFA_POSTMASTER" --password "$PFA_POSTMASTER_PASSWORD" --password2 "$PFA_POSTMASTER_PASSWORD" --superadmin
 
 # create the initial domain in postfixadmin
-bash "$HTML_ROOT_PFA"/pfa/scripts/postfixadmin-cli domain add $PFA_DOMAIN_NAME --description "$PFA_DOMAIN_DESCRIPTION" --aliases 100 --mailboxes 50
+bash "$HTML_ROOT_PFA"/scripts/postfixadmin-cli domain add "$PFA_DOMAIN_NAME" --description "$PFA_DOMAIN_DESCRIPTION" --aliases 100 --mailboxes 50
 
 # create the required admin mailbox
-bash "$HTML_ROOT_PFA"/pfa/scripts/postfixadmin-cli mailbox add admin@$PFA_DOMAIN_NAME --password "$MAIL_ADMIN_PASSWORD" --password2 "$MAIL_ADMIN_PASSWORD" --name Administrator --quota 0 --active 1 --welcome-mail 1
+bash "$HTML_ROOT_PFA"/scripts/postfixadmin-cli mailbox add admin@"$PFA_DOMAIN_NAME" --password "$MAIL_ADMIN_PASSWORD" --password2 "$MAIL_ADMIN_PASSWORD" --name Administrator --quota 0 --active 1 --welcome-mail 1

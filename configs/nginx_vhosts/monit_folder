@@ -1,0 +1,10 @@
+# * * * * * * * * * * * * * * *
+# use this part for monit as a path in the url
+# * * * * * * * * * * * * * * *
+location /monit {
+
+	rewrite /monit/(.*) /$1 break;
+	proxy_ignore_client_abort on;
+	proxy_pass https://127.0.0.1:2812;
+	proxy_redirect https://127.0.0.1:2812/ /;
+}

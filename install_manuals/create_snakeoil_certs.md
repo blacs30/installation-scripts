@@ -24,3 +24,12 @@ Change the parameter to your need:
 
 After you've created the certificate set the correct and safe permissions to the key.  
 `chmod 600 /etc/ssl/snakeoil.key`
+
+
+___
+### Resources
+Here is a nice page with some tips on how to create your own CA and sign your own certificates.   
+https://coolaj86.com/articles/create-your-own-certificate-authority-for-testing/
+
+This book is going into detail, very informative.  
+https://hpbn.co/transport-layer-security-tls/

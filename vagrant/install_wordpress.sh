@@ -198,8 +198,8 @@ server {
 	listen [::]:443 ssl http2;
 	server_name $VHOST_SERVER_NAME_WORDPRESS;
 	root $HTML_ROOT_WORDPRESS;
-	access_log /var/log/nginx/${PHP_OWNER_WORDPRESS}-access.log;
-	error_log /var/log/nginx/${PHP_OWNER_WORDPRESS}-error.log warn;
+	access_log /var/log/nginx/${APPNAME_WORDPRESS}-access.log;
+	error_log /var/log/nginx/${APPNAME_WORDPRESS}-error.log warn;
 
 	ssl on;
 	ssl_certificate $TLS_CERT_FILE;
@@ -229,7 +229,7 @@ server {
 		try_files \$uri \$uri/ /index.php?args;
 		include fastcgi.conf;
 		fastcgi_index index.php;
-		#      fastcgi_intercept_errors on;
+		# fastcgi_intercept_errors on;
 		fastcgi_pass wordpress;
 	}
 
@@ -243,7 +243,7 @@ server {
 		try_files \$uri \$uri/ /index.php?args;
 		include fastcgi.conf;
 		fastcgi_index index.php;
-		#      fastcgi_intercept_errors on;
+		# fastcgi_intercept_errors on;
 		fastcgi_pass wordpress;
 	}
 
@@ -260,7 +260,7 @@ server {
 		try_files \$uri \$uri/ /index.php?args;
 		include fastcgi.conf;
 		fastcgi_index index.php;
-		#      fastcgi_intercept_errors on;
+		# fastcgi_intercept_errors on;
 		fastcgi_pass wordpress;
 	}
 
@@ -273,7 +273,7 @@ server {
 		try_files \$uri \$uri/ /index.php?args;
 		include fastcgi.conf;
 		fastcgi_index index.php;
-		#      fastcgi_intercept_errors on;
+		# fastcgi_intercept_errors on;
 		fastcgi_pass wordpress;
 	}
 }

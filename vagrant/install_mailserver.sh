@@ -215,7 +215,7 @@ cat <<- EOF >> "$AMAVIS_USER_ACCESS_CONF"
    ['DBI:mysql:database=$MYSQL_DB_PFA;host=$MYSQL_DB_HOST;port=3306',
     '$MYSQL_PFA_USER',
     '$MYSQL_PFA_PASS']);
-\$sql_select_policy = 'SELECT domain from domain WHERE CONCAT(\"@\",domain) IN (%k)';
+\$sql_select_policy = 'SELECT domain from domain WHERE CONCAT(@,domain) IN (%k)';
 
 # Uncomment to bump up the log level when testing.
 \$log_level = 2;
@@ -274,6 +274,7 @@ POSTGREY_OPTS="\$POSTGREY_OPTS --whitelist-clients=/etc/postgrey/whitelist_clien
 POSTGREY_OPTS="\$POSTGREY_OPTS --whitelist-recipients=/etc/postgrey/whitelist_recipients"
 EOF
 
+sed -i "s/inet=10023/inet=$POSTGREY_BIND_HOST:10023/" "$POSTGREY_DEFAULT"
 
 
 # configure postfix
@@ -284,10 +285,11 @@ cat <<- EOF > "$POSTFIX_MYSQL_VIRTUAL_ALIAS_DOMAIN"
 	hosts =  $MYSQL_DB_HOST
 	dbname = $MYSQL_DB_PFA
 	query = SELECT goto FROM alias,alias_domain
-	WHERE alias_domain.alias_domain = '%d'
-	AND alias.address=concat('%u', '@', alias_domain.target_domain)
-	AND alias.active = 1
+	  WHERE alias_domain.alias_domain = '%d'
+	  AND alias.address=concat('%u', '@', alias_domain.target_domain)
+	  AND alias.active = 1
 EOF
+
 
 #POSTIFX_MYSQL_VIRTUAL_ALIAS=/etc/postfix/mysql_virtual_alias_maps.cf
 cat <<- EOF > "$POSTIFX_MYSQL_VIRTUAL_ALIAS"
@@ -320,9 +322,9 @@ cat <<- EOF > "$POSTFIX_VIRTUAL_MAILBOX_DOMAIN_ALIAS"
 	hosts =  $MYSQL_DB_HOST
 	dbname = $MYSQL_DB_PFA
 	query = SELECT maildir FROM mailbox, alias_domain
-  WHERE alias_domain.alias_domain = '%d'
-  AND mailbox.username=concat('%u', '@', alias_domain.target_domain )
-  AND mailbox.active = 1
+	  WHERE alias_domain.alias_domain = '%d'
+	  AND mailbox.username=concat('%u', '@', alias_domain.target_domain )
+	  AND mailbox.active = 1
 EOF
 
 #POSTFIX_VIRTUAL_MAILBOX=/etc/postfix/mysql_virtual_mailbox_maps.cf
@@ -372,6 +374,7 @@ postconf -e "myhostname = $POSTFIX_MAILNAME"
 postconf -e "smtpd_tls_auth_only = no"
 
 cat << EOF >> "$POSTFIX_MAIN"
+
 #-----------------
 # TLSA DANE support
 #-----------------
@@ -398,6 +401,7 @@ sed -i "s,HELO_reject =.*,HELO_reject = False," "$SPF_POLICY"
 sed -i "s,Mail_From_reject =.*,Mail_From_reject = False," "$SPF_POLICY"
 
 cat << EOF >> "$POSTFIX_MAIN"
+
 #-----------------
 # SPF support
 #-----------------
@@ -458,6 +462,7 @@ EOF
 echo "SOCKET=\"inet:8891@127.0.0.1\"" >> "$OPENDKIM_DEFAULTS"
 
 cat << EOF >> "$POSTFIX_MAIN"
+
 #-----------------
 # DKIM config
 #-----------------
@@ -515,7 +520,7 @@ $INSTALLER install --assume-yes opendmarc
 cat << EOF > /tmp/createdb.sql
 CREATE DATABASE IF NOT EXISTS $MYSQL_DB_DMARC;
 GRANT ALL PRIVILEGES ON $MYSQL_DB_DMARC.* TO '$MYSQL_DMARC_USER'@'$MYSQL_DB_HOST' IDENTIFIED BY '$MYSQL_DMARC_PASS';
-quit;
+quit
 EOF
 
 mysql -uroot -p"$MYSQL_ROOT_PASS" -h"$MYSQL_DB_HOST" < /tmp/createdb.sql
@@ -611,6 +616,7 @@ make
 make install
 
 cat << EOF >> "$POSTFIX_MAIN"
+
 #-----------------
 # openSRSD config
 #-----------------
@@ -645,8 +651,9 @@ mkdir -p "$SIEVE_VMAIL_DIR"
 
 cat << EOF >> "$SIEVE_VMAIL_DIR"/spam-global.sieve
 require "fileinto";
-if header :contains "X-Spam-Flag" "YES" {
-  fileinto "Spam";
+if header :comparator "i;ascii-casemap" :contains "X-Spam-Flag" "YES"  {
+    fileinto "Junk";
+    stop;
 }
 EOF
 
@@ -666,6 +673,8 @@ systemctl restart spamassassin
 systemctl restart postgrey
 systemctl restart postfix
 systemctl restart dovecot
+systemctl restart opendmarc
+systemctl restart opendkim
 
 
 

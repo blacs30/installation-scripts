@@ -19,17 +19,19 @@ SOFTWARE_DIR=$(printf '%s' "$SOFTWARE_ZIP" | sed -e 's/.zip//')
 
 wget $SOFTWARE_URL -O /tmp/"$SOFTWARE_ZIP"
 cd /tmp && unzip /tmp/"$SOFTWARE_ZIP"
-mkdir -p "$HTML_ROOT_PHPMYADMIN"/phpmyadmin
-cp -rT "$SOFTWARE_DIR" "$HTML_ROOT_PHPMYADMIN"/phpmyadmin
+mkdir -p "$HTML_ROOT_PHPMYADMIN"
+cp -r "$SOFTWARE_DIR"/* "$HTML_ROOT_PHPMYADMIN"
+
 if [ -d /tmp/"$SOFTWARE_DIR" ]; then
   rm -rf /tmp/"$SOFTWARE_DIR"
 fi
+
 if [ -f "$SOFTWARE_ZIP" ]; then
   rm -f "$SOFTWARE_ZIP"
 fi
 
-PHPMYADMIN_CONF="$HTML_ROOT_PHPMYADMIN"/phpmyadmin/config.inc.php
-cp "$HTML_ROOT_PHPMYADMIN"/phpmyadmin/config.sample.inc.php "$PHPMYADMIN_CONF"
+PHPMYADMIN_CONF="$HTML_ROOT_PHPMYADMIN"/config.inc.php
+cp "$HTML_ROOT_PHPMYADMIN"/config.sample.inc.php "$PHPMYADMIN_CONF"
 
 BLOWFISH_PASS=$(< /dev/urandom tr -dc "a-zA-Z0-9@#*=" | fold -w 32 | head -n 1)
 sed -i "s/.*'blowfish_secret'.*/\$cfg['blowfish_secret'] = '$BLOWFISH_PASS';/g" "$PHPMYADMIN_CONF"
@@ -114,8 +116,8 @@ server {
 	listen [::]:443 ssl http2;
 	server_name $VHOST_SERVER_NAME_PHPMYADMIN;
 	root $HTML_ROOT_PHPMYADMIN;
-	access_log /var/log/nginx/${PHP_OWNER_PHPMYADMIN}-access.log;
-	error_log /var/log/nginx/${PHP_OWNER_PHPMYADMIN}-error.log warn;
+	access_log /var/log/nginx/${APPNAME_PHPMYADMIN}-access.log;
+	error_log /var/log/nginx/${APPNAME_PHPMYADMIN}-error.log warn;
 
 	ssl on;
 	ssl_certificate $TLS_CERT_FILE;
@@ -151,13 +153,13 @@ server {
 		fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
 	}
 
-	location /phpmyadmin {
+	location / {
 
 		auth_basic "Restricted";
 		auth_basic_user_file /etc/nginx/.${NGINX_BASIC_AUTH_PHPMYADMIN_FILE};
 		index index.php index.html index.htm;
 
-		location ~ ^/phpmyadmin/(.+\.php)\$ {
+		location ~ ^/(.+\.php)\$ {
 
 			try_files \$uri =404;
 			fastcgi_param HTTPS on;
@@ -170,14 +172,9 @@ server {
 			client_body_buffer_size 128k;
 		}
 
-		location ~* ^/phpmyadmin/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
+		location ~* ^/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
 
 		}
-	}
-
-	location /phpMyAdmin {
-
-		rewrite ^/* /phpmyadmin last;
 	}
 }
 PHPMYADMIN_VHOST

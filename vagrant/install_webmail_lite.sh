@@ -43,9 +43,14 @@ if [ -d /tmp/webmail ]; then
   rm -rf /tmp/webmail
 fi
 
+if [ -f /tmp/"$AL_WEBMAIL_ZIP" ]; then
+  rm -f /tmp/"$AL_WEBMAIL_ZIP"
+fi
+
 if [ -d "$HTML_ROOT_WEBMAIL"/install ]; then
   rm -rf "$HTML_ROOT_WEBMAIL"/install
 fi
+
 
 # Set permissions to files and directories
 chown -R "$SERVICE_USER_WEBMAIL":www-data "$HTML_ROOT_WEBMAIL"/
@@ -129,8 +134,8 @@ server {
 	listen [::]:443 ssl http2;
 	server_name $VHOST_SERVER_NAME_WEBMAIL;
 	root $HTML_ROOT_WEBMAIL;
-	access_log /var/log/nginx/${PHP_OWNER_WEBMAIL}-access.log;
-	error_log /var/log/nginx/${PHP_OWNER_WEBMAIL}-error.log warn;
+	access_log /var/log/nginx/${APPNAME_WEBMAIL}-access.log;
+	error_log /var/log/nginx/${APPNAME_WEBMAIL}-error.log warn;
 
 	ssl on;
 	ssl_certificate $TLS_CERT_FILE;
@@ -159,37 +164,41 @@ server {
 
 	location ~ \.php$ {
 
-		try_files \$uri =404;
-		include fastcgi_params;
-		fastcgi_buffers 16 16k;
-		fastcgi_buffer_size 32k;
-		fastcgi_pass webmail;
-		fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+		try_files /dummy/\$uri @php;
 	}
 
 	location /adminpanel {
 
 		auth_basic "Restricted";
 		auth_basic_user_file /etc/nginx/.${NGINX_BASIC_AUTH_WEBMAIL_FILE};
+		location ~ \.php$ {
+
+			try_files /dummy/\$uri @php;
+		}
 	}
 
 	location / {
 
 		location ~ ^/(.+\.php)$ {
 
-			try_files \$uri =404;
-			fastcgi_param HTTPS on;
-			fastcgi_buffers 16 16k;
-			fastcgi_buffer_size 32k;
-			fastcgi_pass webmail;
-			fastcgi_index index.php;
-			fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-			include fastcgi_params;
+			try_files /dummy/\$uri @php;
 		}
 
 		location ~* ^/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
 
 		}
+	}
+
+	location @php {
+
+		try_files \$uri =404;
+		fastcgi_param HTTPS on;
+		fastcgi_buffers 16 16k;
+		fastcgi_buffer_size 32k;
+		fastcgi_pass webmail;
+		fastcgi_index index.php;
+		fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+		include fastcgi_params;
 	}
 }
 WEBMAIL_VHOST
@@ -228,3 +237,19 @@ sed -i "s|<AllowCalendar.*|<AllowCalendar>On</AllowCalendar>|" $WEBMAIL_CONFIG_F
 sed -i "s|<ShowWeekEnds.*|<ShowWeekEnds>Off</ShowWeekEnds>^|" $WEBMAIL_CONFIG_FILE
 sed -i "s|<ContactsPerPage.*|<ContactsPerPage>50</ContactsPerPage>|" $WEBMAIL_CONFIG_FILE
 sed -i "s|<AllowFiles.*|<AllowFiles>On</AllowFiles>|" $WEBMAIL_CONFIG_FILE
+
+
+
+
+
+# check the response code of the url call
+response=$(curl --write-out %{http_code} --silent --output /dev/null https://"$NGINX_BASIC_AUTH_WEBMAIL_USER":"$NGINX_BASIC_AUTH_WEBMAIL_PW"@"$VHOST_SERVER_NAME_WEBMAIL"/adminpanel/index.php?login --insecure)
+
+# if response is not 200 (OK) then add the server domain name into the hosts.
+# remove it after run the curl again
+if [ "$response" != "200" ]; then
+ 	echo "127.0.0.1 $VHOST_SERVER_NAME_WEBMAIL" >> /etc/hosts
+	curl --request POST --location -b /tmp/c -c /tmp/c --data AdmloginInput="admin" --data AdmpasswordInput="12345" https://"$NGINX_BASIC_AUTH_WEBMAIL_USER":"$NGINX_BASIC_AUTH_WEBMAIL_PW"@"$VHOST_SERVER_NAME_WEBMAIL"/adminpanel/index.php?login --insecure
+	curl --request POST --location -b /tmp/c -c /tmp/c "https://$NGINX_BASIC_AUTH_WEBMAIL_USER:$NGINX_BASIC_AUTH_WEBMAIL_PW@$VHOST_SERVER_NAME_WEBMAIL/adminpanel/index.php?pop&type=db&action=update" --insecure
+	sed -i "/$VHOST_SERVER_NAME_WEBMAIL/d" /etc/hosts
+fi

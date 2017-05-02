@@ -111,8 +111,8 @@ server {
 	listen [::]:443 ssl http2;
 	server_name $VHOST_SERVER_NAME_COPS;
 	root $HTML_ROOT_COPS;
-	access_log /var/log/nginx/${PHP_OWNER_COPS}-access.log;
-	error_log /var/log/nginx/${PHP_OWNER_COPS}-error.log warn;
+	access_log /var/log/nginx/${APPNAME_COPS}-access.log;
+	error_log /var/log/nginx/${APPNAME_COPS}-error.log warn;
 
 	ssl on;
 	ssl_certificate $TLS_CERT_FILE;
@@ -136,11 +136,7 @@ server {
 	location ~ \.php$ {
 
 		auth_basic "Restricted";
-		auth_basic_user_file /etc/nginx/.$ {
-
-			NGINX_BASIC_AUTH_COPS_FIL
-		}
-		;
+		auth_basic_user_file /etc/nginx/.${NGINX_BASIC_AUTH_COPS_FILE};
 		try_files \$uri \$uri/ /index.php;
 		include fastcgi.conf;
 		fastcgi_pass cops;

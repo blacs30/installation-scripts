@@ -5,12 +5,6 @@ source /vagrant/environment.sh
 
 $INSTALLER install -y monit
 
-if [ -f "$TLS_KEY_FILE" ] && [ -f "$TLS_CERT_FILE" ]; then
-  cat "$TLS_KEY_FILE" > "${SSL_PATH}""${KEY_COMMON_NAME}"_combined.pem
-  cat "$TLS_CERT_FILE" >> "${SSL_PATH}""${KEY_COMMON_NAME}"_combined.pem
-  chmod 600 "${SSL_PATH}""${KEY_COMMON_NAME}"_combined.pem
-fi
-
 ##########################
 # Create the nginx vhost
 ##########################
@@ -31,19 +25,19 @@ server {
 	listen [::]:443 ssl http2;
 	server_name $VHOST_SERVER_NAME_MONIT;
 
-	access_log /var/log/nginx/$PHP_OWNER_MONIT-access.log;
-	error_log /var/log/nginx/$PHP_OWNER_MONIT-error.log warn;
+	access_log /var/log/nginx/${APPNAME_MONIT}-access.log;
+	error_log /var/log/nginx/${APPNAME_MONIT}-error.log warn;
 
 	ssl on;
 	ssl_certificate $TLS_CERT_FILE;
 	ssl_certificate_key $TLS_KEY_FILE;
 	ssl_dhparam $DH_PARAMS_FILE;
 
-	index                   index.php;
+	index index.php;
 
-	include                 global/secure_ssl.conf;
-	include                 global/restrictions.conf;
-	client_header_timeout   3m;
+	include global/secure_ssl.conf;
+	include global/restrictions.conf;
+	client_header_timeout 3m;
 
 	# Configure GEOIP access before enabling this setting
 	# if (\$allow_visit = no) { return 403 };
@@ -51,8 +45,8 @@ server {
 
 		rewrite ^/(.*) /\$1 break;
 		proxy_ignore_client_abort on;
-		proxy_pass   https://127.0.0.1:2812/;
-		proxy_redirect  https://127.0.0.1:2812/ /;
+		proxy_pass https://127.0.0.1:2812/;
+		proxy_redirect https://127.0.0.1:2812/ /;
 	}
 }
 MONIT_VHOST
@@ -66,7 +60,7 @@ MONITRC=/etc/monit/monitrc
 sed -i -r -e "s/# set alert sysadm@foo.*/set alert $MONIT_MAIL # receive all alerts/" $MONITRC
 sed -i -r -e "s/# set httpd port 2812 and/set httpd port 2812 and/" $MONITRC
 sed -i "/httpd port 2812 and/aSSL ENABLE\nPEMFILE PEMFILE_REPLACE\nALLOWSELFCERTIFICATION" $MONITRC
-sed -i -r -e "s,PEMFILE_REPLACE,${SSL_PATH}${KEY_COMMON_NAME}_combined.pem," $MONITRC
+sed -i -r -e "s,PEMFILE_REPLACE,${TLS_COMBINED}," $MONITRC
 sed -i -r -e "s/#    use address localhost/use address 127.0.0.1/" $MONITRC
 sed -i -r -e "s/#    allow localhost/allow 127.0.0.1/" $MONITRC
 sed -i -r -e "s/#    allow admin:monit/allow $MONIT_USER:$MONIT_PASSWORD/" $MONITRC
@@ -271,4 +265,4 @@ if failed host 127.0.0.1 port 53 type tcp then restart
 if 5 restarts within 5 cycles then timeout
 EOF
 
-systemctl restart php7.0-fpm && systemctl restart nginx && systemctl restart monit
+nginx -t && systemctl restart nginx && systemctl restart monit

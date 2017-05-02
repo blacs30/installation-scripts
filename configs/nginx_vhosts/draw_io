@@ -1,0 +1,34 @@
+server {
+
+	listen          80;
+	# enforce https
+	server_name     draw.example.com;
+	location / {
+
+		return 301 https://draw.example.com$request_uri
+	}
+}
+
+server {
+
+	listen          443 ssl http2;
+	listen          [::]:443 ssl http2;
+	server_name     draw.example.com;
+	root            /var/www/draw.example.com/public_html/draw.io/war;
+	access_log      /var/www/log/draw.example_access.log;
+	error_log       /var/www/log/draw.example_error.log warn;
+	index           index.html;
+
+	# This block is for GEOIP blocking / allowing
+	# if ($allow_visit = no) {
+	#    return 403;
+	# }
+
+	ssl                     on;
+	ssl_certificate         /var/www/ssl/example.com/fullchain.pem;
+	ssl_certificate_key     /var/www/ssl/example.com/privkey.pem;
+	ssl_dhparam             /var/www/ssl/example_dhparams.pem;
+	include                 global/secure_ssl.conf;
+	include                 global/restrictions.conf;
+	client_max_body_size    20M;
+}

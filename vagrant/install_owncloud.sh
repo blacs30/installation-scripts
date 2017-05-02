@@ -134,8 +134,8 @@ server {
 	listen [::]:443 ssl http2;
 	server_name $VHOST_SERVER_NAME_OWNCLOUD;
 	root $HTML_ROOT_OWNCLOUD;
-	access_log /var/log/nginx/$PHP_OWNER_OWNCLOUD-access.log;
-	error_log /var/log/nginx/$PHP_OWNER_OWNCLOUD-error.log warn;
+	access_log /var/log/nginx/${APPNAME_OWNCLOUD}-access.log;
+	error_log /var/log/nginx/${APPNAME_OWNCLOUD}-error.log warn;
 
 	ssl on;
 	ssl_certificate $TLS_CERT_FILE;
@@ -254,7 +254,8 @@ OWNCLOUD_VHOST
 ln -s "$NGINX_VHOST_PATH_OWNCLOUD" /etc/nginx/sites-enabled/"$APPNAME_OWNCLOUD"
 
 
-systemctl restart php7.0-fpm && systemctl restart nginx
+systemctl restart php7.0-fpm
+nginx -t && systemctl restart nginx
 
 # download files which can set permissions
 wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/setup_secure_permissions_owncloud.sh --no-check-certificate -O "$HTML_ROOT_OWNCLOUD"/set-secure-permission.sh

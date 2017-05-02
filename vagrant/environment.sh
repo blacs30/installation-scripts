@@ -12,10 +12,10 @@ INSTALLER=aptitude
 HOST_NAME=mail.testorg.com
 DOMAIN_NAME=testorg.com
 DOMAIN_NAME2=
-SMTP_SERVER=localhost
-IMAP_SERVER=localhost
+SMTP_SERVER=127.0.0.1
+IMAP_SERVER=127.0.0.1
 MYSQL_ROOT_PASS=123456
-MYSQL_DB_HOST=localhost
+MYSQL_DB_HOST=127.0.0.1
 ARTIFACT_DIR=/vagrant
 
 #
@@ -30,15 +30,15 @@ SSH_USER=testuser
 # - base installation
 #
 MONIT_MAIL=admin@$DOMAIN_NAME
-MONIT_USER=testuser
-MONIT_PASSWORD=123456
+MONIT_USER=monit
+MONIT_PASSWORD=monit123456
 MONIT_UNIX_SOCKET1=/run/php/php7.0-fpm.sock
 MONIT_CHECK_DOMAIN1=testorg.com
 APPNAME_MONIT=monit
 SERVICE_USER_MONIT=monit
 PHP_OWNER_MONIT=$SERVICE_USER_MONIT
 NGINX_VHOST_PATH_MONIT="/etc/nginx/sites-available/monit.conf"
-VHOST_SERVER_NAME_MONIT=testorg.com
+VHOST_SERVER_NAME_MONIT=monit.testorg.com
 
 #
 # used by:
@@ -69,24 +69,7 @@ PHP_TIMEZONE=Europe/Berlin
 #
 NGINX_DIR=/etc/nginx
 NGINX_CONF=$NGINX_DIR/nginx.conf
-#
-# used by:
-# - snakeoil cert
-# - dh key
-# - mailserver (dovecot)
-COUNTRYNAME=DE
-PROVINCENAME=Hamburg
-KEY_LOCATION=Hamburg
-KEY_ORGANIZATION=Organisation
-KEY_OUN=IT
-KEY_MAIL=webmaster@$DOMAIN_NAME
-KEY_COMMON_NAME=$DOMAIN_NAME
-SSL_PATH=/etc/ssl
-SSL_CA_WITH_CRL_FULLCHAIN=${SSL_PATH}/${KEY_COMMON_NAME}_fullchain.crt
-TLS_CERT_FILE=${SSL_PATH}/${KEY_COMMON_NAME}.crt
-TLS_KEY_FILE=${SSL_PATH}/${KEY_COMMON_NAME}.key
-DH_PARAMS_FILE=${SSL_PATH}/${KEY_COMMON_NAME}_dhparams.pem
-#TODO:alternateDNS lists and generate it for snakeoil certs
+
 
 #
 # used by:
@@ -97,7 +80,7 @@ SERVICE_USER_PHPMYADMIN=phpmyadmin
 PHP_OWNER_PHPMYADMIN=$SERVICE_USER_PHPMYADMIN
 POOL_CONF_PATH_PHPMYADMIN="/etc/php/7.0/fpm/pool.d/phpmyadmin.conf"
 NGINX_VHOST_PATH_PHPMYADMIN="/etc/nginx/sites-available/phpmyadmin.conf"
-VHOST_SERVER_NAME_PHPMYADMIN=testorg.com
+VHOST_SERVER_NAME_PHPMYADMIN=pma.testorg.com
 HTML_ROOT_PHPMYADMIN=/var/www/phpmyadmin
 NGINX_BASIC_AUTH_PHPMYADMIN_FILE=phpmyadmin
 NGINX_BASIC_AUTH_PHPMYADMIN_USER=phpmyadmin
@@ -115,7 +98,7 @@ SERVICE_USER_WEBMAIL=webmail
 HTML_ROOT_WEBMAIL=/var/www/webmail
 APPNAME_WEBMAIL=webmail
 PHP_OWNER_WEBMAIL=$SERVICE_USER_WEBMAIL
-VHOST_SERVER_NAME_WEBMAIL=testorg.com
+VHOST_SERVER_NAME_WEBMAIL=webmail.testorg.com
 POOL_CONF_PATH_WEBMAIL="/etc/php/7.0/fpm/pool.d/webmail.conf"
 NGINX_VHOST_PATH_WEBMAIL="/etc/nginx/sites-available/webmail.conf"
 NGINX_BASIC_AUTH_WEBMAIL_FILE=webmail
@@ -150,7 +133,7 @@ SERVICE_USER_WORDPRESS=wordpress
 HTML_ROOT_WORDPRESS=/var/www/wordpress
 APPNAME_WORDPRESS=wordpress
 PHP_OWNER_WORDPRESS=$SERVICE_USER_WORDPRESS
-VHOST_SERVER_NAME_WORDPRESS=testorg.com
+VHOST_SERVER_NAME_WORDPRESS=wordpress.testorg.com
 POOL_CONF_PATH_WORDPRESS="/etc/php/7.0/fpm/pool.d/wordpress.conf"
 NGINX_VHOST_PATH_WORDPRESS="/etc/nginx/sites-available/wordpress.conf"
 NGINX_BASIC_AUTH_WORDPRESS_FILE=wordpress
@@ -174,12 +157,9 @@ SERVICE_USER_OWNCLOUD=owncloud
 HTML_ROOT_OWNCLOUD=/var/www/owncloud
 APPNAME_OWNCLOUD=owncloud
 PHP_OWNER_OWNCLOUD=$SERVICE_USER_OWNCLOUD
-VHOST_SERVER_NAME_OWNCLOUD=testorg.com
+VHOST_SERVER_NAME_OWNCLOUD=oc.testorg.com
 POOL_CONF_PATH_OWNCLOUD="/etc/php/7.0/fpm/pool.d/owncloud.conf"
 NGINX_VHOST_PATH_OWNCLOUD="/etc/nginx/sites-available/owncloud.conf"
-NGINX_BASIC_AUTH_OWNCLOUD_FILE=owncloud
-NGINX_BASIC_AUTH_OWNCLOUD_USER=owncloud
-NGINX_BASIC_AUTH_OWNCLOUD_PW=123456
 TABLE_PREFIX_OWNCLOUD=oc1_
 OWNCLOUD_TIMEZONE=Europe/Berlin
 
@@ -200,7 +180,7 @@ SERVICE_USER_NEXTCLOUD=nextcloud
 HTML_ROOT_NEXTCLOUD=/var/www/nextcloud
 APPNAME_NEXTCLOUD=nextcloud
 PHP_OWNER_NEXTCLOUD=$SERVICE_USER_NEXTCLOUD
-VHOST_SERVER_NAME_NEXTCLOUD=testorg.com
+VHOST_SERVER_NAME_NEXTCLOUD=nc.testorg.com
 POOL_CONF_PATH_NEXTCLOUD="/etc/php/7.0/fpm/pool.d/nextcloud.conf"
 NGINX_VHOST_PATH_NEXTCLOUD="/etc/nginx/sites-available/nextcloud.conf"
 NGINX_BASIC_AUTH_NEXTCLOUD_FILE=nextcloud
@@ -227,7 +207,7 @@ APPNAME_BBS=bbs
 PHP_OWNER_BBS=$SERVICE_USER_BBS
 NGINX_VHOST_PATH_BBS="/etc/nginx/sites-available/bbs.conf"
 POOL_CONF_PATH_BBS="/etc/php/7.0/fpm/pool.d/bbs.conf"
-VHOST_SERVER_NAME_BBS=testorg.com
+VHOST_SERVER_NAME_BBS=bbs.testorg.com
 
 
 #
@@ -240,7 +220,7 @@ APPNAME_COPS=cops
 PHP_OWNER_COPS=$SERVICE_USER_COPS
 NGINX_VHOST_PATH_COPS="/etc/nginx/sites-available/cops.conf"
 POOL_CONF_PATH_COPS="/etc/php/7.0/fpm/pool.d/cops.conf"
-VHOST_SERVER_NAME_COPS=testorg.com
+VHOST_SERVER_NAME_COPS=cops.testorg.com
 CALIBRE_LIBRARY=/vagrant/calibre
 NGINX_BASIC_AUTH_COPS_FILE=cops
 NGINX_BASIC_AUTH_COPS_USER=cops
@@ -259,7 +239,7 @@ APPNAME_PFA=postfixadmin
 PHP_OWNER_PFA=$SERVICE_USER_PFA
 NGINX_VHOST_PATH_PFA="/etc/nginx/sites-available/pfa.conf"
 POOL_CONF_PATH_PFA="/etc/php/7.0/fpm/pool.d/pfa.conf"
-VHOST_SERVER_NAME_PFA=testorg.com
+VHOST_SERVER_NAME_PFA=pfa.testorg.com
 CALIBRE_LIBRARY=/vagrant
 NGINX_BASIC_AUTH_PFA_FILE=pfa
 NGINX_BASIC_AUTH_PFA_USER=pfa
@@ -293,13 +273,13 @@ POSTMASTER_AMAVIS=postmaster@$DOMAIN_NAME
 AMAVIS_DOMAIN=$HOST_NAME
 
 
-#### TODO(check the result)
-AMAVIS_LOCAL_DOMAINS_ACL="\"$DOMAIN_NAME\", \"$DOMAIN_NAME2\", \"localhost\"" # escape double quotes
 # spamassassin and postgrey settings
+AMAVIS_LOCAL_DOMAINS_ACL="\"$DOMAIN_NAME\", \"$DOMAIN_NAME2\", \"localhost\"" # escape double quotes
 SPAMASSASSIN_DOMAIN=$DOMAIN_NAME
 SAPMASSASSIN_DEFAULT=/etc/default/spamassassin
 SPAMASSASSIN_LOCAL=/etc/spamassassin/local.cf
 POSTGREY_DEFAULT=/etc/default/postgrey
+POSTGREY_BIND_HOST=127.0.0.1
 
 #postifx configuration
 POSTFIX_MYSQL_VIRTUAL_ALIAS_DOMAIN=/etc/postfix/mysql_virtual_alias_domainaliases_maps.cf
@@ -342,9 +322,56 @@ DOVECOT_SIEVE=/etc/dovecot/conf.d/90-sieve.conf
 SIEVE_VMAIL_DIR=/var/vmail/sieve
 
 
-#gitlab configuration
+#
+# used by:
+# - gitlab
+#
 GITLAB_CONFIG=/etc/gitlab/gitlab.rb
 NGINX_VHOST_PATH_GITLAB="/etc/nginx/sites-available/gitlab.conf"
-VHOST_SERVER_NAME_GITLAB=testorg.com
+VHOST_SERVER_NAME_GITLAB=git.testorg.com
 APPNAME_GITLAB=gitlab
 GITLAB_URL=https://$VHOST_SERVER_NAME_GITLAB/
+
+
+
+#
+# used by:
+# - draw.io
+#
+SERVICE_USER_DRAW=drawio
+HTML_ROOT_DRAW=/var/www/drawio
+NGINX_VHOST_PATH_DRAW="/etc/nginx/sites-available/drawio.conf"
+VHOST_SERVER_NAME_DRAW=draw.testorg.com
+APPNAME_DRAW=drawio
+
+#
+# used by:
+# - snakeoil cert
+# - dh key
+# - mailserver (dovecot)
+COUNTRYNAME=DE
+PROVINCENAME=Hamburg
+KEY_LOCATION=Hamburg
+KEY_ORGANIZATION=Organisation
+KEY_OUN=IT
+KEY_MAIL=webmaster@$DOMAIN_NAME
+KEY_COMMON_NAME=$DOMAIN_NAME
+SSL_PATH=/etc/ssl
+CA_PASS=123456
+SERVER_CERT_PASS=123456
+SSL_CA_WITH_CRL_FULLCHAIN=${SSL_PATH}/servers/${KEY_COMMON_NAME}/fullchain.pem
+TLS_KEY_FILE=${SSL_PATH}/servers/${KEY_COMMON_NAME}/privkey.pem
+TLS_CERT_FILE=${SSL_PATH}/servers/${KEY_COMMON_NAME}/cert.pem
+TLS_COMBINED=${SSL_PATH}/servers/${KEY_COMMON_NAME}/combined.pem
+DH_PARAMS_FILE=${SSL_PATH}/servers/${KEY_COMMON_NAME}/dhparams.pem
+KEY_SUBJ_ALT_NAME=(${VHOST_SERVER_NAME_MONIT} \
+${VHOST_SERVER_NAME_PHPMYADMIN} \
+${VHOST_SERVER_NAME_WEBMAIL} \
+${VHOST_SERVER_NAME_WORDPRESS} \
+${VHOST_SERVER_NAME_OWNCLOUD} \
+${VHOST_SERVER_NAME_NEXTCLOUD} \
+${VHOST_SERVER_NAME_BBS} \
+${VHOST_SERVER_NAME_COPS} \
+${VHOST_SERVER_NAME_PFA} \
+${VHOST_SERVER_NAME_GITLAB} \
+${VHOST_SERVER_NAME_DRAW})

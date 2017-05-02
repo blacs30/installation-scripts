@@ -19,13 +19,13 @@ server {
 	listen [::]:443 ssl http2;
 	server_name $VHOST_SERVER_NAME_PHPMYADMIN;
 	root $HTML_ROOT_PHPMYADMIN;
-	access_log /var/log/nginx/${APPNAME_PHPMYADMIN}-access.log;
-	error_log /var/log/nginx/${APPNAME_PHPMYADMIN}-error.log warn;
+	access_log /var/log/nginx/${PHP_OWNER_PHPMYADMIN}-access.log;
+	error_log /var/log/nginx/${PHP_OWNER_PHPMYADMIN}-error.log warn;
 
 	ssl on;
-	ssl_certificate $TLS_CERT_FILE;
-	ssl_certificate_key $TLS_KEY_FILE;
-	ssl_dhparam $DH_PARAMS_FILE;
+	ssl_certificate /etc/ssl/${KEY_COMMON_NAME}.crt;
+	ssl_certificate_key /etc/ssl/${KEY_COMMON_NAME}.key;
+	ssl_dhparam /etc/ssl/${KEY_COMMON_NAME}_dhparams.pem;
 
 	index index.php;
 
@@ -53,28 +53,35 @@ server {
 		try_files \$uri =404;
 		include /etc/nginx/fastcgi_params;
 		fastcgi_pass phpmyadmin;
+		fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
 	}
 
-	location / {
+	location /phpmyadmin {
 
 		auth_basic "Restricted";
 		auth_basic_user_file /etc/nginx/.${NGINX_BASIC_AUTH_PHPMYADMIN_FILE};
 		index index.php index.html index.htm;
 
-		location ~ ^/(.+\.php)\$ {
+		location ~ ^/phpmyadmin/(.+\.php)\$ {
 
 			try_files \$uri =404;
 			fastcgi_param HTTPS on;
 			fastcgi_pass phpmyadmin;
 			fastcgi_index index.php;
+			fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
 			include fastcgi_params;
 			charset utf8;
 			client_max_body_size 64m; #change this if ur export is bigger than 64mb.
 			client_body_buffer_size 128k;
 		}
 
-		location ~* ^/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
+		location ~* ^/phpmyadmin/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
 
 		}
+	}
+
+	location /phpMyAdmin {
+
+		rewrite ^/* /phpmyadmin last;
 	}
 }
