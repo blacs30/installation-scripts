@@ -140,36 +140,41 @@ server {
 
 	location ~ \.php$ {
 
-		try_files \$uri =404;
-		include fastcgi_params;
-		fastcgi_buffers 16 16k;
-		fastcgi_buffer_size 32k;
-		fastcgi_pass webmail;
-		fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+		try_files /dummy/\$uri @php;
 	}
 
 	location /adminpanel {
 
 		auth_basic "Restricted";
-		auth_basic_user_file /etc/nginx/.webmail;
+		auth_basic_user_file /etc/nginx/.${NGINX_BASIC_AUTH_WEBMAIL_FILE};
+		location ~ \.php$ {
+
+			try_files /dummy/\$uri @php;
+		}
 	}
 
 	location / {
 
 		location ~ ^/(.+\.php)$ {
 
-			try_files \$uri =404;
-			fastcgi_param HTTPS on;
-			fastcgi_buffers 16 16k;
-			fastcgi_buffer_size 32k;
-			fastcgi_pass webmail;
-			fastcgi_index index.php;
-			fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-			include fastcgi_params;
+			try_files /dummy/\$uri @php;
 		}
+
 		location ~* ^/(.+\.(jpg|jpeg|gif|css|png|js|ico|html|xml|txt))$ {
 
 		}
+	}
+
+	location @php {
+
+		try_files \$uri =404;
+		fastcgi_param HTTPS on;
+		fastcgi_buffers 16 16k;
+		fastcgi_buffer_size 32k;
+		fastcgi_pass webmail;
+		fastcgi_index index.php;
+		fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+		include fastcgi_params;
 	}
 }
 ```

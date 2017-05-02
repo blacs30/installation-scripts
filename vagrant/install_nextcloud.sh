@@ -31,7 +31,7 @@ if [ ! -d "$HTML_ROOT_NEXTCLOUD" ]; then
   mkdir -p "$HTML_ROOT_NEXTCLOUD"
 fi
 
-SOFTWARE_URL=https://download.nextcloud.com/server/releases/nextcloud-11.0.2.tar.bz2
+SOFTWARE_URL=https://download.nextcloud.com/server/releases/nextcloud-11.0.3.tar.bz2
 SOFTWARE_ZIP=$(basename $SOFTWARE_URL)
 
 
@@ -249,7 +249,8 @@ NEXTCLOUD_VHOST
 ln -s "$NGINX_VHOST_PATH_NEXTCLOUD" /etc/nginx/sites-enabled/"$APPNAME_NEXTCLOUD"
 
 
-systemctl restart php7.0-fpm && systemctl restart nginx
+systemctl restart php7.0-fpm
+nginx -t && systemctl restart nginx
 
 # download files which can set permissions
 wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/setup_secure_permissions_nextcloud.sh --no-check-certificate -O "$HTML_ROOT_NEXTCLOUD"/set-secure-permission.sh
@@ -263,7 +264,7 @@ chmod +x "$HTML_ROOT_NEXTCLOUD"/set-permission_update.sh
 
 
 # run the setup
-su $PHP_OWNER_NEXTCLOUD -s /bin/bash -c "php $HTML_ROOT_NEXTCLOUD/occ maintenance:install -vvv --database mysql --database-name $MYSQL_DB_NEXTCLOUD --database-table-prefix $TABLE_PREFIX_NEXTCLOUD --database-user $MYSQL_NEXTCLOUD_USER --database-pass $MYSQL_NEXTCLOUD_PASS --admin-user admin --admin-pass admin"
+su $PHP_OWNER_NEXTCLOUD -s /bin/bash -c "php $HTML_ROOT_NEXTCLOUD/occ maintenance:install -vvv --database mysql --database-host $MYSQL_DB_HOST --database-name $MYSQL_DB_NEXTCLOUD --database-table-prefix $TABLE_PREFIX_NEXTCLOUD --database-user $MYSQL_NEXTCLOUD_USER --database-pass $MYSQL_NEXTCLOUD_PASS --admin-user admin --admin-pass admin"
 
 # configuration
 su $PHP_OWNER_NEXTCLOUD -s /bin/bash -c "php $HTML_ROOT_NEXTCLOUD/occ config:system:set trusted_domains 2 --value=$VHOST_SERVER_NAME_NEXTCLOUD"

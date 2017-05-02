@@ -269,7 +269,7 @@ chmod +x "$HTML_ROOT_OWNCLOUD"/set-permission_update.sh
 
 
 # run the setup
-su $PHP_OWNER_OWNCLOUD -s /bin/bash -c "php $HTML_ROOT_OWNCLOUD/occ maintenance:install -vvv --database mysql --database-name $MYSQL_DB_OWNCLOUD --database-table-prefix $TABLE_PREFIX_OWNCLOUD --database-user $MYSQL_OWNCLOUD_USER --database-pass $MYSQL_OWNCLOUD_PASS --admin-user admin --admin-pass admin"
+su $PHP_OWNER_OWNCLOUD -s /bin/bash -c "php $HTML_ROOT_OWNCLOUD/occ maintenance:install -vvv --database mysql --database-host $MYSQL_DB_HOST --database-name $MYSQL_DB_OWNCLOUD --database-table-prefix $TABLE_PREFIX_OWNCLOUD --database-user $MYSQL_OWNCLOUD_USER --database-pass $MYSQL_OWNCLOUD_PASS --admin-user admin --admin-pass admin"
 
 # configuration
 su $PHP_OWNER_OWNCLOUD -s /bin/bash -c "php $HTML_ROOT_OWNCLOUD/occ config:system:set trusted_domains 2 --value=$VHOST_SERVER_NAME_OWNCLOUD"
