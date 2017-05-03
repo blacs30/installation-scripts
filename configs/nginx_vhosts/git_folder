@@ -1,13 +1,18 @@
 # adjust /etc/gitlab/gitlab.rb --> https://domain.tld/git
 
-
-
+#
+# add this outside the server{} section
+#
 upstream gitlab-workhorse {
 
   server unix:/var/opt/gitlab/gitlab-workhorse/socket;
 }
 
 
+#
+# can be used as include inside the server{} section
+# some other settings regarding static files like css, js can break this 
+#
 location /git {
 
 	## If you use HTTPS make sure you disable gzip compression
@@ -26,7 +31,7 @@ location /git {
 	proxy_set_header X-Real-IP $remote_addr;
 	proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 	proxy_set_header Upgrade $http_upgrade;
-	proxy_set_header Connection $connection_upgrade;
+	proxy_set_header Connection "upgrade";
 	proxy_set_header X-Forwarded-Proto https;
 
 	proxy_pass http://gitlab-workhorse/git;

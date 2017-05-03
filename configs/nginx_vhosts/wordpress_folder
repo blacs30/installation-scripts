@@ -3,9 +3,28 @@
 # for further wordpress instances as folder
 # * * * * * * * * * * * * * * *
 location /wordpress {
-        try_files $uri $uri/ /wordpress/index.php?$args;
+
+	root /var/www;
+	index index.php;
+	try_files $uri $uri/ @site_rewrite;
+}
+
+location @site_rewrite {
+
+	rewrite ^/wordpress/(.*)$ /wordpress/index.php?$1;
+}
+
+location ~* /wordpress/(?:uploads|files)/.*\.php$ {
+
+	deny all;
 }
 
 location ~ \.php$ {
-        fastcgi_split_path_info ^(/wordpress)(/.*)$;
+
+	root /var/www;
+	fastcgi_split_path_info ^(.+?\.php)(/.*)?$;
+	fastcgi_pass wordpress;
+	fastcgi_index index.php;
+	include fastcgi_params;
+	fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
 }
