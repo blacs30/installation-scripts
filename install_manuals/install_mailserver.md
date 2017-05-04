@@ -1,18 +1,39 @@
-# Install Webmail Lite
-There are a couple of webmail softwares out. The most known one is probably roundcube.
-I have used the webmail lite though for long times and like it.
+# Install Mailserver and components
+I have read through a couple of different HowTo's, tutorials pages for some particular configurations until I came up with a working mailserver setup. The setup tries to guide through the main steps of setting up a mailserver. I hope the steps are neither to highlevel nor go to deep into detail. At the end I have listed some very helpful resources where some further questions might be answered. Of course all documentations of the used software is recommended firstly for more understanding of the software itself.  
+The mailserver uses virtual mailaccounts with can be managed e.g. by Postfix Admin, a web interface for the configuration of postfix users and domains as well as aliases. A manual on how to install is separately available.
 
 ### Install prerequisites
 
 Following components are required. Check other manuals on how to install them.
 - mysql-server
-- create an empty database too
 - nginx  
 - php-fpm
+- postfixadmin
+- phpmyadmin
 
-In case you want to use ssl:  
+In case you want to use ssl/tsl:  
 - ssl (or snakeoil certs)  
 - optional but recommended to create a new stronger __dh key__
+
+Configure the firewall for at least these incoming/outgoing ports:  
+```
+------------------------------
+Open at following ports
+in the firewall for the mailserver:
+22 (SSH)
+25 (SMTP)
+53 (DNS)
+80 (HTTP)
+110 (POP3)
+143 (IMAP)
+443 (HTTPS)
+465 (SMTPS)
+993 (IMAPS)
+995 (POP3S)
+------------------------------
+```
+
+### Install components
 
 At first I install the required php components:  
 `aptitude install software-properties-common php7.0 php7.0-mcrypt php7.0-curl php7.0-gd php7.0-mbstring php-xml-parser php7.0-common php7.0-cli php7.0-json	php7.0-readline	php7.0-mysql`
