@@ -22,7 +22,7 @@ I have described the setup of e.g. Redis-server separately and not redundantly f
 - [Install AfterLogic Webmail Lite](./install_webmail_lite.md)
 - [Install Owncloud](./install_owncloud.md)
 - [Install Nextcloud](./install_nextcloud.md)
-- [Install Wordpress](./install_Wordpress.md)
+- [Install Wordpress](./install_wordpress.md)
 - [Install BicBucStriim (BBS) - Ebook Web Library](./install_bbs.md)
 - [Install Calibre OPDS (and HTML) PHP Server (COPS)](./install_cops.md)
 - [Install Draw.io](./install_draw_io.md)
