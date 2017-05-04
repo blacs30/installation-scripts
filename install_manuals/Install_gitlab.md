@@ -1,8 +1,8 @@
 # Install Gitlab and configure it for an existing NGINX with HTTPS
 
-The goal of this writing is to have an installation of Gitlab using an existing NGINX with HTTPS. The operating system is Debian 8.
+The goal of this writing is to have an installation of Gitlab using an existing NGINX with HTTPS. The operating system is Debian 8.  
 
-The installation of NGINX is not covered here, only the VHOST configuration.
+The installation of NGINX is not covered here, only the VHOST configuration.  
 
 During my first setup of Gitlab I encountered 2 issues with the HTTPS configuration.
 1. One issue was that I could not login anymore as soon I have set external_url to the https url (I had to set the http proxy flag to https in the VHOST configuration)  
@@ -125,6 +125,6 @@ server {
 ```
 
 ### Sources  
-https://www.howtoforge.com/tutorial/how-to-install-gitlab-on-debian-8/
-https://gitlab.com/gitlab-org/omnibus-gitlab/blob/master/doc/settings/nginx.md
-https://gitlab.com/gitlab-org/gitlab-recipes/blob/master/web-server/nginx/gitlab-omnibus-nginx.conf
+https://www.howtoforge.com/tutorial/how-to-install-gitlab-on-debian-8/  
+https://gitlab.com/gitlab-org/omnibus-gitlab/blob/master/doc/settings/nginx.md  
+https://gitlab.com/gitlab-org/gitlab-recipes/blob/master/web-server/nginx/gitlab-omnibus-nginx.conf  
