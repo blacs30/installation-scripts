@@ -2,7 +2,7 @@
 SHUF=$(shuf -i 13-15 -n 1)
 export SHUF
 export MYSQLBACKUPUSER=mysqlbackup
-MYSQLBACKUPUSERPASS=$(< /dev/urandom tr -dc "a-zA-Z0-9@#*=" | fold -w "$SHUF" | head -n 1)
+MYSQLBACKUPUSERPASS=$(< /dev/urandom tr -dc "a-zA-Z0-9@#*=" | head -c${1:-$(shuf -i 13-15 -n 1)};echo;)
 export MYSQLBACKUPUSERPASS
 export MYSQL_ROOT_PASS=securerootpass
 

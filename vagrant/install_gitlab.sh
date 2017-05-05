@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running $0"
+
 source /vagrant/environment.sh
 
 curl -sS https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.deb.sh | bash
@@ -61,7 +68,7 @@ server {
 
 
 	# This block is for GEOIP blocking / allowing
-	# if ($allow_visit = no) {
+	# if (\$allow_visit = no) {
 	#    return 403;
 	# }
 

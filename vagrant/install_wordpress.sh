@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running $0"
+
 source /vagrant/environment.sh
 
-$INSTALLER install -y php-common php-readline php7.0 php7.0-cli php7.0-common php7.0-gd php7.0-json php7.0-mysql php7.0-opcache php7.0-readline
-$INSTALLER install -y php7.0-redis
+$INSTALLER install -y php-common php-readline php7.0 php7.0-cli php7.0-common php7.0-gd php7.0-json php7.0-mysql php7.0-opcache php7.0-readline php7.0-redis
 
 
 #
@@ -94,9 +100,9 @@ define( 'WP_REDIS_KEY_SALT', '${SERVICE_USER_WORDPRESS}_');" "$HTML_ROOT_WORDPRE
 # install plugins
 for PLUGIN_URL in "${PLUGINS_URLS[@]}"
 do
-PLUGIN_ZIP=$(basename $PLUGIN_URL)
-cd /tmp
-wget $PLUGIN_URL
+PLUGIN_ZIP=$(basename "$PLUGIN_URL")
+cd /tmp || ( echo "Cannot change dir to /tmp - exit" && exit 1 )
+wget "$PLUGIN_URL"
 unzip -q /tmp/"$PLUGIN_ZIP" -d "$HTML_ROOT_WORDPRESS"/wp-content/plugins
 if [ -f /tmp/"$PLUGIN_ZIP" ]; then
   rm -f /tmp/"$PLUGIN_ZIP"
@@ -105,17 +111,17 @@ done
 
 
 
-usermod --append --groups redis $SERVICE_USER_WORDPRESS
+usermod --append --groups redis "$SERVICE_USER_WORDPRESS"
 
 # create the uploads directory if it does not exist
-if [ ! -d $HTML_ROOT_WORDPRESS/wp-content/uploads ]; then
-  mkdir -p $HTML_ROOT_WORDPRESS/wp-content/uploads
+if [ ! -d "$HTML_ROOT_WORDPRESS"/wp-content/uploads ]; then
+  mkdir -p "$HTML_ROOT_WORDPRESS"/wp-content/uploads
 fi
 
-chown -R $SERVICE_USER_WORDPRESS:www-data $HTML_ROOT_WORDPRESS
-find $HTML_ROOT_WORDPRESS -type d -exec chmod 750 {} \;
-find $HTML_ROOT_WORDPRESS -type f -exec chmod 640 {} \;
-chmod 600 $HTML_ROOT_WORDPRESS/wp-config.php
+chown -R "$SERVICE_USER_WORDPRESS":www-data "$HTML_ROOT_WORDPRESS"
+find "$HTML_ROOT_WORDPRESS" -type d -exec chmod 750 {} \;
+find "$HTML_ROOT_WORDPRESS" -type f -exec chmod 640 {} \;
+chmod 600 "$HTML_ROOT_WORDPRESS"/wp-config.php
 
 
 #

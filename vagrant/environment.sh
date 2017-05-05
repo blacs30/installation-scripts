@@ -4,14 +4,21 @@
 #
 
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running environment.sh"
+
 #
 # Global variables
 # used by multiple install files
 #
 INSTALLER=aptitude
-HOST_NAME=mail.testorg.com
-DOMAIN_NAME=testorg.com
-DOMAIN_NAME2=
+HOST_NAME=mail.example.com
+DOMAIN_NAME=example.com
+DOMAIN_NAME2=example2.com
 SMTP_SERVER=127.0.0.1
 IMAP_SERVER=127.0.0.1
 MYSQL_ROOT_PASS=123456
@@ -34,12 +41,12 @@ MONIT_MAIL=admin@$DOMAIN_NAME
 MONIT_USER=monit
 MONIT_PASSWORD=monit123456
 MONIT_UNIX_SOCKET1=/run/php/php7.0-fpm.sock
-MONIT_CHECK_DOMAIN1=testorg.com
+MONIT_CHECK_DOMAIN1=example.com
 APPNAME_MONIT=monit
 SERVICE_USER_MONIT=monit
 PHP_OWNER_MONIT=$SERVICE_USER_MONIT
 NGINX_VHOST_PATH_MONIT="/etc/nginx/sites-available/monit.conf"
-VHOST_SERVER_NAME_MONIT=monit.testorg.com
+VHOST_SERVER_NAME_MONIT=monit.example.com
 
 #
 # used by:
@@ -81,7 +88,7 @@ SERVICE_USER_PHPMYADMIN=phpmyadmin
 PHP_OWNER_PHPMYADMIN=$SERVICE_USER_PHPMYADMIN
 POOL_CONF_PATH_PHPMYADMIN="/etc/php/7.0/fpm/pool.d/phpmyadmin.conf"
 NGINX_VHOST_PATH_PHPMYADMIN="/etc/nginx/sites-available/phpmyadmin.conf"
-VHOST_SERVER_NAME_PHPMYADMIN=pma.testorg.com
+VHOST_SERVER_NAME_PHPMYADMIN=pma.example.com
 HTML_ROOT_PHPMYADMIN=/var/www/phpmyadmin
 NGINX_BASIC_AUTH_PHPMYADMIN_FILE=phpmyadmin
 NGINX_BASIC_AUTH_PHPMYADMIN_USER=phpmyadmin
@@ -99,7 +106,7 @@ SERVICE_USER_WEBMAIL=webmail
 HTML_ROOT_WEBMAIL=/var/www/webmail
 APPNAME_WEBMAIL=webmail
 PHP_OWNER_WEBMAIL=$SERVICE_USER_WEBMAIL
-VHOST_SERVER_NAME_WEBMAIL=wm.testorg.com
+VHOST_SERVER_NAME_WEBMAIL=wm.example.com
 POOL_CONF_PATH_WEBMAIL="/etc/php/7.0/fpm/pool.d/webmail.conf"
 NGINX_VHOST_PATH_WEBMAIL="/etc/nginx/sites-available/webmail.conf"
 NGINX_BASIC_AUTH_WEBMAIL_FILE=webmail
@@ -115,7 +122,7 @@ TABLE_PREFIX_WEBMAIL=alwm1_
 # - owncloud
 # - nextcloud
 REDIS_CONF=/etc/redis/redis.conf
-REDIS_PASS=$(< /dev/urandom tr -dc "a-zA-Z0-9@#*=" | fold -w "$(shuf -i 13-15 -n 1)" | head -n 1)
+REDIS_PASS=$(< /dev/urandom tr -dc "a-zA-Z0-9@#*=" | head -c ${1:-$(shuf -i 13-15 -n 1)};echo;)
 REDIS_SOCKET=/run/redis/redis.sock
 declare -a PLUGINS_URLS=( "https://downloads.wordpress.org/plugin/gotmls.4.16.53.zip"
 "https://downloads.wordpress.org/plugin/better-wp-security.6.2.1.zip"
@@ -134,7 +141,7 @@ SERVICE_USER_WORDPRESS=wordpress
 HTML_ROOT_WORDPRESS=/var/www/wordpress
 APPNAME_WORDPRESS=wordpress
 PHP_OWNER_WORDPRESS=$SERVICE_USER_WORDPRESS
-VHOST_SERVER_NAME_WORDPRESS=wordpress.testorg.com
+VHOST_SERVER_NAME_WORDPRESS=wordpress.example.com
 POOL_CONF_PATH_WORDPRESS="/etc/php/7.0/fpm/pool.d/wordpress.conf"
 NGINX_VHOST_PATH_WORDPRESS="/etc/nginx/sites-available/wordpress.conf"
 NGINX_BASIC_AUTH_WORDPRESS_FILE=wordpress
@@ -158,7 +165,7 @@ SERVICE_USER_OWNCLOUD=owncloud
 HTML_ROOT_OWNCLOUD=/var/www/owncloud
 APPNAME_OWNCLOUD=owncloud
 PHP_OWNER_OWNCLOUD=$SERVICE_USER_OWNCLOUD
-VHOST_SERVER_NAME_OWNCLOUD=oc.testorg.com
+VHOST_SERVER_NAME_OWNCLOUD=oc.example.com
 POOL_CONF_PATH_OWNCLOUD="/etc/php/7.0/fpm/pool.d/owncloud.conf"
 NGINX_VHOST_PATH_OWNCLOUD="/etc/nginx/sites-available/owncloud.conf"
 TABLE_PREFIX_OWNCLOUD=oc1_
@@ -181,7 +188,7 @@ SERVICE_USER_NEXTCLOUD=nextcloud
 HTML_ROOT_NEXTCLOUD=/var/www/nextcloud
 APPNAME_NEXTCLOUD=nextcloud
 PHP_OWNER_NEXTCLOUD=$SERVICE_USER_NEXTCLOUD
-VHOST_SERVER_NAME_NEXTCLOUD=nc.testorg.com
+VHOST_SERVER_NAME_NEXTCLOUD=nc.example.com
 POOL_CONF_PATH_NEXTCLOUD="/etc/php/7.0/fpm/pool.d/nextcloud.conf"
 NGINX_VHOST_PATH_NEXTCLOUD="/etc/nginx/sites-available/nextcloud.conf"
 NGINX_BASIC_AUTH_NEXTCLOUD_FILE=nextcloud
@@ -208,7 +215,7 @@ APPNAME_BBS=bbs
 PHP_OWNER_BBS=$SERVICE_USER_BBS
 NGINX_VHOST_PATH_BBS="/etc/nginx/sites-available/bbs.conf"
 POOL_CONF_PATH_BBS="/etc/php/7.0/fpm/pool.d/bbs.conf"
-VHOST_SERVER_NAME_BBS=bbs.testorg.com
+VHOST_SERVER_NAME_BBS=bbs.example.com
 
 
 #
@@ -221,7 +228,7 @@ APPNAME_COPS=cops
 PHP_OWNER_COPS=$SERVICE_USER_COPS
 NGINX_VHOST_PATH_COPS="/etc/nginx/sites-available/cops.conf"
 POOL_CONF_PATH_COPS="/etc/php/7.0/fpm/pool.d/cops.conf"
-VHOST_SERVER_NAME_COPS=cops.testorg.com
+VHOST_SERVER_NAME_COPS=cops.example.com
 CALIBRE_LIBRARY=/vagrant/calibre
 NGINX_BASIC_AUTH_COPS_FILE=cops
 NGINX_BASIC_AUTH_COPS_USER=cops
@@ -240,7 +247,7 @@ APPNAME_PFA=postfixadmin
 PHP_OWNER_PFA=$SERVICE_USER_PFA
 NGINX_VHOST_PATH_PFA="/etc/nginx/sites-available/pfa.conf"
 POOL_CONF_PATH_PFA="/etc/php/7.0/fpm/pool.d/pfa.conf"
-VHOST_SERVER_NAME_PFA=pfa.testorg.com
+VHOST_SERVER_NAME_PFA=pfa.example.com
 CALIBRE_LIBRARY=/vagrant
 NGINX_BASIC_AUTH_PFA_FILE=pfa
 NGINX_BASIC_AUTH_PFA_USER=pfa
@@ -329,7 +336,7 @@ SIEVE_VMAIL_DIR=/var/vmail/sieve
 #
 GITLAB_CONFIG=/etc/gitlab/gitlab.rb
 NGINX_VHOST_PATH_GITLAB="/etc/nginx/sites-available/gitlab.conf"
-VHOST_SERVER_NAME_GITLAB=git.testorg.com
+VHOST_SERVER_NAME_GITLAB=git.example.com
 APPNAME_GITLAB=gitlab
 GITLAB_URL=https://$VHOST_SERVER_NAME_GITLAB/
 
@@ -342,7 +349,7 @@ GITLAB_URL=https://$VHOST_SERVER_NAME_GITLAB/
 SERVICE_USER_DRAW=drawio
 HTML_ROOT_DRAW=/var/www/drawio
 NGINX_VHOST_PATH_DRAW="/etc/nginx/sites-available/drawio.conf"
-VHOST_SERVER_NAME_DRAW=draw.testorg.com
+VHOST_SERVER_NAME_DRAW=draw.example.com
 APPNAME_DRAW=drawio
 
 #

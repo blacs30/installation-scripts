@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running $0"
+
 source /vagrant/environment.sh
 
 $INSTALLER install -y software-properties-common php7.0 php7.0-common php7.0-mbstring php7.0-xmlwriter php7.0-mysql php7.0-intl php7.0-mcrypt php7.0-ldap php7.0-imap php7.0-cli php7.0-gd php7.0-json php7.0-curl php7.0-xmlrpc php7.0-zip libsm6 libsmbclient
@@ -36,7 +43,7 @@ SOFTWARE_URL=https://download.owncloud.org/community/owncloud-9.1.5.tar.bz2
 SOFTWARE_ZIP=$(basename $SOFTWARE_URL)
 
 
-cd /tmp
+cd /tmp || ( echo "Error cannot change dir to /tmp - exit" && exit 1 )
 wget $SOFTWARE_URL -O /tmp/"$SOFTWARE_ZIP"
 tar -xjf  /tmp/"$SOFTWARE_ZIP"
 cp -rT owncloud "$HTML_ROOT_OWNCLOUD"
@@ -279,7 +286,7 @@ sed -i "s,UTC,$OWNCLOUD_TIMEZONE,"  "$HTML_ROOT_OWNCLOUD"/config/config.php
 
 su $PHP_OWNER_OWNCLOUD -s /bin/bash -c "php $HTML_ROOT_OWNCLOUD/occ background:cron"
 
-(crontab -l -u "$PHP_OWNER_OWNCLOUD"  2>/dev/null; echo "*/15 * * * * php $HTML_ROOT_OWNCLOUD/cron.php") | crontab -u "$PHP_OWNER_OWNCLOUD" -
+(crontab -l -u "$PHP_OWNER_OWNCLOUD"  2>/dev/null; echo "*/15 * * * * php $HTML_ROOT_OWNCLOUD/cron.php") | crontab -u "$PHP_OWNER_OWNCLOUD" - || true
 
 sed -i '$ d' "$HTML_ROOT_OWNCLOUD"/config/config.php
 {

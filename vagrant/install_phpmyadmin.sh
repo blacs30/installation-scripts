@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running $0"
+
 # load variables
 source /vagrant/environment.sh
 
@@ -33,7 +40,7 @@ fi
 PHPMYADMIN_CONF="$HTML_ROOT_PHPMYADMIN"/config.inc.php
 cp "$HTML_ROOT_PHPMYADMIN"/config.sample.inc.php "$PHPMYADMIN_CONF"
 
-BLOWFISH_PASS=$(< /dev/urandom tr -dc "a-zA-Z0-9@#*=" | fold -w 32 | head -n 1)
+BLOWFISH_PASS=$(< /dev/urandom tr -dc "a-zA-Z0-9@#*=" | head -c ${1:-32};echo;)
 sed -i "s/.*'blowfish_secret'.*/\$cfg['blowfish_secret'] = '$BLOWFISH_PASS';/g" "$PHPMYADMIN_CONF"
 sed -i "s/localhost/127.0.0.1/g" "$PHPMYADMIN_CONF"
 sed -i "/AllowNoPassword/a \$cfg['ForceSSL'] = 'true';" "$PHPMYADMIN_CONF"

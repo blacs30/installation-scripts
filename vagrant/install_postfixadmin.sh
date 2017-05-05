@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running $0"
+
 # load variables
 source /vagrant/environment.sh
 
@@ -17,7 +24,7 @@ SOFTWARE_URL=https://netcologne.dl.sourceforge.net/project/postfixadmin/postfixa
 SOFTWARE_ZIP=$(basename $SOFTWARE_URL)
 SOFTWARE_DIR=$(printf "%s" "$SOFTWARE_ZIP" | sed -e 's/.tar.gz//')
 
-cd /tmp
+cd /tmp || ( echo "Error cannot change dir to /tmp - exit" && exit 1 )
 wget $SOFTWARE_URL
 tar -xf /tmp/"$SOFTWARE_ZIP"
 cp -r "$SOFTWARE_DIR"/* "$HTML_ROOT_PFA"
@@ -203,7 +210,7 @@ ln -s "$NGINX_VHOST_PATH_PFA" /etc/nginx/sites-enabled/"$APPNAME_PFA"
 systemctl restart php7.0-fpm && systemctl restart nginx
 
 # check the response code of the url call
-response=$(curl --write-out %{http_code} --silent --output /dev/null https://"$NGINX_BASIC_AUTH_PFA_USER":"$NGINX_BASIC_AUTH_PFA_PW"@"$VHOST_SERVER_NAME_PFA"/setup.php --insecure)
+response=$(curl --write-out %{http_code} --silent --output /dev/null https://"$NGINX_BASIC_AUTH_PFA_USER":"$NGINX_BASIC_AUTH_PFA_PW"@"$VHOST_SERVER_NAME_PFA"/setup.php --insecure) || true
 
 # if response is not 200 (OK) then add the server domain name into the hosts.
 # remove it after run the curl again

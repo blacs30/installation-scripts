@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running $0"
+
 # load variables
 source /vagrant/environment.sh
 
@@ -243,7 +250,7 @@ sed -i "s|<AllowFiles.*|<AllowFiles>On</AllowFiles>|" $WEBMAIL_CONFIG_FILE
 
 
 # check the response code of the url call
-response=$(curl --write-out %{http_code} --silent --output /dev/null https://"$NGINX_BASIC_AUTH_WEBMAIL_USER":"$NGINX_BASIC_AUTH_WEBMAIL_PW"@"$VHOST_SERVER_NAME_WEBMAIL"/adminpanel/index.php?login --insecure)
+response=$(curl --write-out %{http_code} --silent --output /dev/null https://"$NGINX_BASIC_AUTH_WEBMAIL_USER":"$NGINX_BASIC_AUTH_WEBMAIL_PW"@"$VHOST_SERVER_NAME_WEBMAIL"/adminpanel/index.php?login --insecure) || true
 
 # if response is not 200 (OK) then add the server domain name into the hosts.
 # remove it after run the curl again

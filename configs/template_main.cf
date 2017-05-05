@@ -51,6 +51,9 @@ smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
 # Enable (but don't force) all incoming smtp connections to use TLS.
 smtpd_tls_security_level = may
 
+# According to RFC 2487 this MUST NOT be applied in case of a publicly-referenced SMTP server.
+smtpd_tls_auth_only = no
+
 # The default snakeoil certificate. Comment if using a purchased
 # SSL certificate.
 smtpd_tls_cert_file = /var/www/mail.example.com/ssl/mail.example.com.crt
@@ -61,8 +64,8 @@ smtpd_tls_key_file = /var/www/mail.example.com/ssl/mail.example.com.key
 # if you are using your own SSL certificate, then you probably have
 # a CA certificate bundle from your provider. The path to that goes
 # here.
-smtpd_tls_CAfile = /etc/letsencrypt/live/www.example.com/fullchain.pem
-smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
+# smtpd_tls_CAfile = /etc/letsencrypt/live/www.example.com/fullchain.pem
+# smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
 
 smtpd_tls_mandatory_protocols = !SSLv2, !SSLv3
 smtpd_tls_protocols = !SSLv2, !SSLv3

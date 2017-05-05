@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running $0"
+
 source /vagrant/environment.sh
 
 $INSTALLER update
 $INSTALLER install -y php7.0-fpm
-mv /etc/php/7.0/fpm/pool.d/www.conf /etc/php/7.0/fpm/pool.d/www.conf.backup
+## At least one pool config has to exist
+# mv /etc/php/7.0/fpm/pool.d/www.conf /etc/php/7.0/fpm/pool.d/www.conf.backup
 sed -i "s,.*date.timezone =.*,date.timezone = $PHP_TIMEZONE," "$PHP_CONFIG_FILE"
 sed -i 's/.*opcache.enable =.*/opcache.enable = 1/' "$PHP_CONFIG_FILE"
 sed -i 's/.*events.mechanism =.*/events.mechanism = epoll/' "$PHPFPM_CONFIG_FILE"

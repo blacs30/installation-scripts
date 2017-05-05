@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running $0"
+
 # load variables
 source /vagrant/environment.sh
 
@@ -14,7 +21,7 @@ if [ ! -d "$HTML_ROOT_DRAW" ]; then
   mkdir -p "$HTML_ROOT_DRAW"
 fi
 
-cd "$HTML_ROOT_DRAW"
+cd "$HTML_ROOT_DRAW" || ( echo "Error cannot change dir to $HTML_ROOT_DRAW - exit" && exit 1 )
 
 GIT_REPO_URL=https://github.com/jgraph/draw.io.git
 

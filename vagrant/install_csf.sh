@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running $0"
+
 source /vagrant/environment.sh
 
 $INSTALLER install -y libwww-perl
-cd /tmp
+cd /tmp || ( echo "Error cannot change dir to /tmp - exit" && exit 1 )
 wget --no-check-certificate https://download.configserver.com/csf.tgz
 tar -xzf csf.tgz
-ufw_exe=$(which ufw)
-if [ ! -z $ufw_exe ]; then ufw disable; fi
-cd csf
+ufw_exe=$(which ufw) || true
+if [ ! -z "$ufw_exe" ]; then ufw disable; fi
+cd csf || ( echo "Error cannot change dir to /tmp/csf - exit" && exit 1 )
 sh install.sh
 
 # prerequisite check

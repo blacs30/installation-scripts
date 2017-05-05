@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running $0"
+
 # load variables
 source /vagrant/environment.sh
 
@@ -21,7 +28,7 @@ BBSZIPFILE=$(basename $BBSZIPFILEPATH)
 BBSUNZIPNAME=BicBucStriim-$(echo "$BBSZIPFILE" | sed -r 's/v([0-9].[0-9].[0-9].?[0-9]?).zip/\1/')
 
 
-cd /tmp
+cd /tmp || ( echo "Error cannot change dir to /tmp - exit" && exit 1 )
 wget $BBSZIPFILEPATH
 unzip "$BBSZIPFILE"
 rm "$BBSZIPFILE"

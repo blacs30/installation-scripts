@@ -2,12 +2,20 @@
 
 # URL https://coolaj86.com/articles/create-your-own-certificate-authority-for-testing/
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running create_snakeoil_certs.sh"
+
 source /vagrant/environment.sh
 
 # * * * * * * * * * * * * * * *
 # Define alternateDNS entry
 # * * * * * * * * * * * * * * *
 # From the array build the alternateDNS variable with DNS: and commas
+KEY_SUBJ_ALT_NAME_TEMP=
 counter=0
 for i in ${KEY_SUBJ_ALT_NAME[*]}; do
 	if [ "$counter" == "0" ]; then
@@ -17,7 +25,7 @@ for i in ${KEY_SUBJ_ALT_NAME[*]}; do
 		ADD_ALT_DOMAIN=,DNS:$i
 		KEY_SUBJ_ALT_NAME_TEMP=${KEY_SUBJ_ALT_NAME_TEMP}${ADD_ALT_DOMAIN}
 	fi
-counter=$(($counter + 1))
+counter=$((counter + 1))
 done
 
 # check in case there are no alternateDNS and set the alternateDNS to the KEY_COMMON_NAME

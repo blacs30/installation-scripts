@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running $0"
+
 # load variables
 source /vagrant/environment.sh
 
@@ -60,7 +67,7 @@ zoo
 
 
 # vmail user setup and folder creation
-useradd -r -u 150 -g mail -d /var/vmail -s /sbin/nologin -c "Virtual maildir handler" vmail
+useradd --system --uid 150 --gid mail --home-dir /var/vmail -s /sbin/nologin -c "Virtual maildir handler" vmail
 mkdir /var/vmail
 chmod 770 /var/vmail
 chown vmail:mail /var/vmail
@@ -178,17 +185,8 @@ sed -i 's,#   \\%bypass_virus_checks,   \\%bypass_virus_checks,' "$AMAVIS_CONF"
 sed -i "s,#@bypass_spam_checks_maps,@bypass_spam_checks_maps," "$AMAVIS_CONF"
 sed -i 's,#   \\%bypass_spam_checks,   \\%bypass_spam_checks,' "$AMAVIS_CONF"
 
-# AMAVIS_DEFAULTS_CONF=/etc/amavis/conf.d/20-debian_defaults
-sed -i "s,\$sa_spam_subject_tag.*,\$sa_spam_subject_tag = '***SPAM*** ';," "$AMAVIS_DEFAULTS_CONF"
-sed -i "s,\$sa_tag_level_deflt.*,\$sa_tag_level_deflt  = undef;," "$AMAVIS_DEFAULTS_CONF"
-sed -i "s,\$sa_tag2_level_deflt.*,\$sa_tag2_level_deflt = 5;," "$AMAVIS_DEFAULTS_CONF"
-sed -i "s,\$sa_kill_level_deflt.*,\$sa_kill_level_deflt = 20;," "$AMAVIS_DEFAULTS_CONF"
-sed -i "s,\$sa_dsn_cutoff_level.*,\$sa_dsn_cutoff_level = 10;   # spam level beyond which a DSN is not sent," "$AMAVIS_DEFAULTS_CONF"
-
 
 # AMAVIS_USER_ACCESS_CONF=/etc/amavis/conf.d/50-user
-sed -i "s,#@bypass_virus_checks_maps,@bypass_virus_checks_maps," "$AMAVIS_USER_ACCESS_CONF"
-sed -i -e '12,13d' "$AMAVIS_USER_ACCESS_CONF"
 
 # amavis database connection to check for new mails
 cat <<- EOF >> "$AMAVIS_USER_ACCESS_CONF"
@@ -232,7 +230,6 @@ EOF
 # SAPMASSASSIN_DEFAULT=/etc/default/spamassassin
 sed -i 's,ENABLED=0,ENABLED=1,' "$SAPMASSASSIN_DEFAULT"
 sed -i 's,CRON=0,CRON=1,' "$SAPMASSASSIN_DEFAULT"
-sed -i 's,OPTIONS=".*,OPTIONS="--create-prefs --max-children 5 --helper-home-dir -d -u debian-spamd",' "$SAPMASSASSIN_DEFAULT"
 
 
 
@@ -373,18 +370,6 @@ postconf -e "smtpd_tls_dh1024_param_file = $DH_PARAMS_FILE"
 postconf -e "myhostname = $POSTFIX_MAILNAME"
 postconf -e "smtpd_tls_auth_only = no"
 
-cat << EOF >> "$POSTFIX_MAIN"
-
-#-----------------
-# TLSA DANE support
-#-----------------
-EOF
-postconf -e "smtp_tls_security_level = dane"
-postconf -e "smtpd_use_tls = yes"
-postconf -e "smtp_use_tls = yes"
-postconf -e "smtp_dns_support_level = dnssec"
-postconf -e "smtp_tls_loglevel = 1"
-
 # download master.cf fro postfix from github
 # POSTFIX_MASTER=/etc/postfix/master.cf
 mv "$POSTFIX_MASTER" "$POSTFIX_MASTER".orig
@@ -473,7 +458,7 @@ postconf -e "milter_protocol = 2"
 postconf -e "smtpd_milters = inet:127.0.0.1:8891,inet:127.0.0.1:8892"
 postconf -e "non_smtpd_milters = inet:127.0.0.1:8891,inet:127.0.0.1:8892"
 
-cd /tmp
+cd /tmp || ( echo "Error cannot change dir to /tmp - exit" && exit 1 )
 opendkim-genkey -t -s dkim -d "$OPENDKIM_DOMAIN"
 
 if [ -f /tmp/dkim.private ]; then
@@ -575,7 +560,7 @@ EOF
 
 chmod +x "$DMARC_REPORT_SCRIPT"
 
-(crontab -l -u opendmarc  2>/dev/null; echo "1 0 * * * opendmarc $DMARC_REPORT_SCRIPT") | crontab -u opendmarc -
+(crontab -l -u opendmarc  2>/dev/null; echo "1 0 * * * opendmarc $DMARC_REPORT_SCRIPT") | crontab -u opendmarc - || true
 
 
 cat << EOF >> "$ARTIFACT_DIR"/mailserver_output.txt
@@ -597,20 +582,33 @@ Remove after testing the
 EOF
 
 
+cat << EOF >> "$POSTFIX_MAIN"
+
+#-----------------
+# TLSA DANE support
+#-----------------
+EOF
+postconf -e "smtp_tls_security_level = dane"
+postconf -e "smtpd_use_tls = yes"
+postconf -e "smtp_use_tls = yes"
+postconf -e "smtp_dns_support_level = dnssec"
+postconf -e "smtp_tls_loglevel = 1"
+
+
 # * * * * * * * * * * * * * * *
 # openSRSRD  installation and configuration
 # * * * * * * * * * * * * * * *
 $INSTALLER install --assume-yes unzip cmake
 
 # Download and extract source code from GitHub.
-cd /tmp
+cd /tmp || ( echo "Error cannot change dir to /tmp - exit" && exit 1 )
 curl -L -o postsrsd.zip https://github.com/roehling/postsrsd/archive/master.zip
 unzip postsrsd.zip
 
 # Build and install.
-cd postsrsd-master
+cd postsrsd-master || ( echo "Error cannot change dir to /tmp/postsrsd-master - exit" && exit 1 )
 mkdir build
-cd build
+cd build || ( echo "Error cannot change dir to /tmp/postsrsd-master/build - exit" && exit 1 )
 cmake -DCMAKE_INSTALL_PREFIX=/usr ../
 make
 make install
@@ -662,9 +660,9 @@ chown -R vmail:mail "$SIEVE_VMAIL_DIR"
 sievec "$SIEVE_VMAIL_DIR"/spam-global.sieve
 
 
-cd /etc/init.d
-freshclam
-systemctl enable postsrsd
+cd /etc/init.d || ( echo "Error cannot change dir to /etc/init.d - exit" && exit 1 )
+
+systemctl enable spamassassin
 systemctl enable postsrsd
 systemctl restart postsrsd
 systemctl restart clamav-daemon

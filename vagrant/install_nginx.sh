@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running $0"
+
 source /vagrant/environment.sh
 
 $INSTALLER install -y nginx
 
 # download and update the geoip database and tools
 $INSTALLER install -y geoip-database libgeoip1 apache2-utils
-cd /usr/share/GeoIP
+cd /usr/share/GeoIP || ( echo "Error cannot change dir to /tmp - exit" && exit 1 )
 mv GeoIP.dat GeoIP.dat_bak
 wget https://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz --no-check-certificate
 gunzip GeoIP.dat.gz

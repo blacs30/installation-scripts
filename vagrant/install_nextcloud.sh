@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running $0"
+
 source /vagrant/environment.sh
 
 $INSTALLER install -y software-properties-common php7.0 php7.0-common php7.0-mbstring php7.0-xmlwriter php7.0-mysql php7.0-intl php7.0-mcrypt php7.0-ldap php7.0-imap php7.0-cli php7.0-gd php7.0-json php7.0-curl php7.0-xmlrpc php7.0-zip libsm6 libsmbclient
@@ -35,7 +42,7 @@ SOFTWARE_URL=https://download.nextcloud.com/server/releases/nextcloud-11.0.3.tar
 SOFTWARE_ZIP=$(basename $SOFTWARE_URL)
 
 
-cd /tmp
+cd /tmp || ( echo "Error cannot change dir to /tmp - exit" && exit 1 )
 wget $SOFTWARE_URL -O /tmp/"$SOFTWARE_ZIP"
 tar -xjf  /tmp/"$SOFTWARE_ZIP"
 cp -rT nextcloud "$HTML_ROOT_NEXTCLOUD"
@@ -253,7 +260,7 @@ systemctl restart php7.0-fpm
 nginx -t && systemctl restart nginx
 
 # download files which can set permissions
-wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/setup_secure_permissions_nextcloud.sh --no-check-certificate -O "$HTML_ROOT_NEXTCLOUD"/set-secure-permission.sh
+wget https://raw.githubusercontent.com/blacs30/installation-scripts/master/configs/setup_secure_permissions_owncloud.sh --no-check-certificate -O "$HTML_ROOT_NEXTCLOUD"/set-secure-permission.sh
 sed -i "s,NEXTCLOUDPATH,$HTML_ROOT_NEXTCLOUD," "$HTML_ROOT_NEXTCLOUD"/set-secure-permission.sh
 sed -i "s,HTUSER,$PHP_OWNER_NEXTCLOUD," "$HTML_ROOT_NEXTCLOUD"/set-secure-permission.sh
 chmod +x "$HTML_ROOT_NEXTCLOUD"/set-secure-permission.sh
@@ -274,7 +281,7 @@ sed -i "s,UTC,$NEXTCLOUD_TIMEZONE,"  "$HTML_ROOT_NEXTCLOUD"/config/config.php
 
 su $PHP_OWNER_NEXTCLOUD -s /bin/bash -c "php $HTML_ROOT_NEXTCLOUD/occ background:cron"
 
-(crontab -l -u "$PHP_OWNER_NEXTCLOUD"  2>/dev/null; echo "*/15 * * * * php $HTML_ROOT_NEXTCLOUD/cron.php") | crontab -u "$PHP_OWNER_NEXTCLOUD" -
+(crontab -l -u "$PHP_OWNER_NEXTCLOUD"  2>/dev/null; echo "*/15 * * * * php $HTML_ROOT_NEXTCLOUD/cron.php") | crontab -u "$PHP_OWNER_NEXTCLOUD" - || true
 
 sed -i '$ d' "$HTML_ROOT_NEXTCLOUD"/config/config.php
 {

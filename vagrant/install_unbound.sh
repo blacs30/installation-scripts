@@ -1,16 +1,26 @@
 #!/usr/bin/env bash
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running install_unbound.sh"
+
 source /vagrant/environment.sh
 
 $INSTALLER install -y unbound
 
-mkdir -p "$(dirname $UNBOUND_NEW_ROOT_KEY)"
+mkdir -v -p "$(dirname "$UNBOUND_NEW_ROOT_KEY")"
 
-unbound-anchor -a $UNBOUND_NEW_ROOT_KEY
+if ! unbound-anchor -v -a "$UNBOUND_NEW_ROOT_KEY" && [ ! -f "$UNBOUND_NEW_ROOT_KEY" ]; then
+	echo "Error while creating unbound root.key - Exiting"
+	exit 1
+fi
 
-chown -R unbound:unbound "$(dirname $UNBOUND_NEW_ROOT_KEY)"
+chown -R unbound:unbound "$(dirname "$UNBOUND_NEW_ROOT_KEY")"
 
-sed -i "s,auto-trust-anchor-file.*,auto-trust-anchor-file: \"$UNBOUND_NEW_ROOT_KEY\"," $UNBOUND_TRUST_FILE
+sed -i "s,auto-trust-anchor-file.*,auto-trust-anchor-file: \"$UNBOUND_NEW_ROOT_KEY\"," "$UNBOUND_TRUST_FILE"
 
 echo "server:
 interface: 127.0.0.1

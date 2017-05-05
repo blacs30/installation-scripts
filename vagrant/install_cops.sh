@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o xtrace
+
+echo "Running $0"
+
 # load variables
 source /vagrant/environment.sh
 
@@ -19,7 +26,7 @@ COPSZIPFILEPATH=https://github.com/seblucas/cops/releases/download/1.1.0/cops-1.
 COPSZIPFILE=$(basename $COPSZIPFILEPATH)
 
 
-cd /tmp
+cd /tmp || ( echo "Error cannot change dir to /tmp - exit" && exit 1 )
 wget $COPSZIPFILEPATH
 unzip "$COPSZIPFILE" -d "$HTML_ROOT_COPS"
 if [ -f "$COPSZIPFILE" ]; then
