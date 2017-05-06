@@ -1,5 +1,3 @@
-In work
-
 # Install Mailserver and components
 I have read through a couple of different HowTo's, tutorials pages for some particular configurations until I came up with a working mailserver setup. The setup tries to guide through the main steps of setting up a mailserver. I hope the steps are neither to highlevel nor go to deep into detail. At the end I have listed some very helpful resources where some further questions might be answered. Of course all documentations of the used software is recommended firstly for more understanding of the software itself.  
 The mailserver uses virtual mailaccounts with can be managed e.g. by Postfix Admin, a web interface for the configuration of postfix users and domains as well as aliases. A manual on how to install is separately available.
