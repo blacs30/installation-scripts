@@ -8,14 +8,14 @@ The mailserver uses virtual mailaccounts with can be managed e.g. by Postfix Adm
 
 Following components are required. Check other manuals on how to install them.
 - [mysql-server](./install_mysql.md)
-- nginx  
-- php-fpm
-- postfixadmin
-- phpmyadmin
+- [nginx](./install_nginx.md)  
+- [php-fpm](./install_phpfpm.md)  
+- [postfixadmin](./install_postfixadmin.md)  
+- [phpmyadmin](./install_phpmyadmin.md)  
 
 In case you want to use ssl/tls --> **all steps assume that ssl/tls is used** :  
-- ssl (or snakeoil certs, works for testing)  
-- optional but recommended to create a new stronger __dh key__
+- [ssl (or snakeoil certs, works for testing)](./create_snakeoil_certs.md)    
+- [optional but recommended to create a new stronger __dh key__](./create_dh_key.md)  
 
 
 ### Chapters  
@@ -23,9 +23,13 @@ In case you want to use ssl/tls --> **all steps assume that ssl/tls is used** :
 - [Configure Dovecot](#configure_dovecot)
 - [Configure Amavis, ClamAV, SpamAssassin, Postgrey](#configure_virusspam)
 - [Configure Postfix](#configure_postfix)
-
-
-
+- [Configure SPF](#configure_spf)
+- [Configure DKIM](#configure_dkim)
+- [Configure DMARC](#configure_dmarc)
+- [Configure DANE](#configure_dane)
+- [Install and configure SRS](#configure_srs)
+- [Configure SIEVE](#configure_sieve)
+- [Restart services](#restart_services)
 - [References](#references)
 
 
@@ -858,14 +862,296 @@ dovecot      unix   -        n      n       -       -   pipe
   flags=DRhu user=vmail:mail argv=/usr/lib/dovecot/dovecot-lda -d $(recipient)
 ```
 
+Note that amavis is restricted to 2 processes. You can change this in the master.cf and the amavis configuration.
+
+You could test the mailserver internally by now already. When sending mails out and receiving mails from the world there are some other important things to setup.   
+- Make sure to configure reverse DNS otherwise mails might be rejected
+- configure the mx DNS entry
+
+And there are further specifications to make sure mails are not spam and to ensure that mails were not modified between sending and receiving. We start with SPF.
 
 
+### <a name="configure_spf"></a> Configure SPF
+
+(SPF) Sender Policy Framework advertises the domain's mailserver by an DNS entry. To check incoming mails domain's SPF DNS entry some additions have to be configured. - [SPF FAQ](http://www.openspf.org/FAQ/Common_mistakes)
+
+`aptitude install postfix-policyd-spf-python`
+
+Edit the file `/etc/postfix-policyd-spf-python/policyd-spf.conf`  
+
+We want to set the HELO_reject to false so that an incoming mail is not immediately rejected but a header appended and spamassassin can inspect it later.  
+```
+HELO_reject = False
+Mail_From_reject = False
+```
+
+Next we configure postfix for SPF. Add the following lines to the `/etc/postfix/main.cf`:  
+```
+# --------------------------------------
+# SPF
+# --------------------------------------
+policy-spf_time_limit = 3600s
+
+### this is only for the testing period
+### send each mail in a blind copy to the postmaster
+always_bcc = postmaster@example.com
+```
+
+In the master.cf `/etc/postfix/master.cf` add the spf policy:  
+```
+# --------------------------------------
+# SPF
+# --------------------------------------
+policy-spf unix  -       n       n       -       -       spawn user=nobody
+```
+
+Depending on the way how you set DNS entries you might have following entries:
+```
+reate an DNS TXT entry at
+@    MX    5   mail.example.com
+@    TXT       v=spf1 a mx -all
+@    A         IP
+```
 
 
+### <a name="configure_dkim"></a> Configure DKIM
+DKIM (DomainKeys Identified Mail) description from [Wikipedia](https://en.wikipedia.org/wiki/DomainKeys_Identified_Mail):  
+> DomainKeys Identified Mail (DKIM) is an email authentication method designed to detect email spoofing. It allows the receiver to check that an email claimed to have come from a specific domain was indeed authorized by the owner of that domain.
+
+To make usage of this additional mechanism we need to install first some packages:  
+`aptitude install opendkim opendkim-tools`
+
+Configure dkim `/etc/opendkim.conf` this way:  
+
+```
+Canonicalization relaxed/simple
+Mode sv
+Domain example.com
+KeyFile /etc/postfix/dkim.key
+Selector dkim
+SOCKET inet:8891@127.0.0.1
+```
+
+Add the "SOCKET" configuration to the `/etc/default/opendkim`:  
+```
+SOCKET="inet:8891@localhost"
+```
+
+Postfix has to know about dkim too and what it should do. Add the following lines in `/etc/postfix/main.cf`  
+```
+#-----------------
+# DKIM config
+#-----------------
+milter_default_action = accept
+milter_protocol = 2
+smtpd_milters = inet:127.0.0.1:8891,inet:127.0.0.1:8892
+non_smtpd_milters = inet:127.0.0.1:8891,inet:127.0.0.1:8892
+```
+
+Now we have to generate the dkim.key with this command:  
+```
+opendkim-genkey --selector dkim --domain example.com
+```
+
+You have created with the above command a file dkim.key and dkim.txt. The first is the private key which is signing the mail, the second is the public key which is added as a DNS entry
+Move the dkim.key into place and assign right ownership and permissions. Keep a copy for yourself in a safe place too.
+```
+mv dkim.private /etc/postfix/dkim.key
+chmod 660 /etc/postfix/dkim.key
+chown root:opendkim /etc/postfix/dkim.key
+```
+
+Read the dkim.txt and create an DNS TXT entry in the following way, notice the first "dkim" has to be the same as the selector entered before:  
+```
+dkim._domainkey.example.com. IN TXT "v=DKIM1; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC9rulKo58JIb5h+3MMEnYhlnbuVgRoA4w68R/X7qA2Lfv3RpdrrUb+r7KxemIo6PUIOm6uZ5OymhBgpJ0LAWBHBSJjnFmDXNajSgxMOcvkpgmVCW1/k1kxK864WVVSyFVQPyUImqklY+ws4u+mog3PSbuq2J8NFAnvSwzMg3vT1QIDAQAB"
+```
+
+### <a name="configure_dmarc"></a> Configure DMARC
+
+Whereas SPF is telling others which domains can send from your mailserver and dkim is a way to ensure that the mail was really send from you and not somebody else is DMARC (Domain-based Message Authentication, Reporting & Conformance) more focussed on reporting and authentication.
+
+It is helpful to use it in connection with SPF and DKIM.
+
+Install its package.
+```bash
+aptitude install opendmarc
+```
 
 
+For DMARC reporting functionality we use a database in which a couple of information is saved (domains, ipaddr, messages, reporters, requests, signatures) and reports send to those who request it.  
+
+```mysql
+CREATE DATABASE IF NOT EXISTS opendmarc;
+GRANT ALL PRIVILEGES ON opendmarc.* TO 'myuser'@'localhost' IDENTIFIED BY 'myuserpass';
+```
+
+Import the mysql schema to create the table structure. Opendmarc delivers it and is found in /usr/share/doc/opendmarc/schema.mysql.
+The command looks this way:  
+```bash
+mysql -umyuser -pmyuserpass -hlocalhost < /usr/share/doc/opendmarc/schema.mysql
+```
+
+Edit the `/etc/opendmarc.conf` and adjust it this way or modify it to your needs - [explanations here](http://www.trusteddomain.org/opendmarc/opendmarc.conf.5.html):  
+
+```
+AuthservID mail.example.com
+RejectFailures false
+Syslog true
+PidFile /var/run/opendmarc.pid
+TrustedAuthservIDs HOSTNAME
+UMask 0002
+UserID opendmarc:opendmarc
+HistoryFile /var/run/opendmarc/opendmarc.dat
+IgnoreHosts /etc/opendmarc/ignore.hosts
+IgnoreMailFrom example.com,example2.com
+
+# For testing
+SoftwareHeader true
+```
+
+Create the file `/etc/opendmarc/ignore.hosts` which we just defined in the config. Adjust the content to your needs:   
+```
+127.0.0.1
+mail.example.com
+```
+
+Add the socket on which opendmarc should listen to the `/etc/default/opendmarc` defaults:  
+```
+SOCKET="inet:8892@127.0.0.1"
+```
+
+So far so good, to send out reports we need a script. We run it via cron jobs. The file can be e.g. here: `/etc/opendmarc/report_script`    
+```bash
+#!/usr/bin/env bash
+
+DB_SERVER=localhost
+DB_USER=myuser
+DB_PASS=myuserpass
+DB_NAME='opendmarc'
+WORK_DIR='/run/opendmarc'
+REPORT_EMAIL=abuse@example.com
+REPORT_ORG=mail.example.com
+
+mv ${WORK_DIR}/opendmarc.dat ${WORK_DIR}/opendmarc_import.dat -f
+cat /dev/null > ${WORK_DIR}/opendmarc.dat
+
+/usr/sbin/opendmarc-import --dbhost=${DB_SERVER} --dbuser=${DB_USER} --dbpasswd=${DB_PASS} --dbname=${DB_NAME} --verbose < ${WORK_DIR}/opendmarc_import.dat
+/usr/sbin/opendmarc-reports --dbhost=${DB_SERVER} --dbuser=${DB_USER} --dbpasswd=${DB_PASS} --dbname=${DB_NAME} --verbose --interval=86400 --report-email $REPORT_EMAIL --report-org $REPORT_ORG
+/usr/sbin/opendmarc-expire --dbhost=${DB_SERVER} --dbuser=${DB_USER} --dbpasswd=${DB_PASS} --dbname=${DB_NAME} --verbose
+```
+
+Set execution permission:  
+```bash
+chmod +x /etc/opendmarc/report_script
+```
+
+Create a cron job and configure it as wished. Once a day at one is fine for me.  
+`crontab -e`  
+```
+1 0 * * * opendmarc /etc/opendmarc/report_script
+```
+
+To make it possible to receive reports from other mailserver publish a DNS TXT entry which can look this way:  
+```
+_dmarc.example.com. IN TXT "v=DMARC1; p=quarantine; rua=mailto:abuse@example.com; ruf=mailto:abuse@example.com; fo=0; adkim=r; aspf=r; pct=100; rf=afrf; ri=86400"
+```
+
+### <a name="configure_dane"></a> Configure DANE
+DANE (DNS-based Authentication of Named Entities) is a network protocol and is intended to secure the communication between client and server when using SSL/TLS. It requires that the domain registrar offers DNSSEC. Additionally a TLSA DNS entry has to be created which will be checked by postfix and if that matches the one of server to it connects or is connected from then we have a verified TLS connection.  
+
+In postfix `/etc/postfix/main.cf` we just have to ensure a few settings:  
+```
+smtp_tls_security_level = dane
+smtpd_use_tls = yes
+smtp_use_tls = yes
+smtp_dns_support_level = dnssec
+smtp_tls_loglevel = 1`
+```
+
+Before activating and using this please read the articles about dane and tlsa. Letsencrypt enables everyone to use TLS for free. The certificates have to be renewed every 90 days though. There are ways though to use also those certificates with DANE.
+
+### <a name="configure_srs"></a> Install and configure SRS
+Sometimes mails should be forwarded to other mailservers or are being forwarded to us from other mailservers. SRS (Sender Rewriting Scheme) helps to recognize this and because of this still to use SPF and forward denies of mails to the real sender. [Here it is good described](http://www.openspf.org/SRS)
+
+For postfix we have to install the software from github code:  
+```
+cd /tmp
+curl -L -o postsrsd.zip https://github.com/roehling/postsrsd/archive/master.zip
+unzip postsrsd.zip
+cd postsrsd-master
+mkdir build && cd build
+cmake -DCMAKE_INSTALL_PREFIX=/usr ../
+make
+make install
+```
 
 
+Configure postfix to use it by adding configuration to `/etc/postfix/main.cf`  
+```
+sender_canonical_maps = tcp:127.0.0.1:10001
+sender_canonical_classes = envelope_sender
+recipient_canonical_maps = tcp:127.0.0.1:10002
+recipient_canonical_classes = envelope_recipient,header_recipient
+```
+
+### <a name="configure_sieve"></a> Install and configure sieve
+When offering mailing services to other users via a webmail interface e.g. AfterLogic Webmail lite it is good to enable the user to configure auto responder or forward mails. Sieve helps us here.
+
+Install dovecot-sieve:  
+```
+aptitude install dovecot-sieve
+```
+
+Enable the mail plugins in dovecot config `/etc/dovecot/conf.d/15-lda.conf`  
+```
+mail_plugins = $mail_plugins sieve
+```
+
+Configure dovecot sieve directories and files in `/etc/dovecot/conf.d/90-sieve.conf`  
+```
+sieve_before = /var/vmail/sieve/spam-global.sieve
+sieve_dir = /var/vmail/%d/%n/sieve/scripts/
+sieve = /var/vmail/%d/%n/sieve/active-script.sieve
+```
+
+Create the directory for sieve files:  
+```
+mkdir -p /var/vmail/sieve
+```
+
+Create the global spam rule in the new file `/var/vmail/sieve/spam-global.sieve`. It moves spam flagged mails to the Junk mailbox.  
+```
+require "fileinto";
+if header :comparator "i;ascii-casemap" :contains "X-Spam-Flag" "YES"  {
+    fileinto "Junk";
+    stop;
+}
+```
+
+Apply owner and group membership on the new folder:  
+```
+chown -R vmail:mail /var/vmail/sieve
+```
+
+The last step now is to compile the sieve rule:  
+```
+sievec /var/vmail/sieve/spam-global.sieve
+```
+
+### <a name="restart_services"></a> Restart services
+```
+systemctl enable spamassassin
+systemctl enable postsrsd
+systemctl restart postsrsd
+systemctl restart clamav-daemon
+systemctl restart amavis
+systemctl restart spamassassin
+systemctl restart postgrey
+systemctl restart postfix
+systemctl restart dovecot
+systemctl restart opendmarc
+systemctl restart opendkim
+```
 
 
 
