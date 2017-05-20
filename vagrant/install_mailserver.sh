@@ -414,8 +414,8 @@ cat << EOF >> "$ARTIFACT_DIR"/mailserver_output.txt
 SPF
 ------------------------------
 Create an DNS TXT entry at
-@    MX    5   mail.lisowski-development.com
-@    TXT       v=spf1 a mx include:aspmx.googlemail.com -all
+@    MX    5   mail.example.com
+@    TXT       v=spf1 a mx -all
 @    A         IP
 
 
@@ -459,7 +459,7 @@ postconf -e "smtpd_milters = inet:127.0.0.1:8891,inet:127.0.0.1:8892"
 postconf -e "non_smtpd_milters = inet:127.0.0.1:8891,inet:127.0.0.1:8892"
 
 cd /tmp || ( echo "Error cannot change dir to /tmp - exit" && exit 1 )
-opendkim-genkey -t -s dkim -d "$OPENDKIM_DOMAIN"
+opendkim-genkey -s dkim -d "$OPENDKIM_DOMAIN"
 
 if [ -f /tmp/dkim.private ]; then
   mv dkim.private /etc/postfix/dkim.key
