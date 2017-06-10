@@ -51,6 +51,22 @@ touch /etc/mysql/.my.cnf
 chown root:root /etc/mysql/.my.cnf
 chmod 400 /etc/mysql/.my.cnf
 
+#create custom config for utf8mb4 settings
+cat << EOF > /etc/mysql/conf.d/90-custom-settings.cnf
+[client]
+default-character-set=utf8mb4
+
+[mysqld]
+collation-server = utf8mb4_unicode_ci
+init-connect='SET NAMES utf8mb4'
+character-set-server = utf8mb4
+innodb_large_prefix=on
+innodb_file_format=barracuda
+innodb_file_per_table=true
+
+[mysql]
+default-character-set=utf8mb4
+EOF
 
 sed -i "s/^bind-address.*/bind-address            = $MYSQL_BIND_NAME_IP/" /etc/mysql/my.cnf
 

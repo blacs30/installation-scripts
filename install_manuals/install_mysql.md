@@ -34,6 +34,27 @@ chown root:root /etc/mysql/.my.cnf
 chmod 400 /etc/mysql/.my.cnf
 ```
 
+### utf8mb4 support
+The character set __utf8__ alone is not enough in mysql to show all unicode characters. The required character set is __utf8mb4__.
+To use that character set create a custom configuration file with the following content:
+
+```bash
+ladmin@localhost $ cat /etc/mysql/conf.d/90-custom-settings.cnf
+[client]
+default-character-set=utf8mb4
+
+[mysqld]
+collation-server = utf8mb4_unicode_ci
+init-connect='SET NAMES utf8mb4'
+character-set-server = utf8mb4
+innodb_large_prefix=on
+innodb_file_format=barracuda
+innodb_file_per_table=true
+
+[mysql]
+default-character-set=utf8mb4
+```
+
 
 ### Create an empty database
 When I want to setup a database automatically I first check if my mysql root password is correct. This line is enough:
@@ -53,7 +74,7 @@ Now let's create the database:
 1. I create a temporaray file, you could also put the commands directly into mysql:  
 ```
 echo "
-CREATE DATABASE IF NOT EXISTS $MYSQL_DB_NAME;
+CREATE DATABASE IF NOT EXISTS $MYSQL_DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;;
 GRANT ALL PRIVILEGES ON MYSQL_DB_NAME.* TO 'MYSQL_DB_USER'@'127.0.0.1' IDENTIFIED BY 'MYSQL_DB_PASSWORD';
 quit" > /tmp/createdb.sql
 ```

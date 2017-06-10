@@ -17,7 +17,7 @@ $INSTALLER install -y software-properties-common php7.0 php7.0-mcrypt php7.0-cur
 # create database
 #
 cat << EOF > /tmp/createdb.sql
-CREATE DATABASE IF NOT EXISTS $MYSQL_DB_WEBMAIL;
+CREATE DATABASE IF NOT EXISTS $MYSQL_DB_WEBMAIL CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;;
 GRANT ALL PRIVILEGES ON $MYSQL_DB_WEBMAIL.* TO '$MYSQL_WEBMAIL_USER'@'$MYSQL_DB_HOST' IDENTIFIED BY '$MYSQL_WEBMAIL_PASS';
 quit
 EOF
