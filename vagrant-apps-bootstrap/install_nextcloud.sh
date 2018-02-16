@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Important, watch this
+# https://docs.nextcloud.com/server/11/admin_manual/maintenance/mysql_4byte_support.html
+
 set -o errexit
 set -o pipefail
 set -o nounset
